@@ -174,8 +174,18 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
     }
   }
 
-  lines.push(`本机报告：${reportFile}`);
+  lines.push(buildReportReference());
   return lines.join('\n');
+}
+
+function buildReportReference() {
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const runId = process.env.GITHUB_RUN_ID?.trim();
+  if (repository && runId) {
+    const server = process.env.GITHUB_SERVER_URL?.trim() || 'https://github.com';
+    return `GitHub 运行：${server}/${repository}/actions/runs/${runId}`;
+  }
+  return `本机报告：${reportFile}`;
 }
 
 async function sendFeishuNotification(text, failureArtifacts) {
@@ -259,7 +269,7 @@ async function sendArtifactSafely(label, action) {
 
 function buildPostContent(text, failureArtifacts) {
   const [title, ...lines] = text.split('\n');
-  const content = lines.map((line) => [{ tag: 'text', text: `${line}\n` }]);
+  const content = lines.map(buildPostLine);
 
   for (const artifact of failureArtifacts) {
     if (!artifact.imageKey) {
@@ -275,6 +285,17 @@ function buildPostContent(text, failureArtifacts) {
       content
     }
   };
+}
+
+function buildPostLine(line) {
+  const prefix = 'GitHub 运行：';
+  if (line.startsWith(prefix)) {
+    return [
+      { tag: 'text', text: prefix },
+      { tag: 'a', text: '查看运行与报告', href: line.slice(prefix.length) }
+    ];
+  }
+  return [{ tag: 'text', text: `${line}\n` }];
 }
 
 async function getTenantAccessToken(config) {

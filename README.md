@@ -88,7 +88,28 @@ npm run report
 
 当前线上页面尚未提供稳定的 `data-testid`。现有定位器以可访问名称、`data-view-name` 和局部页面结构为主。页面改版后应优先同步生成图片、3D 进度层、工具图标、购物车商品和 Checkout 关键区域的定位器。
 
-## 每日 09:00
+## GitHub Actions 定时执行
+
+远端工作流见 `.github/workflows/ui-regression.yml`，每天按北京时间执行两次全部 4 条 case：
+
+- `10:30`（UTC `02:30`）
+- `18:30`（UTC `10:30`）
+
+在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中添加 Repository secrets：
+
+```text
+FEISHU_APP_ID
+FEISHU_APP_SECRET
+FEISHU_RECEIVE_ID
+```
+
+`FEISHU_RECEIVE_ID` 当前应填写接收单聊通知的企业邮箱。工作流固定使用 `email` 类型、`all` 模式和仓库内的 `assets/two-dogs.jpeg`。执行结束后会上传 HTML 报告、截图、视频和 trace，保留 14 天；飞书消息中的“查看运行与报告”可直接打开对应 GitHub Actions 页面。
+
+GitHub 定时任务只在默认分支生效，实际启动时间可能因 GitHub 调度负载延迟数分钟。每次 `all` 执行会产生 2 次真实生成和 1 次加购，因此当前计划每天产生 4 次生成和 2 次加购，但不会付款。
+
+也可以在仓库的 `Actions -> JuJuBit UI Regression -> Run workflow` 手动触发一次验证。
+
+## 本机 launchd（可选）
 
 使用 macOS `launchd` 配置。示例配置见 `automation/com.jujubit.ui-regression.plist`，默认每天 09:00 执行 `npm run test:scheduled`。报告在 `playwright-report/`，失败证据在 `test-results/`。
 
