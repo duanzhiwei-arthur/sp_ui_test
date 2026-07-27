@@ -3,8 +3,8 @@ import { CreatePage } from './pages/create.page.js';
 
 test.describe('非生成顺序用例 @smoke', () => {
   test('TC-01: 首页 Create 可以进入创作页面', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const create = new CreatePage(page);
+    await create.gotoHomePage();
     await create.dismissMarketingPopup();
     const createLink = page.getByRole('link', { name: 'Create', exact: true });
     await expect(createLink).toHaveCount(1);

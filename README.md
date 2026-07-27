@@ -1,6 +1,10 @@
 # JuJuBit UI Regression
 
 Playwright + TypeScript 的线上游客态 UI 回归框架。测试范围止于 Checkout 订单摘要，严禁执行付款。
+## 自主执行
+
+自己做判断 如果用例执行失败  自动分析原因采用最优解修复代码  直到所有case执行成功
+执行完毕之后调用飞书cil 在我本地目录生成一份ui自动化测试报告 每次执行  都把记录 以及失败原因填写进去
 
 ## 初始化
 
@@ -67,8 +71,9 @@ npm run report
 - 常规资源与交互最多等待 2 分钟；条件提前满足时立即继续，不等待上限结束。
 - 2D 和 3D 生成阶段最多分别等待 5 分钟；图片或模型提前生成时立即继续。
 - 所有可视点击操作前后各停留约 2 秒，便于观察页面状态变化。
-- 2D 验证等待生成图片节点和资源加载完成；若页面已自动进入 3D，则立即切回 2D 做可见性断言。
-- 3D 验证等待预览图片加载、生成进度层消失和 Add to Cart 可用，再横向拖动 2 秒并比较拖动前后截图。
+- 2D 验证在左侧商品预览区等待生成图片节点和资源加载完成；若页面已自动进入 3D，则立即切回 2D 做可见性断言。
+- 3D 验证等待 `<model-viewer>` 的可见画布出现、生成进度层消失和 Add to Cart 可用，再横向拖动 2 秒并比较拖动前后截图。
+- 导航后若检测到 HTTP 429 或 `legal-rate-limited`，立即报告运行环境被限流，不再无意义等待页面元素超时。
 - 加购后进入 `/cart`，确认 Checkout 商品数量非零，再进入 Checkout。
 - Checkout 只断言订单摘要、地址表单和折扣入口可见，并确认 `Pay now` 禁用。
 
@@ -94,6 +99,14 @@ npm run report
 
 - `10:30`（UTC `02:30`）
 - `18:30`（UTC `10:30`）
+
+JuJuBit 会限制 GitHub 托管 Runner 的共享机房出口，页面会返回 `legal-rate-limited`。工作流因此使用仓库级 macOS self-hosted runner；运行机器必须保持开机联网，并预装 Node.js、`ffmpeg` 和 GitHub Actions Runner。Runner 默认标签需包含 `self-hosted`、`macOS`。未连接 runner 时，定时任务会停留在 Queued，不会执行测试。
+
+在 GitHub 仓库 `Settings -> Actions -> Runners -> New self-hosted runner` 选择 macOS，按页面命令下载、配置并把 runner 安装为后台服务。首次安装视频转换工具可执行：
+
+```bash
+brew install ffmpeg
+```
 
 在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中添加 Repository secrets：
 

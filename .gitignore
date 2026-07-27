@@ -8,3 +8,4 @@ assets/*
 !assets/two-dogs.jpeg
 automation/logs/*
 !automation/logs/.gitkeep
+github-actions-failed.log

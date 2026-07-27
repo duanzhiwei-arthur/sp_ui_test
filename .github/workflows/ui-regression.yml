@@ -16,7 +16,9 @@ concurrency:
 
 jobs:
   ui-regression:
-    runs-on: ubuntu-latest
+    # The storefront rate-limits GitHub-hosted data-center IPs. Use a trusted
+    # macOS runner registered to this repository instead.
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 45
     env:
       BASE_URL: https://jujubit.ai
@@ -24,7 +26,6 @@ jobs:
       TEST_IMAGE_DUO: assets/two-dogs.jpeg
       TEST_IMAGE_LARGE: assets/two-dogs.jpeg
       SCHEDULED_TEST_MODE: all
-      FFMPEG_PATH: /usr/bin/ffmpeg
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
       FEISHU_RECEIVE_ID_TYPE: email
@@ -43,11 +44,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium and system dependencies
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium
+        run: npx playwright install chromium
 
-      - name: Install video converter
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Resolve video converter
+        shell: bash
+        run: |
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            echo "::error::ffmpeg is required on the self-hosted runner (brew install ffmpeg)."
+            exit 1
+          fi
+          echo "$(dirname "$(command -v ffmpeg)")" >> "$GITHUB_PATH"
+          echo "FFMPEG_PATH=$(command -v ffmpeg)" >> "$GITHUB_ENV"
 
       - name: Validate Feishu configuration
         run: |

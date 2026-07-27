@@ -22,7 +22,7 @@ export class CreatePage {
   readonly threeDButton: Locator;
   readonly twoDResultImage: Locator;
   readonly threeDView: Locator;
-  readonly threeDPreviewImage: Locator;
+  readonly threeDModelCanvas: Locator;
   readonly threeDProcessingOverlay: Locator;
   readonly addToCartButton: Locator;
   readonly buyNowButton: Locator;
@@ -49,9 +49,10 @@ export class CreatePage {
     this.proToolButtons = this.generateButton.locator('xpath=preceding-sibling::button');
     this.twoDButton = page.getByRole('button', { name: '2D', exact: true });
     this.threeDButton = page.getByRole('button', { name: '3D', exact: true });
-    this.twoDResultImage = page.locator('#jjb-create-canvas [data-view-name="2d"] img[alt="Generated Toy Result"]');
-    this.threeDView = page.locator('#jjb-create-canvas [data-view-name="3d"]');
-    this.threeDPreviewImage = this.threeDView.locator('img[alt="3d preview"]');
+    const productPreview = page.locator('.product-image-container .jjb-app').first();
+    this.twoDResultImage = productPreview.locator('[data-view-name="2d"] img[alt="Generated Toy Result"]');
+    this.threeDView = productPreview.locator('[data-view-name="3d"]');
+    this.threeDModelCanvas = this.threeDView.locator('model-viewer canvas');
     this.threeDProcessingOverlay = this.threeDView.locator('[class*="bg-white/95"]').filter({
       has: page.locator('[class*="bg-linear-to-r"]')
     });
@@ -71,11 +72,36 @@ export class CreatePage {
   }
 
   async gotoProductPage(): Promise<void> {
-    await this.page.goto('/products/customize-your-own', { waitUntil: 'domcontentloaded' });
+    await this.navigate('/products/customize-your-own');
     await expect(this.createTab).toBeVisible();
   }
 
+  async gotoHomePage(): Promise<void> {
+    await this.navigate('/');
+  }
+
+  async navigate(path: string): Promise<void> {
+    const response = await this.page.goto(path, { waitUntil: 'domcontentloaded' });
+    await this.assertSiteAvailable(response?.status());
+  }
+
+  async assertSiteAvailable(status?: number): Promise<void> {
+    const bodyText = await this.page.locator('body').textContent({ timeout: 10_000 }).catch(() => '');
+    const rateLimited = status === 429 || /legal-rate-limited/i.test(bodyText ?? '');
+
+    if (rateLimited) {
+      throw new Error(
+        `站点拒绝当前运行环境（HTTP ${status ?? 'unknown'}，legal-rate-limited）：${this.page.url()}。` +
+          'GitHub 托管 Runner 的共享出口可能被限流，请使用 self-hosted runner。'
+      );
+    }
+    if (status !== undefined && (status < 200 || status >= 400)) {
+      throw new Error(`页面加载失败（HTTP ${status}）：${this.page.url()}`);
+    }
+  }
+
   async waitForCustomizer(timeout = customizerTimeout): Promise<void> {
+    await this.assertSiteAvailable();
     await expect(this.customizerLoading).toBeHidden({ timeout });
     await expect(this.generateButton).toBeVisible({ timeout });
     await this.dismissMarketingPopup();
@@ -142,9 +168,9 @@ export class CreatePage {
     await this.threeDButton.waitFor({ state: 'visible', timeout: generationTimeout });
     await this.click(this.threeDButton);
     await expect(this.threeDView).toBeVisible();
-    await this.expectImageLoaded(this.threeDPreviewImage, generationTimeout);
     // A visible progress overlay means the 3D task is still rendering.
     await expect(this.threeDProcessingOverlay).toBeHidden({ timeout: generationTimeout });
+    await expect(this.threeDModelCanvas).toBeVisible({ timeout: generationTimeout });
     await expect(this.addToCartButton).toBeEnabled({ timeout: 120_000 });
   }
 

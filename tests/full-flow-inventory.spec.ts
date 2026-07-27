@@ -55,7 +55,7 @@ test.describe('核心生成链路 @core-smoke', () => {
     const cart = new CartDrawer(page);
     await test.step('加入购物车并确认商品存在', async () => {
       await create.click(create.addToCartButton);
-      await page.goto('/cart', { waitUntil: 'domcontentloaded' });
+      await create.navigate('/cart');
       await cart.expectHasItems();
       await writeFile('cart-elements.json', JSON.stringify(await page.evaluate(inventoryScript), null, 2));
     });
