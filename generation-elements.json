@@ -1,0 +1,995 @@
+{
+  "buttons": [
+    {
+      "name": "Previous announcement",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Next announcement",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close menu",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Templates",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Categories",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "How It Works",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X\n              Close cart",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Check out",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Site navigation",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Cart",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Cart",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": ".cls-1{fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:2px}\n        Search",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": ".cls-1{fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:2px}",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Subscribe\n        \n          icon-right-arrow",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X\n          \n          \"Close (esc)\"",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "GET 15% OFF NOW",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X\n      \"Close (esc)\"",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "2D",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "3D",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "delete record",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Create",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Gallery",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Free Style",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Solo",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Upgrade",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Delete image",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Add Your Prompt",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Generate",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "6cm Best Fit",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "4cm Mini Collectible",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "5cm Compact Display",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "7cm Enhanced Detail",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "8cm Premium Display",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "10cm Display Centerpiece",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "1",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "2",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "decrease quantity",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "increase quantity",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Add to Cart",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "Buy Now15",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "Add to Cart",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "Buy Now15",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "What is a custom figurine?",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "How do I create my custom figurine?",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "What kind of characters can I create?",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "How long does it take to receive my figurine?",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "What makes a personalized figurine special?",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Previous slide",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Next slide",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Company",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Policies",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Support",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-email\n            Subscribe",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X\n    \"Close (esc)\"",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-chevron-left",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-chevron",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "icon-X",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Cancel prompt editing",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Confirm prompt editing",
+      "disabled": false,
+      "ariaPressed": null
+    }
+  ],
+  "inputs": [
+    {
+      "type": "search",
+      "placeholder": "Search",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "email",
+      "placeholder": "Enter your email",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "email",
+      "placeholder": "Enter your email",
+      "ariaLabel": null
+    },
+    {
+      "type": "file",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "email",
+      "placeholder": "Enter your email",
+      "ariaLabel": null
+    }
+  ],
+  "links": [
+    {
+      "name": "Skip to content",
+      "href": "#MainContent"
+    },
+    {
+      "name": "",
+      "href": "/"
+    },
+    {
+      "name": "Create",
+      "href": "/products/customize-your-own"
+    },
+    {
+      "name": "Templates",
+      "href": "/collections/templates-create-your-own"
+    },
+    {
+      "name": "Trending",
+      "href": "/collections/templates-create-your-own"
+    },
+    {
+      "name": "New",
+      "href": "/collections/%F0%9F%94%A5-new"
+    },
+    {
+      "name": "TRPG",
+      "href": "/collections/trpg-pod"
+    },
+    {
+      "name": "Occasions",
+      "href": "/collections/occasions-pod"
+    },
+    {
+      "name": "More services",
+      "href": "/collections/more-service"
+    },
+    {
+      "name": "Categories",
+      "href": "/collections"
+    },
+    {
+      "name": "Art Toys",
+      "href": "/collections/art-toy"
+    },
+    {
+      "name": "FDM",
+      "href": "/collections/fdm"
+    },
+    {
+      "name": "Crystal Bracelets",
+      "href": "/collections/zodiac-x-tarot"
+    },
+    {
+      "name": "Custom Keycaps",
+      "href": "/collections/keycaps"
+    },
+    {
+      "name": "How It Works",
+      "href": "/pages/how-it-works"
+    },
+    {
+      "name": "Tracking",
+      "href": "/pages/tracking"
+    },
+    {
+      "name": "Contact Us",
+      "href": "/pages/contact"
+    },
+    {
+      "name": "FAQs",
+      "href": "/pages/faqs"
+    },
+    {
+      "name": "Refund & Exchange Policy",
+      "href": "/pages/refund-exchange-policy"
+    },
+    {
+      "name": "Community",
+      "href": "/pages/about-us"
+    },
+    {
+      "name": "",
+      "href": "/account"
+    },
+    {
+      "name": "",
+      "href": "/"
+    },
+    {
+      "name": "Create",
+      "href": "/products/customize-your-own"
+    },
+    {
+      "name": "Templates",
+      "href": "/collections/templates-create-your-own"
+    },
+    {
+      "name": "Trending",
+      "href": "/collections/templates-create-your-own"
+    },
+    {
+      "name": "New",
+      "href": "/collections/%F0%9F%94%A5-new"
+    },
+    {
+      "name": "TRPG",
+      "href": "/collections/trpg-pod"
+    },
+    {
+      "name": "Occasions",
+      "href": "/collections/occasions-pod"
+    },
+    {
+      "name": "More services",
+      "href": "/collections/more-service"
+    },
+    {
+      "name": "JuJuBit Customized Figurine-Create Your Own\n    \n      $29.99",
+      "href": "/products/customize-your-own"
+    },
+    {
+      "name": "Custom Figurine of Yourself | Turn Your Photo into a 3D Printed Figure\n    \n      $29.99",
+      "href": "/products/custom-figurine-of-yourself"
+    },
+    {
+      "name": "Custom TRPG Miniature – Create Your Own Tabletop RPG Character Figure\n    \n      $29.99",
+      "href": "/products/custom-trpg-miniature-create-your-own-tabletop-rpg-character-figure"
+    },
+    {
+      "name": "Custom Special Force Figurine | Turn Yourself into a special force soldier\n    \n      $69.99",
+      "href": "/products/custom-special-force-figurine-turn-yourself-into-a-3d-secret-agent"
+    },
+    {
+      "name": "Custom Voxel Figurine | Turn Yourself into a 3D Pixelated character\n    \n      $49.99",
+      "href": "/products/custom-voxel-figurine-turn-yourself-into-a-3d-pixelated-character"
+    },
+    {
+      "name": "Custom Helmet Babies | Turn Your Image into a Cute 3D figurine\n    \n      $49.99",
+      "href": "/products/custom-helmet-babies-turn-your-image-into-a-cute-3d-figurine"
+    },
+    {
+      "name": "Custom TRPG Miniature – Create Your Own Tabletop RPG Character Figure\n    \n      $29.99",
+      "href": "/products/custom-trpg-miniature-create-your-own-tabletop-rpg-character-figure"
+    },
+    {
+      "name": "Custom TRPG Character Miniature | Create Your Own Tabletop RPG Hero\n    \n      $29.99",
+      "href": "/products/custom-trpg-miniature-create-your-own-trpg-hero-figure"
+    },
+    {
+      "name": "Custom TRPG Creature Miniature | Create Your Own Monster, Familiar or Boss Figure\n    \n      $29.99",
+      "href": "/products/custom-trpg-creature-miniature-create-your-own-monster-familiar-or-boss-figure"
+    },
+    {
+      "name": "Pet Season Special | Custom Realistic 3D Figurine for Your Beloved Pet\n    \n      $29.99",
+      "href": "/products/custom-realistic-figurine-create-3d-figurine-for-your-beloved-pet"
+    },
+    {
+      "name": "Parent & Child Custom Figurine | Turn Family Love Into a 3D Collectible\n    \n      $29.99",
+      "href": "/products/parent-child-custom-figurine-turn-family-love-into-a-3d-collectible"
+    },
+    {
+      "name": "Personalized Mini Pop Couple Figure | Custom Two-Person Collectible\n    \n      $59.99",
+      "href": "/products/personalized-mini-pop-couple-figure-custom-two-person-collectible"
+    },
+    {
+      "name": "3D Model Services | Download\n    \n      $7.99\n          $12.99",
+      "href": "/products/3d-model-services-download"
+    },
+    {
+      "name": "3D Model Services | Customize, Refine & Download\n    \n      $15.99\n          $29.99",
+      "href": "/products/3d-model-services-customize-refine-download"
+    },
+    {
+      "name": "3D Model Services | Customize\n    \n      $350.00",
+      "href": "/products/3d-model-services-customize"
+    },
+    {
+      "name": "Categories",
+      "href": "/collections"
+    },
+    {
+      "name": "Art Toys",
+      "href": "/collections/art-toy"
+    },
+    {
+      "name": "FDM",
+      "href": "/collections/fdm"
+    },
+    {
+      "name": "Crystal Bracelets",
+      "href": "/collections/zodiac-x-tarot"
+    },
+    {
+      "name": "Custom Keycaps",
+      "href": "/collections/keycaps"
+    },
+    {
+      "name": "Mini Pop! Fashion - Sunny Bloom Belle\n    \n      $54.99",
+      "href": "/products/mini-pop-fashion-sunny-bloom-belle"
+    },
+    {
+      "name": "Venus WAWA — JuJuBit Collectible Art Toy for Gifting, Desk Decor & Display\n    \n      $59.99",
+      "href": "/products/jujubit-figurine-customizable-collectible-art-toy-venus-wawa"
+    },
+    {
+      "name": "LUMI — JuJuBit Collectible Art Toy for Gifting, Desk Decor & Display\n    \n      $24.99\n          $29.99",
+      "href": "/products/lumi-jujubit-collectible-art-toy-for-gifting-desk-decor-display"
+    },
+    {
+      "name": "Dalmatian Ambient Light｜JuJuBit FDM 3D Printed Night Light for Kids Room & Desk\n    \n      $89.99",
+      "href": "/products/dottyglow%E2%84%A2-dalmatian-ambient-lamp"
+    },
+    {
+      "name": "Horse Head Ambient Light｜JuJuBit FDM 3D Printed Night Light for Office & Shelf\n    \n      $89.99",
+      "href": "/products/horse-head-ambient-light-jujubit-fdm-3d-printed-night-light-for-office-shelf"
+    },
+    {
+      "name": "Sparrow Ambient Light｜JuJuBit FDM 3D Printed Night Light for Living Room & Desk\n    \n      $89.99",
+      "href": "/products/sparrow-ambient-light-jujubit-fdm-3d-printed-night-light-for-living-room-desk"
+    },
+    {
+      "name": "JuJuBit TAURUS Zodiac Bracelet – Seraphinite × Four-Season Phantom for Grounded Growth & Gentle Renewal\n    \n      $54.99",
+      "href": "/products/jujubit-amethyst-gold-obsidian-libra"
+    },
+    {
+      "name": "JuJuBit CAPRICORN Zodiac Bracelet – Grey Moonstone × Kyanite for Calm Discipline & Clear Alignment\n    \n      $54.99",
+      "href": "/products/jujubit-amethyst-white-phantom-pisces"
+    },
+    {
+      "name": "JuJuBit Gemini Zodiac Bracelet – Amethyst & Silver Sheen Obsidian for Mental Clarity, Focus & Balance\n    \n      $54.99",
+      "href": "/products/jujubit-amethyst-gold-obsidian-virgo"
+    },
+    {
+      "name": "JuJuBit Custom Artisan Keycap for Mechanical Keyboards Mecha-01\n    \n      $29.99",
+      "href": "/products/jujubit-custom-artisan-keycap"
+    },
+    {
+      "name": "JuJuBit Custom Artisan Keycap for Mechanical Keyboards Fossil\n    \n      $29.99",
+      "href": "/products/jujubit-custom-artisan-keycap-for-mechanical-keyboards-1"
+    },
+    {
+      "name": "JuJuBit Custom Artisan Keycap for Mechanical Keyboards Corgi\n    \n      $29.99",
+      "href": "/products/jujubit-custom-artisan-keycap-for-mechanical-keyboards"
+    },
+    {
+      "name": "How It Works",
+      "href": "/pages/how-it-works"
+    },
+    {
+      "name": "Tracking",
+      "href": "/pages/tracking"
+    },
+    {
+      "name": "Contact Us",
+      "href": "/pages/contact"
+    },
+    {
+      "name": "FAQs",
+      "href": "/pages/faqs"
+    },
+    {
+      "name": "Refund & Exchange Policy",
+      "href": "/pages/refund-exchange-policy"
+    },
+    {
+      "name": "Community",
+      "href": "/pages/about-us"
+    },
+    {
+      "name": "",
+      "href": "/search"
+    },
+    {
+      "name": "",
+      "href": "/account"
+    },
+    {
+      "name": "CREATE",
+      "href": "/products/customize-your-own"
+    },
+    {
+      "name": "15% OFF",
+      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod_1800x1800.png?v=1770294841"
+    },
+    {
+      "name": "15% OFF",
+      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod1_1800x1800.png?v=1770294841"
+    },
+    {
+      "name": "15% OFF",
+      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod2_1800x1800.png?v=1776771772"
+    },
+    {
+      "name": "15% OFF",
+      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod4_1800x1800.png?v=1776771772"
+    },
+    {
+      "name": "15% OFF",
+      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/20260701-155546_1800x1800.jpg?v=1782892696"
+    },
+    {
+      "name": "Shipping",
+      "href": "/policies/shipping-policy"
+    },
+    {
+      "name": "Secure privacy\n\n          \n            ›",
+      "href": "/pages/privacy-policy"
+    },
+    {
+      "name": "Safe payments\n\n          \n            ›",
+      "href": "/pages/payment-method"
+    },
+    {
+      "name": "Delivery guarantee\n\n          \n            ›",
+      "href": "/pages/shipping-policy"
+    },
+    {
+      "name": "",
+      "href": "/collections/valentine-collection"
+    },
+    {
+      "name": "",
+      "href": "/collections/wawas-world"
+    },
+    {
+      "name": "",
+      "href": "/collections/art-toy"
+    },
+    {
+      "name": "View all",
+      "href": "/collections/just-restocked"
+    },
+    {
+      "name": "Crimson Monarch-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/crimson-monarch-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Shadow Knight-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/shadow-knight-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Dark Lords-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/dark-lords-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Elven Archer-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/elven-archer-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Whisper Blade-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/whisper-blade-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "View all103 products",
+      "href": "/collections/just-restocked"
+    },
+    {
+      "name": "",
+      "href": "/"
+    },
+    {
+      "name": "instagram\n        Instagram",
+      "href": "https://www.instagram.com/thisisjujubit_"
+    },
+    {
+      "name": "YouTube",
+      "href": "https://www.youtube.com/@thisisjujubit"
+    },
+    {
+      "name": "X",
+      "href": "https://x.com/thisisjujubit"
+    },
+    {
+      "name": "TikTok",
+      "href": "https://www.tiktok.com/@jujubit_official"
+    },
+    {
+      "name": "Products",
+      "href": "/collections"
+    },
+    {
+      "name": "About Us",
+      "href": "/pages/about-us"
+    },
+    {
+      "name": "Contact Us",
+      "href": "/pages/contact"
+    },
+    {
+      "name": "Creative Rights",
+      "href": "/pages/intellectual-property-ai-generated-designs"
+    },
+    {
+      "name": "Terms of Services",
+      "href": "/pages/terms-of-service"
+    },
+    {
+      "name": "Shipping Policy",
+      "href": "/pages/shipping-policy"
+    },
+    {
+      "name": "Refund & Exchange Policy",
+      "href": "/pages/refund-exchange-policy"
+    },
+    {
+      "name": "Privacy Policy",
+      "href": "/pages/privacy-policy"
+    },
+    {
+      "name": "Tracking My Order",
+      "href": "/pages/tracking"
+    },
+    {
+      "name": "Payment Method",
+      "href": "/pages/payment-method"
+    },
+    {
+      "name": "Sizing Chart",
+      "href": "/pages/sizing-chart"
+    },
+    {
+      "name": "FAQs",
+      "href": "/pages/faqs"
+    },
+    {
+      "name": "Powered by Shopify",
+      "href": "https://www.shopify.com?utm_campaign=poweredby&utm_medium=shopify&utm_source=onlinestore"
+    },
+    {
+      "name": "Judge.me",
+      "href": "#"
+    }
+  ]
+}

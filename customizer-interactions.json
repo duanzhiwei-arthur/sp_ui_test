@@ -1,0 +1,1062 @@
+{
+  "freeStyle": {
+    "buttons": [
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Create",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-[#fe5a12] text-white",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Gallery",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-transparent text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Free Style",
+        "className": "flex h-10 w-full items-center justify-between rounded-lg border border-[#f7f7f7] bg-white py-0 pr-2 pl-1 shadow-[inset_2px_2px_0_rgba(255,255,255,0.25)]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Free Style",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 bg-[#fff7f3] font-medium text-[#ff5a11]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "TRPG",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Soft Chibi",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Classic Chibi",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Anime 1:7",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Pixar Style",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Classic Realism",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Funko Pop",
+        "className": "h-[29px] rounded-sm px-1.5 text-left leading-5 text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Solo",
+        "className": "flex h-[34px] w-[94px] items-center justify-center gap-0 rounded-full px-2 text-[13px] font-bold shadow-[0_4px_6px_rgba(0,0,0,0.05)] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upgrade",
+        "className": "absolute top-3 left-3 z-10 flex h-8 min-w-[64px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold capitalize tracking-normal shadow-[0_4px_10px_rgba(0,0,0,0.08)] border-[#e4e4e4] bg-white text-[#333] ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upload your picture",
+        "className": "flex h-[140px] w-[140px] flex-col items-center justify-center gap-2.5 rounded-[20px] border border-[#e4e4e4] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add Your Prompt",
+        "className": "absolute right-[20px] bottom-[20px] left-[20px] flex h-15 items-start justify-start overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded-xl bg-white p-2.5 text-left text-[11px] leading-4 text-[#666]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Generate",
+        "className": "jjb-tool--generate relative inline-flex h-[52px] flex-1 items-center justify-center gap-1 rounded-full bg-[#ff5a11] px-2 text-[15px] font-bold text-white shadow-[0_9px_7px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "2D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase bg-[#fe5a12] text-white ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "3D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "6cm Best Fit",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "4cm Mini Collectible",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "5cm Compact Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "7cm Enhanced Detail",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "8cm Premium Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "10cm Display Centerpiece",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "1",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "2",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "decrease quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "increase quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "What is a custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How do I create my custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What kind of characters can I create?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How long does it take to receive my figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What makes a personalized figurine special?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Previous slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Next slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      }
+    ],
+    "inputs": [
+      {
+        "type": "file",
+        "placeholder": "",
+        "accept": "image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg",
+        "ariaLabel": null
+      },
+      {
+        "type": "text",
+        "placeholder": "",
+        "accept": "",
+        "ariaLabel": null
+      }
+    ],
+    "textareas": [
+      {
+        "placeholder": "",
+        "ariaLabel": "Product JSON"
+      },
+      {
+        "placeholder": "",
+        "ariaLabel": "Variant JSON"
+      }
+    ],
+    "dialogs": [
+      "icon-chevron-left\n      \n\n      \n        icon-X\n      \n\n      \n        icon-chevron"
+    ]
+  },
+  "prompt": {
+    "buttons": [
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Create",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-[#fe5a12] text-white",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Gallery",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-transparent text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Free Style",
+        "className": "flex h-10 w-full items-center justify-between rounded-lg border border-[#f7f7f7] bg-white py-0 pr-2 pl-1 shadow-[inset_2px_2px_0_rgba(255,255,255,0.25)]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Solo",
+        "className": "flex h-[34px] w-[94px] items-center justify-center gap-0 rounded-full px-2 text-[13px] font-bold shadow-[0_4px_6px_rgba(0,0,0,0.05)] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upgrade",
+        "className": "absolute top-3 left-3 z-10 flex h-8 min-w-[64px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold capitalize tracking-normal shadow-[0_4px_10px_rgba(0,0,0,0.08)] border-[#e4e4e4] bg-white text-[#333] ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upload your picture",
+        "className": "flex h-[140px] w-[140px] flex-col items-center justify-center gap-2.5 rounded-[20px] border border-[#e4e4e4] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add Your Prompt",
+        "className": "absolute right-[20px] bottom-[20px] left-[20px] flex h-15 items-start justify-start overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded-xl bg-white p-2.5 text-left text-[11px] leading-4 text-[#666]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Generate",
+        "className": "jjb-tool--generate relative inline-flex h-[52px] flex-1 items-center justify-center gap-1 rounded-full bg-[#ff5a11] px-2 text-[15px] font-bold text-white shadow-[0_9px_7px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "2D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase bg-[#fe5a12] text-white ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "3D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "6cm Best Fit",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "4cm Mini Collectible",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "5cm Compact Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "7cm Enhanced Detail",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "8cm Premium Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "10cm Display Centerpiece",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "1",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "2",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "decrease quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "increase quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "What is a custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How do I create my custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What kind of characters can I create?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How long does it take to receive my figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What makes a personalized figurine special?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Previous slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Next slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      }
+    ],
+    "inputs": [
+      {
+        "type": "file",
+        "placeholder": "",
+        "accept": "image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg",
+        "ariaLabel": null
+      },
+      {
+        "type": "text",
+        "placeholder": "",
+        "accept": "",
+        "ariaLabel": null
+      }
+    ],
+    "textareas": [
+      {
+        "placeholder": "",
+        "ariaLabel": "Product JSON"
+      },
+      {
+        "placeholder": "",
+        "ariaLabel": "Variant JSON"
+      }
+    ],
+    "dialogs": [
+      "icon-chevron-left\n      \n\n      \n        icon-X\n      \n\n      \n        icon-chevron"
+    ]
+  },
+  "duo": {
+    "buttons": [
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Create",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-[#fe5a12] text-white",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Gallery",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-transparent text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Free Style",
+        "className": "flex h-10 w-full items-center justify-between rounded-lg border border-[#f7f7f7] bg-white py-0 pr-2 pl-1 shadow-[inset_2px_2px_0_rgba(255,255,255,0.25)]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Duo",
+        "className": "flex h-[34px] w-[94px] items-center justify-center gap-0 rounded-full px-2 text-[13px] font-bold shadow-[0_4px_6px_rgba(0,0,0,0.05)] bg-[#fe5a12] text-white",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upgrade",
+        "className": "absolute top-3 left-3 z-10 flex h-8 min-w-[64px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold capitalize tracking-normal shadow-[0_4px_10px_rgba(0,0,0,0.08)] border-[#e4e4e4] bg-white text-[#333] ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upload your picture",
+        "className": "flex h-[140px] w-[140px] flex-col items-center justify-center gap-2.5 rounded-[20px] border border-[#e4e4e4] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add Your Prompt",
+        "className": "absolute right-[20px] bottom-[20px] left-[20px] flex h-15 items-start justify-start overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded-xl bg-white p-2.5 text-left text-[11px] leading-4 text-[#666]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Generate",
+        "className": "jjb-tool--generate relative inline-flex h-[52px] flex-1 items-center justify-center gap-1 rounded-full bg-[#ff5a11] px-2 text-[15px] font-bold text-white shadow-[0_9px_7px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "2D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase bg-[#fe5a12] text-white ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "3D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "6cm Best Fit",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "4cm Mini Collectible",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "5cm Compact Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "7cm Enhanced Detail",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "8cm Premium Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "10cm Display Centerpiece",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "1",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "2",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "decrease quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "increase quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "What is a custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How do I create my custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What kind of characters can I create?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How long does it take to receive my figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What makes a personalized figurine special?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Previous slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Next slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      }
+    ],
+    "inputs": [
+      {
+        "type": "file",
+        "placeholder": "",
+        "accept": "image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg",
+        "ariaLabel": null
+      },
+      {
+        "type": "text",
+        "placeholder": "",
+        "accept": "",
+        "ariaLabel": null
+      }
+    ],
+    "textareas": [
+      {
+        "placeholder": "",
+        "ariaLabel": "Product JSON"
+      },
+      {
+        "placeholder": "",
+        "ariaLabel": "Variant JSON"
+      }
+    ],
+    "dialogs": [
+      "icon-chevron-left\n      \n\n      \n        icon-X\n      \n\n      \n        icon-chevron"
+    ]
+  },
+  "gallery": {
+    "buttons": [
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "icon-search\n            Close (esc)",
+        "className": "btn btn--no-animate btn--body btn--circle js-photoswipe__zoom product__photo-zoom",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Create",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-[#fe5a12] text-white",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Gallery",
+        "className": "h-full flex-1 rounded-[11px] font-bold transition-colors bg-transparent text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Free Style",
+        "className": "flex h-10 w-full items-center justify-between rounded-lg border border-[#f7f7f7] bg-white py-0 pr-2 pl-1 shadow-[inset_2px_2px_0_rgba(255,255,255,0.25)]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Solo",
+        "className": "flex h-[34px] w-[94px] items-center justify-center gap-0 rounded-full px-2 text-[13px] font-bold shadow-[0_4px_6px_rgba(0,0,0,0.05)] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upgrade",
+        "className": "absolute top-3 left-3 z-10 flex h-8 min-w-[64px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold capitalize tracking-normal shadow-[0_4px_10px_rgba(0,0,0,0.08)] border-[#e4e4e4] bg-white text-[#333] ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Upload your picture",
+        "className": "flex h-[140px] w-[140px] flex-col items-center justify-center gap-2.5 rounded-[20px] border border-[#e4e4e4] bg-white text-black",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add Your Prompt",
+        "className": "absolute right-[20px] bottom-[20px] left-[20px] flex h-15 items-start justify-start overflow-y-auto overflow-x-hidden whitespace-pre-wrap rounded-xl bg-white p-2.5 text-left text-[11px] leading-4 text-[#666]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Generate",
+        "className": "jjb-tool--generate relative inline-flex h-[52px] flex-1 items-center justify-center gap-1 rounded-full bg-[#ff5a11] px-2 text-[15px] font-bold text-white shadow-[0_9px_7px_rgba(0,0,0,0.05)] disabled:cursor-not-allowed disabled:opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "2D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase bg-[#fe5a12] text-white ",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "3D",
+        "className": "h-full flex-1 rounded-full font-bold uppercase text-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "6cm Best Fit",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "4cm Mini Collectible",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "5cm Compact Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "7cm Enhanced Detail",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "8cm Premium Display",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "10cm Display Centerpiece",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "1",
+        "className": "text-black text-left border-[1.5px] border-black bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "2",
+        "className": "text-black text-left border border-[#f0f0f0] bg-white px-[15px] py-[7px] text-[14px] tracking-[0.35px]",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "decrease quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "increase quantity",
+        "className": "flex h-[22px] w-[22px] items-center justify-center",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Add to Cart",
+        "className": "flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#161515] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "Buy Now15",
+        "className": "relative flex h-[50px] w-1/2 items-center justify-center rounded-full py-[12px] text-[15px] font-bold text-white capitalize bg-[#fe5a12] cursor-not-allowed opacity-50",
+        "ariaPressed": null,
+        "disabled": true
+      },
+      {
+        "name": "What is a custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How do I create my custom figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What kind of characters can I create?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "How long does it take to receive my figurine?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "What makes a personalized figurine special?",
+        "className": "label collapsible-trigger collapsible-trigger-btn collapsible-trigger-btn--borders collapsible--auto-height",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Previous slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      },
+      {
+        "name": "Next slide",
+        "className": "jdgm-arrow",
+        "ariaPressed": null,
+        "disabled": false
+      }
+    ],
+    "inputs": [
+      {
+        "type": "file",
+        "placeholder": "",
+        "accept": "image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg",
+        "ariaLabel": null
+      },
+      {
+        "type": "text",
+        "placeholder": "",
+        "accept": "",
+        "ariaLabel": null
+      }
+    ],
+    "textareas": [
+      {
+        "placeholder": "",
+        "ariaLabel": "Product JSON"
+      },
+      {
+        "placeholder": "",
+        "ariaLabel": "Variant JSON"
+      }
+    ],
+    "dialogs": [
+      "icon-chevron-left\n      \n\n      \n        icon-X\n      \n\n      \n        icon-chevron"
+    ]
+  }
+}

@@ -1,0 +1,261 @@
+{
+  "buttons": [
+    {
+      "name": "Order summaryTotal price$69.99Discounted price$59.50",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Show more options",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "More information about how your contact info is used",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "More information about Phone",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "More information about Security code",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Add discount",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Pay now",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "Submit",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Refund policy",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Shipping",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Privacy policy",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Terms of service",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Contact",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Apply Discount Code",
+      "disabled": true,
+      "ariaPressed": null
+    },
+    {
+      "name": "Submit",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Back to finalize order",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "More information about Shipping",
+      "disabled": false,
+      "ariaPressed": null
+    }
+  ],
+  "inputs": [
+    {
+      "type": "email",
+      "placeholder": "Email",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "First name",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "Last name",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "Address",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "Apartment, suite, etc. (optional)",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "City",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "ZIP code",
+      "ariaLabel": null
+    },
+    {
+      "type": "tel",
+      "placeholder": "Phone",
+      "ariaLabel": null
+    },
+    {
+      "type": "checkbox",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "First name"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Last name"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Address"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Apartment, suite, etc."
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "City"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Country/Region"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Province"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Province"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Province"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Postal code"
+    },
+    {
+      "type": "text",
+      "placeholder": "",
+      "ariaLabel": "Phone"
+    },
+    {
+      "type": "radio",
+      "placeholder": "",
+      "ariaLabel": "Credit card"
+    },
+    {
+      "type": "checkbox",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "radio",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "placeholder": "Discount code",
+      "ariaLabel": null
+    }
+  ],
+  "links": [
+    {
+      "name": "Skip to content",
+      "href": "#checkout-main"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "Navigate to Online Store",
+      "href": "https://jujubit.ai"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "Navigate to Online Store",
+      "href": "https://jujubit.ai"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "Sign in",
+      "href": "https://jujubit.ai/customer_authentication/login?locale=en-US&region_country=US&return_to=%2Fcheckouts%2Fcn%2FhWNEqCtG4XmAnE6vu37qLumG%2Fen-us%3F_r%3DAQAByNbLzXPIx63JCs6tb8IlFthxNhCyZAjk7rAglnAOxOY%26company_location_id%26locale%3Den-US"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "Navigate to Online Store",
+      "href": "https://jujubit.ai"
+    },
+    {
+      "name": "",
+      "href": "https://jujubit.ai/cart"
+    },
+    {
+      "name": "Refresh Page",
+      "href": "javascript:window.location.reload()"
+    }
+  ]
+}

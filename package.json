@@ -1,0 +1,23 @@
+{
+  "name": "jujubit-ui-regression",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:core-smoke": "playwright test tests/full-flow-inventory.spec.ts --grep @core-smoke",
+    "test:daily": "ALLOW_PRODUCTION_GENERATION=false playwright test --project=chromium",
+    "test:scheduled": "node automation/run-and-notify.mjs",
+    "notify:preview": "node automation/run-and-notify.mjs --notification-preview",
+    "notify:test": "node automation/run-and-notify.mjs --notification-test",
+    "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && playwright test --list",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "dotenv": "^16.6.1",
+    "typescript": "^5.9.2"
+  }
+}

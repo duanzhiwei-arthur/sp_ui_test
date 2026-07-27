@@ -1,0 +1,9 @@
+node_modules/
+playwright-report/
+test-results/
+.env
+.DS_Store
+assets/*
+!assets/.gitkeep
+automation/logs/*
+!automation/logs/.gitkeep

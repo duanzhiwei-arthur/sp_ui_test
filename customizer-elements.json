@@ -1,0 +1,329 @@
+{
+  "buttons": [
+    {
+      "name": "icon-search\n            Close (esc)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "icon-search\n            Close (esc)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Create",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Gallery",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Free Style",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Solo",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Upgrade",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Upload your picture",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Add Your Prompt",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Generate",
+      "ariaPressed": null,
+      "disabled": true
+    },
+    {
+      "name": "2D",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "3D",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "6cm Best Fit",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "4cm Mini Collectible",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "5cm Compact Display",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "7cm Enhanced Detail",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "8cm Premium Display",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "10cm Display Centerpiece",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Custom Size – Quote on Request（Please contact our team before purchasing)",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "1",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "2",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "decrease quantity",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "increase quantity",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Add to Cart",
+      "ariaPressed": null,
+      "disabled": true
+    },
+    {
+      "name": "Buy Now15",
+      "ariaPressed": null,
+      "disabled": true
+    },
+    {
+      "name": "Add to Cart",
+      "ariaPressed": null,
+      "disabled": true
+    },
+    {
+      "name": "Buy Now15",
+      "ariaPressed": null,
+      "disabled": true
+    },
+    {
+      "name": "What is a custom figurine?",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "How do I create my custom figurine?",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "What kind of characters can I create?",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "How long does it take to receive my figurine?",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "What makes a personalized figurine special?",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Previous slide",
+      "ariaPressed": null,
+      "disabled": false
+    },
+    {
+      "name": "Next slide",
+      "ariaPressed": null,
+      "disabled": false
+    }
+  ],
+  "inputs": [
+    {
+      "type": "file",
+      "name": "",
+      "accept": "image/png,image/webp,image/jpeg,.png,.webp,.jpg,.jpeg",
+      "ariaLabel": null
+    },
+    {
+      "type": "text",
+      "name": "",
+      "accept": "",
+      "ariaLabel": null
+    }
+  ],
+  "textareas": [
+    {
+      "placeholder": "",
+      "ariaLabel": "Product JSON"
+    },
+    {
+      "placeholder": "",
+      "ariaLabel": "Variant JSON"
+    }
+  ],
+  "selects": []
+}
