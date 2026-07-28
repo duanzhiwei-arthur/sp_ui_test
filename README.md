@@ -1,10 +1,6 @@
 # JuJuBit UI Regression
 
 Playwright + TypeScript 的线上游客态 UI 回归框架。测试范围止于 Checkout 订单摘要，严禁执行付款。
-## 自主执行
-
-自己做判断 如果用例执行失败  自动分析原因采用最优解修复代码  直到所有case执行成功
-执行完毕之后调用飞书cil 在我本地目录生成一份ui自动化测试报告 每次执行  都把记录 以及失败原因填写进去
 
 ## 初始化
 
@@ -93,44 +89,20 @@ npm run report
 
 当前线上页面尚未提供稳定的 `data-testid`。现有定位器以可访问名称、`data-view-name` 和局部页面结构为主。页面改版后应优先同步生成图片、3D 进度层、工具图标、购物车商品和 Checkout 关键区域的定位器。
 
-## GitHub Actions 定时执行
+## 本机定时执行
 
-远端工作流见 `.github/workflows/ui-regression.yml`，每天按北京时间执行两次全部 4 条 case：
+使用 macOS `launchd` 在本机每天执行两次全部 4 条 case，并在结束后发送飞书通知：
 
-- `10:30`（UTC `02:30`）
-- `18:30`（UTC `10:30`）
+- `10:30`
+- `18:30`
 
-JuJuBit 会限制 GitHub 托管 Runner 的共享机房出口，页面会返回 `legal-rate-limited`。工作流因此使用仓库级 macOS self-hosted runner；运行机器必须保持开机联网，并预装 Node.js、`ffmpeg` 和 GitHub Actions Runner。Runner 默认标签需包含 `self-hosted`、`macOS`。未连接 runner 时，定时任务会停留在 Queued，不会执行测试。
-
-在 GitHub 仓库 `Settings -> Actions -> Runners -> New self-hosted runner` 选择 macOS，按页面命令下载、配置并把 runner 安装为后台服务。首次安装视频转换工具可执行：
-
-```bash
-brew install ffmpeg
-```
-
-在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中添加 Repository secrets：
-
-```text
-FEISHU_APP_ID
-FEISHU_APP_SECRET
-FEISHU_RECEIVE_ID
-```
-
-`FEISHU_RECEIVE_ID` 当前应填写接收单聊通知的企业邮箱。工作流固定使用 `email` 类型、`all` 模式和仓库内的 `assets/two-dogs.jpeg`。执行结束后会上传 HTML 报告、截图、视频和 trace，保留 14 天；飞书消息中的“查看运行与报告”可直接打开对应 GitHub Actions 页面。
-
-GitHub 定时任务只在默认分支生效，实际启动时间可能因 GitHub 调度负载延迟数分钟。每次 `all` 执行会产生 2 次真实生成和 1 次加购，因此当前计划每天产生 4 次生成和 2 次加购，但不会付款。
-
-也可以在仓库的 `Actions -> JuJuBit UI Regression -> Run workflow` 手动触发一次验证。
-
-## 本机 launchd（可选）
-
-使用 macOS `launchd` 配置。示例配置见 `automation/com.jujubit.ui-regression.plist`，默认每天 09:00 执行 `npm run test:scheduled`。报告在 `playwright-report/`，失败证据在 `test-results/`。
+配置文件见 `automation/com.jujubit.ui-regression.plist`。报告保存在 `playwright-report/`，失败证据保存在 `test-results/`，运行日志写入 `automation/logs/`。定时执行依赖本机保持开机、联网且不处于深度睡眠。
 
 在 `.env` 中配置调度模式和企业应用机器人。单聊可以使用企业邮箱，不必先查 `open_id`：
 
 ```dotenv
-# safe：只执行 TC-01、TC-02；all：执行全部 4 条 case
-SCHEDULED_TEST_MODE=safe
+# 本机定时任务执行全部 4 条 case
+SCHEDULED_TEST_MODE=all
 
 # 飞书开放平台“凭证与基础信息”中的应用凭证
 FEISHU_APP_ID=cli_xxx
@@ -149,7 +121,7 @@ FEISHU_WEBHOOK_SECRET=
 
 汇总、失败用例和失败截图会合并到第一条飞书富文本消息。若系统已安装 `ffmpeg`，或在 `.env` 配置了 `FFMPEG_PATH`，脚本会把 Playwright 的 WebM 录屏转成 MP4，并紧跟汇总发送为带截图封面的原生视频消息，可在飞书内点击播放；无法转换时降级为 WebM 文件附件。
 
-安装或更新定时任务：
+安装或更新本机定时任务：
 
 ```bash
 cp automation/com.jujubit.ui-regression.plist ~/Library/LaunchAgents/
@@ -157,7 +129,7 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regression.
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regression.plist
 ```
 
-通知内容包含执行状态、safe/all 模式、机器名、开始时间、耗时、通过/失败/跳过数量、失败用例名称、失败截图、录屏附件和本机 HTML 报告路径。即使飞书发送失败，脚本仍保留 Playwright 原始退出码，避免把测试失败误报为通知失败。定时任务日志写入 `automation/logs/`。
+通知内容包含执行状态、运行模式、机器名、开始时间、耗时、通过/失败/跳过数量、失败用例名称、失败截图、录屏附件和本机 HTML 报告路径。即使飞书发送失败，脚本仍保留 Playwright 原始退出码，避免把测试失败误报为通知失败。
 
 `SCHEDULED_TEST_MODE=all` 每天会触发 2 次真实生成、1 次加购并进入 Checkout。启用前应确认生成成本和购物车数据影响；任何模式都不会点击付款。
 
