@@ -376,6 +376,29 @@ async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt
     summary,
     knowledgeResult
   });
+
+  // GitHub-hosted runners do not have a persisted lark-cli user login. Create
+  // the Docx through the application bot instead, so scheduled failures are
+  // still written into the configured Wiki folder.
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const appConfig = readAppConfig();
+    if (!appConfig) {
+      throw new Error('远端创建失败记录需要 FEISHU_APP_ID 和 FEISHU_APP_SECRET。');
+    }
+    const documentUrl = await createExecutionRecordWithBot({
+      parentToken,
+      title,
+      testExitCode,
+      mode,
+      startedAt,
+      finishedAt,
+      summary,
+      token: await getTenantAccessToken(appConfig)
+    });
+    console.log(`[feishu-doc] 远端失败记录已创建：${documentUrl}`);
+    return;
+  }
+
   const result = await runCommand(resolveLarkCli(), [
     'docs',
     '+create',
@@ -393,6 +416,128 @@ async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt
     throw new Error(`飞书未返回新建执行记录的文档链接：${formatCommandOutput(result.stdout)}`);
   }
   console.log(`[feishu-doc] 执行记录已创建：${response.data.document.url}`);
+}
+
+async function createExecutionRecordWithBot({ parentToken, title, testExitCode, mode, startedAt, finishedAt, summary, token }) {
+  const parent = await fetchFeishu(
+    `/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(parentToken)}`,
+    { headers: appHeaders(token) }
+  );
+  const parentNode = parent.data?.node;
+  if (!parentNode?.space_id || !parentNode?.node_token) {
+    throw new Error('无法读取 FEISHU_EXECUTION_RECORDS_PARENT 对应的 Wiki 节点。');
+  }
+
+  const created = await fetchFeishu(`/open-apis/wiki/v2/spaces/${encodeURIComponent(parentNode.space_id)}/nodes`, {
+    method: 'POST',
+    headers: appHeaders(token),
+    body: JSON.stringify({
+      obj_type: 'docx',
+      node_type: 'origin',
+      parent_node_token: parentNode.node_token,
+      title
+    })
+  });
+  const documentId = created.data?.node?.obj_token;
+  if (!documentId) {
+    throw new Error('飞书未返回新建失败记录的 Docx token。');
+  }
+
+  const blocks = buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary });
+  await fetchFeishu(
+    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(documentId)}/children`,
+    {
+      method: 'POST',
+      headers: appHeaders(token),
+      body: JSON.stringify({ children: blocks })
+    }
+  );
+
+  return `https://a9ihi0un9c.feishu.cn/docx/${documentId}`;
+}
+
+function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary }) {
+  const stats = summary.stats;
+  const expected = stats?.expected ?? 0;
+  const failed = stats?.unexpected ?? 0;
+  const flaky = stats?.flaky ?? 0;
+  const skipped = stats?.skipped ?? 0;
+  const total = expected + failed + flaky + skipped;
+  const duration = formatDuration(finishedAt.getTime() - startedAt.getTime());
+  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const status = testExitCode === 0 ? '执行通过' : '发现业务失败';
+  const reportUrl = buildGitHubRunUrl();
+  const artifactUrl = buildGitHubArtifactUrl();
+  const blocks = [
+    headingBlock('JuJuBit 自动化测试 · 发现业务失败', 1),
+    textBlock(`状态：${status}    总用例：${total}`),
+    headingBlock('执行概览', 2),
+    textBlock(`执行通过率：${total === 0 ? '0.0' : ((expected / total) * 100).toFixed(1)}%（${expected}/${total}）`),
+    textBlock(`业务失败：${failed + flaky}    跳过：${skipped}    耗时：${duration}`),
+    headingBlock('运行信息', 2),
+    textBlock(`分支：${process.env.GITHUB_REF_NAME ?? 'main'}    执行人：${process.env.GITHUB_ACTOR ?? 'GitHub Actions'}`),
+    textBlock(`提交：${(process.env.GITHUB_SHA ?? 'unknown').slice(0, 12)}    开始时间：${formatChinaTime(startedAt)}`),
+    textBlock(`运行标识：${process.env.GITHUB_RUN_ID ?? 'unknown'}    执行范围：${modeLabel}`),
+    headingBlock('模块结果', 2)
+  ];
+
+  for (const item of summary.caseResults ?? []) {
+    const detail = summary.failureDetails?.find((failure) => failure.title === item.title);
+    const description = item.status === 'failed'
+      ? `失败｜${item.title}｜${formatFailureReasonForMessage(detail?.analysis ?? detail?.reason)}`
+      : `${formatCaseStatus(item.status)}｜${item.title}`;
+    blocks.push(textBlock(description));
+  }
+
+  blocks.push(headingBlock('失败原因与建议', 2));
+  for (const detail of summary.failureDetails ?? []) {
+    blocks.push(textBlock(`失败用例：${detail.title}`));
+    blocks.push(textBlock(`自动分析：${detail.analysis || '当前证据不足，请查看报告。'}`));
+    blocks.push(textBlock(`原始错误：${detail.reason || '无'}`));
+  }
+  for (const suggestion of buildFixSuggestions(summary, testExitCode)) {
+    blocks.push(textBlock(`建议：${suggestion}`));
+  }
+
+  blocks.push(headingBlock('运行与报告', 2));
+  blocks.push(linkBlock('查看 GitHub Actions 运行与报告', reportUrl));
+  blocks.push(linkBlock('下载 HTML 报告、Trace 与录屏附件', artifactUrl));
+  return blocks.slice(0, 50);
+}
+
+function headingBlock(content, level) {
+  const key = `heading${level}`;
+  return {
+    block_type: level === 1 ? 3 : 4,
+    [key]: { elements: [textRun(content)] }
+  };
+}
+
+function textBlock(content) {
+  return { block_type: 2, text: { elements: [textRun(content)] } };
+}
+
+function linkBlock(content, url) {
+  return {
+    block_type: 2,
+    text: { elements: [textRun(content, { link: { url: encodeURIComponent(url) } })] }
+  };
+}
+
+function textRun(content, style = {}) {
+  return { text_run: { content, text_element_style: style } };
+}
+
+function buildGitHubRunUrl() {
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const runId = process.env.GITHUB_RUN_ID?.trim();
+  const server = process.env.GITHUB_SERVER_URL?.trim() || 'https://github.com';
+  return repository && runId ? `${server}/${repository}/actions/runs/${runId}` : reportFile;
+}
+
+function buildGitHubArtifactUrl() {
+  const runUrl = buildGitHubRunUrl();
+  return runUrl.startsWith('http') ? `${runUrl}/artifacts` : testResultsDir;
 }
 
 async function loadKnowledgeSuggestions(summary) {

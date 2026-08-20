@@ -171,7 +171,7 @@ FEISHU_WEBHOOK_SECRET=
 
 汇总、失败用例和失败截图会合并到第一条飞书富文本消息。若系统已安装 `ffmpeg`，或在 `.env` 配置了 `FFMPEG_PATH`，脚本会把 Playwright 的 WebM 录屏转成 MP4，并紧跟汇总发送为带截图封面的原生视频消息，可在飞书内点击播放；无法转换时降级为 WebM 文件附件。
 
-通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；埋点专项目前只能使用 `test:tracking` 或 `test:tracking:exceptions` 手动运行。UI 用例失败时，脚本才会使用本机 `lark-cli` 用户身份，在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录；成功运行不会建档。失败记录包含北京时间、失败用例、原始错误、初步判断、修复建议、测试统计和本机证据路径。
+通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；埋点专项目前只能使用 `test:tracking` 或 `test:tracking:exceptions` 手动运行。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录；成功运行不会建档。本机运行使用已授权的 `lark-cli` 用户身份；GitHub Actions 使用企业应用机器人直接创建 Docx。远端文档包含业务状态、用例统计、运行分支/提交/执行人、逐用例模块结果、自动分析、修复建议和 GitHub Actions/Artifact 链接。机器人必须先被添加到该知识库，并对目标父节点具备编辑权限。
 
 若配置 `FEISHU_SOLUTION_LIBRARY_ROOT`，失败后脚本会递归查询该 Wiki 节点下的全部 Doc/Docx 子文档，依据用例名称、错误码、组件名和异常关键词匹配最多 5 篇相关记录，并把可点击的文档引用、匹配关键词和相关正文摘录写入失败记录。知识库不可用或没有命中时仍会创建失败记录，并保留框架内置建议。
 
@@ -210,6 +210,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 FEISHU_APP_ID
 FEISHU_APP_SECRET
 FEISHU_RECEIVE_ID  # 个人企业邮箱，例如 name@company.com
+FEISHU_EXECUTION_RECORDS_PARENT  # 失败文档库的 Wiki 节点链接或 token
 ```
 
-如需指定商品变体，可在 **Variables** 中配置可选的 `PRODUCT_URL`。每次执行无论成功或失败都会将 `playwright-report/` 和 `test-results/` 上传为 GitHub Artifact，并在飞书消息中附上对应的 Actions 运行链接。托管 Runner 使用 GitHub 的共享出口 IP；若生产站对该 IP 返回 `HTTP 429` 或 `legal-rate-limited`，报告会保留证据，但需要改用固定出口 IP 的 self-hosted Runner 才能避免该限制。
+如需指定商品变体，可在 **Variables** 中配置可选的 `PRODUCT_URL`。每次执行无论成功或失败都会将 `playwright-report/` 和 `test-results/` 上传为 GitHub Artifact，并在飞书消息中附上对应的 Actions 运行链接。失败时，企业应用机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 下创建结构化 Docx 报告；需在飞书知识库中将该企业应用机器人加入成员并授予目标节点编辑权限。托管 Runner 使用 GitHub 的共享出口 IP；若生产站对该 IP 返回 `HTTP 429` 或 `legal-rate-limited`，报告会保留证据，但需要改用固定出口 IP 的 self-hosted Runner 才能避免该限制。

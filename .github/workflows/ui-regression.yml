@@ -46,8 +46,8 @@ jobs:
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
 
-      # Failure-doc creation requires a logged-in local lark-cli user, which a hosted runner lacks.
-      FEISHU_EXECUTION_RECORDS_PARENT: ''
+      # Failure docs are created in this Wiki node through the application bot.
+      FEISHU_EXECUTION_RECORDS_PARENT: ${{ secrets.FEISHU_EXECUTION_RECORDS_PARENT }}
       FEISHU_SOLUTION_LIBRARY_ROOT: ''
 
     steps:
