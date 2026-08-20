@@ -87,13 +87,12 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   });
 
   const finishedAt = new Date();
-  let summary = await loadSummary();
+  const summary = await loadSummary();
   const validateFailureRecord = process.env.FEISHU_FAILURE_RECORD_VALIDATION === 'true';
   if (validateFailureRecord) {
-    summary = addFailureRecordValidationCase(summary);
-    console.warn('[feishu-doc] 已启用失败记录权限验证：将创建一份明确标注的验证文档。');
+    console.warn('[feishu-doc] 已启用失败记录权限验证：将创建一份明确标注的验证文档，但不会影响用例结果。');
   }
-  const messageExitCode = testExitCode === 0 && !summary.readError && !validateFailureRecord ? 0 : 1;
+  const messageExitCode = testExitCode === 0 && !summary.readError ? 0 : 1;
   const message = buildMessage({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
   try {
@@ -103,39 +102,20 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
 
   try {
-    await createExecutionRecord({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
+    await createExecutionRecord({
+      testExitCode: messageExitCode,
+      mode,
+      startedAt,
+      finishedAt,
+      summary,
+      force: validateFailureRecord
+    });
   } catch (error) {
     // A documentation failure must not hide the original Playwright outcome.
     console.error(`[feishu-doc] 执行记录创建失败：${error instanceof Error ? error.message : String(error)}`);
   }
 
   process.exitCode = messageExitCode;
-}
-
-function addFailureRecordValidationCase(summary) {
-  const title = '机器人失败报告创建权限验证（手动触发）';
-  const alreadyIncluded = (summary.caseResults ?? []).some((item) => item.title === title);
-  if (alreadyIncluded) {
-    return summary;
-  }
-  const stats = summary.stats ?? {};
-  return {
-    ...summary,
-    stats: {
-      ...stats,
-      unexpected: Number(stats.unexpected ?? 0) + 1
-    },
-    failures: [...(summary.failures ?? []), title],
-    failureDetails: [
-      ...(summary.failureDetails ?? []),
-      {
-        title,
-        reason: '本条为手动触发的权限验证，不代表 JuJuBit 业务功能异常。',
-        analysis: '用于确认 GitHub 托管 Runner 的企业应用机器人可在目标节点下创建并写入失败报告。'
-      }
-    ],
-    caseResults: [...(summary.caseResults ?? []), { title, status: 'failed' }]
-  };
 }
 
 function run(command, args, env) {
@@ -379,8 +359,8 @@ function buildReportReference() {
   return `本机报告：${reportFile}`;
 }
 
-async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt, summary }) {
-  if (testExitCode === 0) {
+async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt, summary, force = false }) {
+  if (testExitCode === 0 && !force) {
     console.log('[feishu-doc] 用例全部通过，不创建执行文档。');
     return;
   }
@@ -397,7 +377,7 @@ async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt
     documentCount: 0,
     error: error instanceof Error ? error.message : String(error)
   }));
-  const title = `UI 自动化失败记录 - ${formatRecordTime(finishedAt)}`;
+  const title = `${force ? 'UI 自动化失败报告写入验证' : 'UI 自动化失败记录'} - ${formatRecordTime(finishedAt)}`;
   const content = buildExecutionRecord({
     title,
     testExitCode,
@@ -424,6 +404,7 @@ async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt
       startedAt,
       finishedAt,
       summary,
+      force,
       token: await getTenantAccessToken(appConfig)
     });
     console.log(`[feishu-doc] 远端失败记录已创建：${documentUrl}`);
@@ -449,7 +430,7 @@ async function createExecutionRecord({ testExitCode, mode, startedAt, finishedAt
   console.log(`[feishu-doc] 执行记录已创建：${response.data.document.url}`);
 }
 
-async function createExecutionRecordWithBot({ parentToken, title, testExitCode, mode, startedAt, finishedAt, summary, token }) {
+async function createExecutionRecordWithBot({ parentToken, title, testExitCode, mode, startedAt, finishedAt, summary, force, token }) {
   const parent = await fetchFeishu(
     `/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(parentToken)}`,
     { headers: appHeaders(token) }
@@ -474,7 +455,7 @@ async function createExecutionRecordWithBot({ parentToken, title, testExitCode, 
     throw new Error('飞书未返回新建失败记录的 Docx token。');
   }
 
-  const blocks = buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary });
+  const blocks = buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary, force });
   await fetchFeishu(
     `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(documentId)}/children`,
     {
@@ -487,7 +468,7 @@ async function createExecutionRecordWithBot({ parentToken, title, testExitCode, 
   return `https://a9ihi0un9c.feishu.cn/docx/${documentId}`;
 }
 
-function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary }) {
+function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finishedAt, summary, force = false }) {
   const stats = summary.stats;
   const expected = stats?.expected ?? 0;
   const failed = stats?.unexpected ?? 0;
@@ -496,11 +477,11 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
   const total = expected + failed + flaky + skipped;
   const duration = formatDuration(finishedAt.getTime() - startedAt.getTime());
   const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
-  const status = testExitCode === 0 ? '执行通过' : '发现业务失败';
+  const status = force ? '权限验证通过（用例结果未受影响）' : testExitCode === 0 ? '执行通过' : '发现业务失败';
   const reportUrl = buildGitHubRunUrl();
   const artifactUrl = buildGitHubArtifactUrl();
   const blocks = [
-    headingBlock('JuJuBit 自动化测试 · 发现业务失败', 1),
+    headingBlock(force ? 'JuJuBit 自动化��试 · 失败报告写入验证' : 'JuJuBit 自动化测试 · 发现业务失败', 1),
     textBlock(`状态：${status}    总用例：${total}`),
     headingBlock('执行概览', 2),
     textBlock(`执行通过率：${total === 0 ? '0.0' : ((expected / total) * 100).toFixed(1)}%（${expected}/${total}）`),
