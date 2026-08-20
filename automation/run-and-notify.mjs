@@ -53,9 +53,10 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const startedAt = new Date(finishedAt.getTime() - durationMs);
   const testExitCode = summary.readError || (summary.stats?.unexpected ?? 0) > 0 ? 1 : 0;
   const message = buildMessage({ testExitCode, mode, startedAt, finishedAt, summary });
+  const card = buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary });
 
   if (process.argv.includes('--notification-test')) {
-    await sendFeishuNotification(message, summary.failureArtifacts);
+    await sendFeishuNotification(message, summary.failureArtifacts, card);
   } else {
     console.log(message);
   }
@@ -94,9 +95,10 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
   const messageExitCode = testExitCode === 0 && !summary.readError ? 0 : 1;
   const message = buildMessage({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
+  const card = buildResultCard({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
   try {
-    await sendFeishuNotification(message, summary.failureArtifacts);
+    await sendFeishuNotification(message, summary.failureArtifacts, card);
   } catch (error) {
     console.error(`[feishu] 结果通知失败：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -330,6 +332,159 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 
   lines.push(buildReportReference());
   return lines.join('\n');
+}
+
+function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
+  const passed = testExitCode === 0 && !summary.readError;
+  const stats = summary.stats;
+  const expected = stats?.expected ?? 0;
+  const unexpected = stats?.unexpected ?? 0;
+  const flaky = stats?.flaky ?? 0;
+  const skipped = stats?.skipped ?? 0;
+  const total = expected + unexpected + flaky + skipped;
+  const businessFailures = unexpected + flaky;
+  const duration = formatDuration(stats?.duration ?? finishedAt.getTime() - startedAt.getTime());
+  const status = summary.readError ? '结果报告缺失' : passed ? '执行通过' : '发现业务失败';
+  const statusColor = passed ? 'green' : 'red';
+  const headerTitle = `JuJuBit 自动化测试 · ${status}`;
+  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const runUrl = buildGitHubRunUrl();
+  const artifactUrl = buildGitHubArtifactUrl();
+  const moduleLine = buildModuleResultLine(summary, { expected, businessFailures, skipped, total, duration });
+  const resultColor = passed ? 'green' : 'red';
+
+  return {
+    schema: '2.0',
+    config: {
+      update_multi: true,
+      width_mode: 'default',
+      summary: { content: `JuJuBit UI 自动化：${status}，通过 ${expected}/${total}` }
+    },
+    header: {
+      title: { tag: 'plain_text', content: headerTitle },
+      subtitle: { tag: 'plain_text', content: `${modeLabel} · ${formatChinaTime(finishedAt)}` },
+      template: statusColor,
+      icon: { tag: 'standard_icon', token: passed ? 'chart_colorful' : 'warning_colorful' },
+      text_tag_list: [
+        {
+          tag: 'text_tag',
+          text: { tag: 'plain_text', content: status },
+          color: statusColor
+        }
+      ]
+    },
+    body: {
+      direction: 'vertical',
+      padding: '12px 12px 20px 12px',
+      vertical_spacing: '12px',
+      elements: [
+        {
+          tag: 'markdown',
+          content: `**状态：** <font color='${resultColor}'>${status}</font>　　**总用例：** ${total}`,
+          element_id: 'resultSummary'
+        },
+        {
+          tag: 'column_set',
+          flex_mode: 'none',
+          horizontal_spacing: '12px',
+          margin: '0px',
+          element_id: 'metrics',
+          columns: [
+            metricColumn('执行通过率', `${total === 0 ? '0.0' : ((expected / total) * 100).toFixed(1)}%`, `${expected}/${total}`, statusColor),
+            metricColumn('业务失败', String(businessFailures), `跳过 ${skipped} · 耗时 ${duration}`, statusColor)
+          ]
+        },
+        {
+          tag: 'div',
+          element_id: 'runInfo',
+          fields: [
+            field('分支', process.env.GITHUB_REF_NAME ?? 'main'),
+            field('执行人', process.env.GITHUB_ACTOR ?? hostname()),
+            field('提交', `\`${(process.env.GITHUB_SHA ?? '本地').slice(0, 12)}\``),
+            field('开始时间', formatChinaTime(startedAt)),
+            field('运行标识', process.env.GITHUB_RUN_ID ?? formatRecordTime(startedAt)),
+            field('执行范围', modeLabel)
+          ]
+        },
+        {
+          tag: 'interactive_container',
+          element_id: 'moduleResult',
+          has_border: true,
+          border_color: `${statusColor}-100`,
+          background_style: `${statusColor}-50`,
+          corner_radius: '8px',
+          padding: '12px',
+          vertical_spacing: '4px',
+          elements: [
+            { tag: 'markdown', content: `**<font color='${statusColor}'>模块结果</font>**` },
+            { tag: 'markdown', content: moduleLine, text_size: 'normal' }
+          ]
+        },
+        {
+          tag: 'column_set',
+          flex_mode: 'bisect',
+          horizontal_spacing: '12px',
+          element_id: 'actions',
+          columns: [
+            actionColumn('查看运行与报告', runUrl, 'primary_filled'),
+            actionColumn('下载 HTML 报告与录屏', artifactUrl, 'default')
+          ]
+        }
+      ]
+    }
+  };
+}
+
+function metricColumn(label, value, detail, color) {
+  return {
+    tag: 'column',
+    width: 'weighted',
+    weight: 1,
+    background_style: `${color}-50`,
+    corner_radius: '8px',
+    padding: '12px',
+    vertical_spacing: '2px',
+    elements: [
+      { tag: 'markdown', content: `**<font color='${color}'>${label}</font>**`, text_size: 'notation' },
+      { tag: 'markdown', content: `## <font color='${color}'>${value}</font>` },
+      { tag: 'markdown', content: `<font color='grey'>${escapeCardText(detail)}</font>`, text_size: 'notation' }
+    ]
+  };
+}
+
+function field(label, value) {
+  return { is_short: true, text: { tag: 'lark_md', content: `**${label}**\n${escapeCardText(value)}` } };
+}
+
+function actionColumn(label, url, type) {
+  return {
+    tag: 'column',
+    elements: [{
+      tag: 'button',
+      text: { tag: 'plain_text', content: label },
+      type,
+      width: 'fill',
+      behaviors: [{ type: 'open_url', default_url: url }]
+    }]
+  };
+}
+
+function buildModuleResultLine(summary, { expected, businessFailures, skipped, total, duration }) {
+  const failedTitles = (summary.caseResults ?? [])
+    .filter((item) => ['failed', 'flaky'].includes(item.status))
+    .map((item) => item.title)
+    .slice(0, 2);
+  if (failedTitles.length > 0) {
+    return `<font color='red'>失败</font>｜${escapeCardText(failedTitles.join('、'))}<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
+  }
+  return `<font color='green'>通过</font>｜全部模块正常<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
+}
+
+function escapeCardText(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 function formatFailureReasonForMessage(reason) {
@@ -926,10 +1081,10 @@ function formatRecordTime(date) {
   }).format(date).replaceAll('/', '-').replaceAll(':', '-').replace(/\s+/g, ' ');
 }
 
-async function sendFeishuNotification(text, failureArtifacts) {
+async function sendFeishuNotification(text, failureArtifacts, card) {
   const appConfig = readAppConfig();
   if (appConfig) {
-    await sendAppNotification(appConfig, text, failureArtifacts);
+    await sendAppNotification(appConfig, text, failureArtifacts, card);
     return;
   }
 
@@ -956,7 +1111,7 @@ function readAppConfig() {
   return values;
 }
 
-async function sendAppNotification(config, text, failureArtifacts) {
+async function sendAppNotification(config, text, failureArtifacts, card) {
   const token = await getTenantAccessToken(config);
   const preparedArtifacts = [];
 
@@ -968,8 +1123,7 @@ async function sendAppNotification(config, text, failureArtifacts) {
     preparedArtifacts.push({ ...artifact, imageKey });
   }
 
-  // Rich post keeps the summary, failure names and screenshots in one message.
-  await sendAppMessage(config, token, 'post', buildPostContent(text, preparedArtifacts));
+  await sendAppMessage(config, token, 'interactive', card ?? buildLegacyCard(text));
 
   for (const artifact of preparedArtifacts) {
     if (!artifact.video) {
@@ -1005,35 +1159,17 @@ async function sendArtifactSafely(label, action) {
   }
 }
 
-function buildPostContent(text, failureArtifacts) {
-  const [title, ...lines] = text.split('\n');
-  const content = lines.map(buildPostLine);
-
-  for (const artifact of failureArtifacts) {
-    if (!artifact.imageKey) {
-      continue;
-    }
-    content.push([{ tag: 'text', text: `\n失败截图：${artifact.title}\n` }]);
-    content.push([{ tag: 'img', image_key: artifact.imageKey }]);
-  }
-
+function buildLegacyCard(text) {
   return {
-    zh_cn: {
-      title,
-      content
-    }
+    schema: '2.0',
+    config: { update_multi: true, width_mode: 'default' },
+    header: {
+      title: { tag: 'plain_text', content: 'JuJuBit UI 自动化测试' },
+      template: 'blue',
+      icon: { tag: 'standard_icon', token: 'notice_colorful' }
+    },
+    body: { direction: 'vertical', padding: '12px', elements: [{ tag: 'markdown', content: escapeCardText(text) }] }
   };
-}
-
-function buildPostLine(line) {
-  const prefix = 'GitHub 运行：';
-  if (line.startsWith(prefix)) {
-    return [
-      { tag: 'text', text: prefix },
-      { tag: 'a', text: '查看运行与报告', href: line.slice(prefix.length) }
-    ];
-  }
-  return [{ tag: 'text', text: `${line}\n` }];
 }
 
 async function getTenantAccessToken(config) {
