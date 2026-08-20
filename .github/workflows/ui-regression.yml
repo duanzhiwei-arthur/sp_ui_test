@@ -1,0 +1,81 @@
+name: Scheduled UI regression
+
+on:
+  schedule:
+    # GitHub Actions uses UTC: 03:00/10:30 UTC are 11:00/18:30 in Asia/Shanghai.
+    - cron: '0 3 * * 1-5'
+    - cron: '30 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run scope. all performs real generation, cart, and Checkout validation.'
+        required: true
+        default: all
+        type: choice
+        options:
+          - safe
+          - all
+
+# Do not allow two production guest sessions to generate concurrently.
+concurrency:
+  group: ui-regression-production
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    name: Chromium UI regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SCHEDULED_TEST_MODE: ${{ inputs.mode || 'all' }}
+      BASE_URL: https://jujubit.ai
+      PRODUCT_URL: ${{ vars.PRODUCT_URL }}
+      TEST_IMAGE_SOLO: assets/two-dogs.jpeg
+      TEST_IMAGE_DUO: assets/two-dogs.jpeg
+      TEST_IMAGE_LARGE: assets/two-dogs.jpeg
+      TEST_PROMPT: 生成2个小狗
+      SCHEDULED_TRACKING_ENABLED: 'false'
+      TRACKING_TEST_ENABLED: 'false'
+      TRACKING_FAULT_INJECTION_ENABLED: 'false'
+
+      # The application bot sends only a direct message to the configured person.
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_RECEIVE_ID_TYPE: open_id
+      FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_RECEIVE_ID }}
+      FEISHU_WEBHOOK_URL: ''
+      FEISHU_WEBHOOK_SECRET: ''
+
+      # Failure-doc creation requires a logged-in local lark-cli user, which a hosted runner lacks.
+      FEISHU_EXECUTION_RECORDS_PARENT: ''
+      FEISHU_SOLUTION_LIBRARY_ROOT: ''
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium and Linux dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run scheduled regression and notify Feishu
+        run: npm run test:scheduled
+
+      - name: Upload Playwright report and failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-regression-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14

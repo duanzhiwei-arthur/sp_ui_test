@@ -199,3 +199,17 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 `SCHEDULED_TEST_MODE=all` 每次会触发 3 次真实生成、1 次加购并进入 Checkout，TC-05 会删除自己的 History 记录。启用前应确认生成成本、历史记录和购物车数据影响；任何模式都不会点击付款。
 
 生产风险控制：串行执行、固定游客素材、真实生成必须显式授权、流程止于 Checkout，且绝不点击 `Pay now` 或提交付款。
+
+## GitHub Actions 定时执行
+
+仓库已提供 `.github/workflows/ui-regression.yml`：它使用 GitHub 托管 Ubuntu Runner，在工作日北京时间 `11:00` 和 `18:30` 运行。也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
+
+在仓库的 **Settings → Secrets and variables → Actions → Secrets** 中配置下列 Secrets，通知将只发送给个人单聊，不会发送到群：
+
+```text
+FEISHU_APP_ID
+FEISHU_APP_SECRET
+FEISHU_RECEIVE_ID  # 个人 open_id
+```
+
+如需指定商品变体，可在 **Variables** 中配置可选的 `PRODUCT_URL`。每次执行无论成功或失败都会将 `playwright-report/` 和 `test-results/` 上传为 GitHub Artifact，并在飞书消息中附上对应的 Actions 运行链接。托管 Runner 使用 GitHub 的共享出口 IP；若生产站对该 IP 返回 `HTTP 429` 或 `legal-rate-limited`，报告会保留证据，但需要改用固定出口 IP 的 self-hosted Runner 才能避免该限制。
