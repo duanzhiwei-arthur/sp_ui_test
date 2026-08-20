@@ -10,7 +10,9 @@ import { stripVTControlCharacters } from 'node:util';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
-const resultsFile = path.join(projectRoot, 'test-results', 'results.json');
+const resultsFile = process.env.PLAYWRIGHT_RESULTS_FILE
+  ? path.resolve(process.env.PLAYWRIGHT_RESULTS_FILE)
+  : path.join(projectRoot, 'test-results', 'results.json');
 const reportFile = path.join(projectRoot, 'playwright-report', 'index.html');
 const mode = (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
 const feishuApiBase = 'https://open.feishu.cn';
@@ -385,13 +387,14 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
         },
         {
           tag: 'column_set',
-          flex_mode: 'none',
+          flex_mode: 'trisect',
           horizontal_spacing: '12px',
           margin: '0px',
           element_id: 'metrics',
           columns: [
             metricColumn('执行通过率', `${total === 0 ? '0.0' : ((expected / total) * 100).toFixed(1)}%`, `${expected}/${total}`, statusColor),
-            metricColumn('业务失败', String(businessFailures), `跳过 ${skipped} · 耗时 ${duration}`, statusColor)
+            metricColumn('业务失败', String(businessFailures), businessFailures > 0 ? '需要关注' : '无', statusColor),
+            metricColumn('跳过 / 耗时', String(skipped), duration, statusColor)
           ]
         },
         {
@@ -399,11 +402,9 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
           element_id: 'runInfo',
           fields: [
             field('分支', process.env.GITHUB_REF_NAME ?? 'main'),
-            field('执行人', process.env.GITHUB_ACTOR ?? hostname()),
             field('提交', `\`${(process.env.GITHUB_SHA ?? '本地').slice(0, 12)}\``),
             field('开始时间', formatChinaTime(startedAt)),
-            field('运行标识', process.env.GITHUB_RUN_ID ?? formatRecordTime(startedAt)),
-            field('执行范围', modeLabel)
+            field('运行标识', process.env.GITHUB_RUN_ID ?? formatRecordTime(startedAt))
           ]
         },
         {
@@ -420,14 +421,15 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
             { tag: 'markdown', content: moduleLine, text_size: 'normal' }
           ]
         },
+        ...(!passed ? [buildFailureDetail(summary)] : []),
         {
           tag: 'column_set',
           flex_mode: 'bisect',
           horizontal_spacing: '12px',
           element_id: 'actions',
           columns: [
-            actionColumn('查看运行与报告', runUrl, 'primary_filled'),
-            actionColumn('下载 HTML 报告与录屏', artifactUrl, 'default')
+            actionColumn('查看运行', runUrl, 'primary_filled'),
+            actionColumn('查看证据', artifactUrl, 'default')
           ]
         }
       ]
@@ -441,7 +443,6 @@ function metricColumn(label, value, detail, color) {
     width: 'weighted',
     weight: 1,
     background_style: `${color}-50`,
-    corner_radius: '8px',
     padding: '12px',
     vertical_spacing: '2px',
     elements: [
@@ -478,6 +479,28 @@ function buildModuleResultLine(summary, { expected, businessFailures, skipped, t
     return `<font color='red'>失败</font>｜${escapeCardText(failedTitles.join('、'))}<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
   }
   return `<font color='green'>通过</font>｜全部模块正常<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
+}
+
+function buildFailureDetail(summary) {
+  const detail = summary.failureDetails?.[0];
+  const title = detail?.title ?? '测试执行或报告生成';
+  const analysis = formatFailureReasonForMessage(detail?.analysis ?? detail?.reason);
+  const suggestion = buildFixSuggestions(summary, 1)[0] ?? '查看运行证据，确认页面状态后再调整自动化定位器。';
+  return {
+    tag: 'interactive_container',
+    element_id: 'failureDetail',
+    has_border: true,
+    border_color: 'red-100',
+    background_style: 'red-50',
+    corner_radius: '8px',
+    padding: '12px',
+    vertical_spacing: '4px',
+    elements: [
+      { tag: 'markdown', content: "**<font color='red'>失败原因</font>**" },
+      { tag: 'markdown', content: `**${escapeCardText(title)}**<br>${escapeCardText(analysis)}`, text_size: 'normal' },
+      { tag: 'markdown', content: `<font color='grey'>建议：${escapeCardText(suggestion)}</font>`, text_size: 'notation' }
+    ]
+  };
 }
 
 function escapeCardText(value) {
