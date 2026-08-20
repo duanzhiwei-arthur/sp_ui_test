@@ -203,6 +203,11 @@
       "ariaLabel": null
     },
     {
+      "type": "radio",
+      "placeholder": "",
+      "ariaLabel": "Additional payment methods, american_express, jcb, discover, diners_club, venmo, payme, jko, wero, spaylater, affirm, swish, bizum, and mbway"
+    },
+    {
       "type": "text",
       "placeholder": "Discount code",
       "ariaLabel": null
@@ -239,7 +244,7 @@
     },
     {
       "name": "Sign in",
-      "href": "https://jujubit.ai/customer_authentication/login?locale=en-US&region_country=US&return_to=%2Fcheckouts%2Fcn%2FhWNEqCtG4XmAnE6vu37qLumG%2Fen-us%3F_r%3DAQAByNbLzXPIx63JCs6tb8IlFthxNhCyZAjk7rAglnAOxOY%26company_location_id%26locale%3Den-US"
+      "href": "https://jujubit.ai/customer_authentication/login?locale=en-US&region_country=US&return_to=%2Fcheckouts%2Fcn%2FhWNFrG3Tp75khA0EePqbUY1Y%2Fen-us%3F_r%3DAQABYye5Uw8x5oIztHH5U0mGGNkjTvoo22p7yara7eQoEXc%26company_location_id%26locale%3Den-US"
     },
     {
       "name": "",

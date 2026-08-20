@@ -6,15 +6,13 @@ export class CartDrawer {
   readonly cartPageRoot: Locator;
   readonly cartButton: Locator;
   readonly checkoutButton: Locator;
-  readonly checkoutWithItemsButton: Locator;
+  readonly cartItemQuantities: Locator;
 
   constructor(readonly page: Page) {
     this.cartPageRoot = page.locator('#custom-cart-page-root');
     this.cartButton = page.getByRole('button', { name: 'Cart', exact: true });
-    this.checkoutButton = this.cartPageRoot.getByRole('button', { name: /Check\s*out/i });
-    this.checkoutWithItemsButton = this.cartPageRoot.getByRole('button', {
-      name: /Check\s*out\s*\([1-9]\d*\)/i
-    });
+    this.checkoutButton = this.cartPageRoot.getByRole('button', { name: /^Check\s*out$/i });
+    this.cartItemQuantities = this.cartPageRoot.getByRole('spinbutton');
   }
 
   async open(): Promise<void> {
@@ -33,8 +31,13 @@ export class CartDrawer {
 
   async expectHasItems(): Promise<void> {
     await expect(this.cartPageRoot).toBeVisible();
-    await expect(this.checkoutWithItemsButton).toBeVisible();
-    await expect(this.checkoutWithItemsButton).toBeEnabled();
+    await expect(this.cartItemQuantities.first()).toBeVisible();
+    await expect.poll(
+      async () => Number(await this.cartItemQuantities.first().inputValue()),
+      { message: '购物车商品数量应大于 0' }
+    ).toBeGreaterThan(0);
+    await expect(this.checkoutButton).toBeVisible();
+    await expect(this.checkoutButton).toBeEnabled();
   }
 
   private async click(target: Locator): Promise<void> {

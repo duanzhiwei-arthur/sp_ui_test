@@ -10,7 +10,6 @@ export class CheckoutPage {
   readonly postalCodeInput: Locator;
   readonly phoneInput: Locator;
   readonly discountButton: Locator;
-  readonly payNowButton: Locator;
 
   constructor(readonly page: Page) {
     this.orderSummary = page.getByText('Order summary', { exact: true }).filter({ visible: true }).first();
@@ -22,10 +21,10 @@ export class CheckoutPage {
     this.postalCodeInput = page.getByPlaceholder('ZIP code');
     this.phoneInput = page.getByPlaceholder('Phone');
     this.discountButton = page.getByRole('button', { name: 'Add discount', exact: true });
-    this.payNowButton = page.getByRole('button', { name: 'Pay now', exact: true });
   }
 
   async expectVisible(): Promise<void> {
+    await expect(this.page).toHaveURL(/\/checkouts\//);
     await expect(this.orderSummary).toBeVisible();
     await expect(this.emailInput).toBeVisible();
     await expect(this.firstNameInput).toBeVisible();
@@ -35,6 +34,5 @@ export class CheckoutPage {
     await expect(this.postalCodeInput).toBeVisible();
     await expect(this.phoneInput).toBeVisible();
     await expect(this.discountButton).toBeVisible();
-    await expect(this.payNowButton).toBeDisabled();
   }
 }

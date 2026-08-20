@@ -31,7 +31,7 @@ const skipCoreSmoke = !canRunGeneration() || !existsSync(assetPath(testData.solo
 test.describe('核心生成链路 @core-smoke', () => {
   test.skip(skipCoreSmoke, '需配置测试素材并显式允许线上生成及加购。');
 
-  test('TC-20: 上传图片并生成后可加购进入 Checkout', async ({ page }) => {
+  test('TC-03: 上传图片并生成后可加购进入 Checkout', async ({ page }) => {
     test.setTimeout(900_000);
     const create = new CreatePage(page);
 

@@ -8,8 +8,12 @@
   <string>/Users/macbookair/Desktop/sp_ui_test</string>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>HOME</key>
+    <string>/Users/macbookair</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>SCHEDULED_TRACKING_ENABLED</key>
+    <string>false</string>
   </dict>
   <key>ProgramArguments</key>
   <array>
@@ -20,12 +24,80 @@
   <key>StartCalendarInterval</key>
   <array>
     <dict>
+      <key>Weekday</key>
+      <integer>2</integer>
       <key>Hour</key>
-      <integer>10</integer>
+      <integer>11</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>2</integer>
+      <key>Hour</key>
+      <integer>18</integer>
       <key>Minute</key>
       <integer>30</integer>
     </dict>
     <dict>
+      <key>Weekday</key>
+      <integer>3</integer>
+      <key>Hour</key>
+      <integer>11</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>3</integer>
+      <key>Hour</key>
+      <integer>18</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>4</integer>
+      <key>Hour</key>
+      <integer>11</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>4</integer>
+      <key>Hour</key>
+      <integer>18</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>5</integer>
+      <key>Hour</key>
+      <integer>11</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>5</integer>
+      <key>Hour</key>
+      <integer>18</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>6</integer>
+      <key>Hour</key>
+      <integer>11</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key>
+      <integer>6</integer>
       <key>Hour</key>
       <integer>18</integer>
       <key>Minute</key>

@@ -31,6 +31,16 @@
       "ariaPressed": null
     },
     {
+      "name": "About Us",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "English",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
       "name": "icon-X\n              Close cart",
       "disabled": false,
       "ariaPressed": null
@@ -41,12 +51,17 @@
       "ariaPressed": null
     },
     {
+      "name": "Cart",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
       "name": "Site navigation",
       "disabled": false,
       "ariaPressed": null
     },
     {
-      "name": "Cart",
+      "name": "English",
       "disabled": false,
       "ariaPressed": null
     },
@@ -87,6 +102,51 @@
     },
     {
       "name": "icon-X\n      \"Close (esc)\"",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close membership dialog",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Join for $19.90/mo",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Join for $19.90/mo",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Try again",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Close",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Retry Payment",
       "disabled": false,
       "ariaPressed": null
     },
@@ -171,126 +231,6 @@
       "ariaPressed": null
     },
     {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
-      "name": "",
-      "disabled": false,
-      "ariaPressed": null
-    },
-    {
       "name": "Generate",
       "disabled": false,
       "ariaPressed": null
@@ -352,22 +292,22 @@
     },
     {
       "name": "Add to Cart",
-      "disabled": true,
+      "disabled": false,
       "ariaPressed": null
     },
     {
       "name": "Buy Now15",
-      "disabled": true,
+      "disabled": false,
       "ariaPressed": null
     },
     {
       "name": "Add to Cart",
-      "disabled": true,
+      "disabled": false,
       "ariaPressed": null
     },
     {
       "name": "Buy Now15",
-      "disabled": true,
+      "disabled": false,
       "ariaPressed": null
     },
     {
@@ -426,6 +366,11 @@
       "ariaPressed": null
     },
     {
+      "name": "United States (USD\n                    $)",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
       "name": "icon-X\n    \"Close (esc)\"",
       "disabled": false,
       "ariaPressed": null
@@ -459,9 +404,69 @@
       "name": "Confirm prompt editing",
       "disabled": false,
       "ariaPressed": null
+    },
+    {
+      "name": "Close cart",
+      "disabled": false,
+      "ariaPressed": null
+    },
+    {
+      "name": "Checkout",
+      "disabled": true,
+      "ariaPressed": null
     }
   ],
   "inputs": [
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
     {
       "type": "search",
       "placeholder": "Search",
@@ -556,12 +561,41 @@
       "type": "email",
       "placeholder": "Enter your email",
       "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
+    },
+    {
+      "type": "hidden",
+      "placeholder": "",
+      "ariaLabel": null
     }
   ],
   "links": [
     {
       "name": "Skip to content",
       "href": "#MainContent"
+    },
+    {
+      "name": "Create Your Own Design — Get 15% OFF",
+      "href": "/products/customize-your-own"
     },
     {
       "name": "",
@@ -588,6 +622,10 @@
       "href": "/collections/trpg-pod"
     },
     {
+      "name": "CHIBI",
+      "href": "/collections/chibi"
+    },
+    {
       "name": "Occasions",
       "href": "/collections/occasions-pod"
     },
@@ -600,20 +638,28 @@
       "href": "/collections"
     },
     {
-      "name": "Art Toys",
+      "name": "Figurines",
       "href": "/collections/art-toy"
     },
     {
-      "name": "FDM",
+      "name": "Keychains",
+      "href": "/collections/keychain-pod"
+    },
+    {
+      "name": "FDM LAMPS",
       "href": "/collections/fdm"
     },
     {
       "name": "Crystal Bracelets",
-      "href": "/collections/zodiac-x-tarot"
+      "href": "/collections/crystal-bracelets"
     },
     {
-      "name": "Custom Keycaps",
+      "name": "Keycaps",
       "href": "/collections/keycaps"
+    },
+    {
+      "name": "Photo Boards",
+      "href": "/collections/photo-board"
     },
     {
       "name": "How It Works",
@@ -636,8 +682,32 @@
       "href": "/pages/refund-exchange-policy"
     },
     {
-      "name": "Community",
+      "name": "About Us",
       "href": "/pages/about-us"
+    },
+    {
+      "name": "Join Us",
+      "href": "/pages/join-us"
+    },
+    {
+      "name": "Account",
+      "href": "/account"
+    },
+    {
+      "name": "English",
+      "href": "#"
+    },
+    {
+      "name": "日本語",
+      "href": "#"
+    },
+    {
+      "name": "한국어",
+      "href": "#"
+    },
+    {
+      "name": "Log In",
+      "href": "/customer_authentication/login?return_to=%2Fpages%2Fvip-program%3Fentry_page%3Dheader"
     },
     {
       "name": "",
@@ -666,6 +736,10 @@
     {
       "name": "TRPG",
       "href": "/collections/trpg-pod"
+    },
+    {
+      "name": "CHIBI",
+      "href": "/collections/chibi"
     },
     {
       "name": "Occasions",
@@ -692,12 +766,12 @@
       "href": "/products/custom-special-force-figurine-turn-yourself-into-a-3d-secret-agent"
     },
     {
-      "name": "Custom Voxel Figurine | Turn Yourself into a 3D Pixelated character\n    \n      $49.99",
-      "href": "/products/custom-voxel-figurine-turn-yourself-into-a-3d-pixelated-character"
+      "name": "Custom Cowboy & Cowgirl Figurine | Personalized Your Western American Stylish Avatar\n    \n      $69.99",
+      "href": "/products/custom-cowboy-cowgirl-figurine-personalized-your-western-american-stylish-avatar"
     },
     {
-      "name": "Custom Helmet Babies | Turn Your Image into a Cute 3D figurine\n    \n      $49.99",
-      "href": "/products/custom-helmet-babies-turn-your-image-into-a-cute-3d-figurine"
+      "name": "Custom Voxel Figurine | Turn Yourself into a 3D Pixelated character\n    \n      $49.99",
+      "href": "/products/custom-voxel-figurine-turn-yourself-into-a-3d-pixelated-character"
     },
     {
       "name": "Custom TRPG Miniature – Create Your Own Tabletop RPG Character Figure\n    \n      $29.99",
@@ -712,16 +786,28 @@
       "href": "/products/custom-trpg-creature-miniature-create-your-own-monster-familiar-or-boss-figure"
     },
     {
-      "name": "Pet Season Special | Custom Realistic 3D Figurine for Your Beloved Pet\n    \n      $29.99",
-      "href": "/products/custom-realistic-figurine-create-3d-figurine-for-your-beloved-pet"
+      "name": "Custom Classic Chibi Figurine | Turn Your Photo into a Collectible Mini Figure\n    \n      $29.99",
+      "href": "/products/custom-classic-chibi-figurine"
     },
     {
-      "name": "Parent & Child Custom Figurine | Turn Family Love Into a 3D Collectible\n    \n      $29.99",
-      "href": "/products/parent-child-custom-figurine-turn-family-love-into-a-3d-collectible"
+      "name": "Custom Soft Chibi Figurine | Turn Your Memories into a Collectible 3D Figure\n    \n      $29.99",
+      "href": "/products/custom-soft-chibi-figurine"
     },
     {
       "name": "Personalized Mini Pop Couple Figure | Custom Two-Person Collectible\n    \n      $59.99",
       "href": "/products/personalized-mini-pop-couple-figure-custom-two-person-collectible"
+    },
+    {
+      "name": "Pet Season Special | Custom Realistic 3D Figurine for Your Beloved Pet\n    \n      $29.99",
+      "href": "/products/custom-realistic-figurine-create-3d-figurine-for-your-beloved-pet"
+    },
+    {
+      "name": "Personalized Mini Pop Couple Figure | Custom Two-Person Collectible\n    \n      $59.99",
+      "href": "/products/personalized-mini-pop-couple-figure-custom-two-person-collectible"
+    },
+    {
+      "name": "Parent & Child Custom Figurine | Turn Family Love Into a 3D Collectible\n    \n      $29.99",
+      "href": "/products/parent-child-custom-figurine-turn-family-love-into-a-3d-collectible"
     },
     {
       "name": "3D Model Services | Download\n    \n      $7.99\n          $12.99",
@@ -732,7 +818,7 @@
       "href": "/products/3d-model-services-customize-refine-download"
     },
     {
-      "name": "3D Model Services | Customize\n    \n      $350.00",
+      "name": "3D Model Services | Customize\n    \n      $34.00",
       "href": "/products/3d-model-services-customize"
     },
     {
@@ -740,32 +826,56 @@
       "href": "/collections"
     },
     {
-      "name": "Art Toys",
+      "name": "Figurines",
       "href": "/collections/art-toy"
     },
     {
-      "name": "FDM",
+      "name": "Keychains",
+      "href": "/collections/keychain-pod"
+    },
+    {
+      "name": "FDM LAMPS",
       "href": "/collections/fdm"
     },
     {
       "name": "Crystal Bracelets",
-      "href": "/collections/zodiac-x-tarot"
+      "href": "/collections/crystal-bracelets"
     },
     {
-      "name": "Custom Keycaps",
+      "name": "Keycaps",
       "href": "/collections/keycaps"
     },
     {
-      "name": "Mini Pop! Fashion - Sunny Bloom Belle\n    \n      $54.99",
-      "href": "/products/mini-pop-fashion-sunny-bloom-belle"
+      "name": "Photo Boards",
+      "href": "/collections/photo-board"
     },
     {
-      "name": "Venus WAWA — JuJuBit Collectible Art Toy for Gifting, Desk Decor & Display\n    \n      $59.99",
-      "href": "/products/jujubit-figurine-customizable-collectible-art-toy-venus-wawa"
+      "name": "Crimson Monarch-Detailed Sculpt Miniature for RPG, Display & Collection\n    \n      $24.99",
+      "href": "/products/crimson-monarch-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
-      "name": "LUMI — JuJuBit Collectible Art Toy for Gifting, Desk Decor & Display\n    \n      $24.99\n          $29.99",
-      "href": "/products/lumi-jujubit-collectible-art-toy-for-gifting-desk-decor-display"
+      "name": "Elven Archer-Detailed Sculpt Miniature for RPG, Display & Collection\n    \n      $24.99",
+      "href": "/products/elven-archer-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Dark Lords-Detailed Sculpt Miniature for RPG, Display & Collection\n    \n      $24.99",
+      "href": "/products/dark-lords-detailed-sculpt-miniature-for-rpg-display-collection"
+    },
+    {
+      "name": "Custom Classic Chibi Head Keychain | Turn Your Character into a Cute Keepsake\n    \n      $45.00",
+      "href": "/products/custom-classic-chibi-keychain"
+    },
+    {
+      "name": "Custom Soft Chibi Head Keychain | Carry Your Favorite Face Everywhere\n    \n      $45.00",
+      "href": "/products/custom-soft-chibi-head-keychain"
+    },
+    {
+      "name": "Sakura Neko |Classic Chibi Keychain\n    \n      $45.00",
+      "href": "/products/sakura-neko-classic-chibi-keychain-1"
+    },
+    {
+      "name": "Custom Pet Night Light – Turn Your Photo Into Light\n    \n      $129.99",
+      "href": "/products/custom-pet-night-light-turn-your-photo-into-light"
     },
     {
       "name": "Dalmatian Ambient Light｜JuJuBit FDM 3D Printed Night Light for Kids Room & Desk\n    \n      $89.99",
@@ -776,20 +886,16 @@
       "href": "/products/horse-head-ambient-light-jujubit-fdm-3d-printed-night-light-for-office-shelf"
     },
     {
-      "name": "Sparrow Ambient Light｜JuJuBit FDM 3D Printed Night Light for Living Room & Desk\n    \n      $89.99",
-      "href": "/products/sparrow-ambient-light-jujubit-fdm-3d-printed-night-light-for-living-room-desk"
+      "name": "JuJuBit Lavender Amethyst — Serenity & Inner Peace Energy\n    \n      $20.99\n          $29.99",
+      "href": "/products/jujubit-lavender-amethyst-serenity-inner-peace-energy"
     },
     {
-      "name": "JuJuBit TAURUS Zodiac Bracelet – Seraphinite × Four-Season Phantom for Grounded Growth & Gentle Renewal\n    \n      $54.99",
-      "href": "/products/jujubit-amethyst-gold-obsidian-libra"
+      "name": "JuJuBit Black Obsidian — Protection & Grounding Energy\n    \n      $20.99\n          $29.99",
+      "href": "/products/jujubit-black-obsidian-protection-grounding-energy-1"
     },
     {
-      "name": "JuJuBit CAPRICORN Zodiac Bracelet – Grey Moonstone × Kyanite for Calm Discipline & Clear Alignment\n    \n      $54.99",
-      "href": "/products/jujubit-amethyst-white-phantom-pisces"
-    },
-    {
-      "name": "JuJuBit Gemini Zodiac Bracelet – Amethyst & Silver Sheen Obsidian for Mental Clarity, Focus & Balance\n    \n      $54.99",
-      "href": "/products/jujubit-amethyst-gold-obsidian-virgo"
+      "name": "JuJuBit White Phantom × Golden Citrine Bracelet\n    \n      $39.99\n          $54.99",
+      "href": "/products/jujubit-white-phantom-golden-citrine-new-year-wealth-momentum-energy"
     },
     {
       "name": "JuJuBit Custom Artisan Keycap for Mechanical Keyboards Mecha-01\n    \n      $29.99",
@@ -802,6 +908,18 @@
     {
       "name": "JuJuBit Custom Artisan Keycap for Mechanical Keyboards Corgi\n    \n      $29.99",
       "href": "/products/jujubit-custom-artisan-keycap-for-mechanical-keyboards"
+    },
+    {
+      "name": "Personalized Pet Acrylic Photo Board\n    \n      $19.99",
+      "href": "/products/personalized-pet-acrylic-photo-board"
+    },
+    {
+      "name": "Personalized Friendship Acrylic Photo Board\n    \n      $19.99",
+      "href": "/products/personalized-friendship-acrylic-photo-board"
+    },
+    {
+      "name": "Personalized Portrait Acrylic Board\n    \n      $19.99",
+      "href": "/products/personalized-portrait-acrylic-board"
     },
     {
       "name": "How It Works",
@@ -824,12 +942,32 @@
       "href": "/pages/refund-exchange-policy"
     },
     {
-      "name": "Community",
+      "name": "About Us",
       "href": "/pages/about-us"
+    },
+    {
+      "name": "Join Us",
+      "href": "/pages/join-us"
+    },
+    {
+      "name": "Log In",
+      "href": "/customer_authentication/login?return_to=%2Fpages%2Fvip-program%3Fentry_page%3Dheader"
     },
     {
       "name": "",
       "href": "/search"
+    },
+    {
+      "name": "English",
+      "href": "#"
+    },
+    {
+      "name": "日本語",
+      "href": "#"
+    },
+    {
+      "name": "한국어",
+      "href": "#"
     },
     {
       "name": "",
@@ -841,23 +979,23 @@
     },
     {
       "name": "15% OFF",
-      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod_1800x1800.png?v=1770294841"
+      "href": "//jujubit.ai/cdn/shop/files/pod_1800x1800.png?v=1770294841"
     },
     {
       "name": "15% OFF",
-      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod1_1800x1800.png?v=1770294841"
+      "href": "//jujubit.ai/cdn/shop/files/pod1_1800x1800.png?v=1770294841"
     },
     {
       "name": "15% OFF",
-      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod2_1800x1800.png?v=1776771772"
+      "href": "//jujubit.ai/cdn/shop/files/pod2_1800x1800.png?v=1776771772"
     },
     {
       "name": "15% OFF",
-      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/pod4_1800x1800.png?v=1776771772"
+      "href": "//jujubit.ai/cdn/shop/files/pod4_1800x1800.png?v=1776771772"
     },
     {
       "name": "15% OFF",
-      "href": "//cdn.shopify.com/s/files/1/0954/0884/9267/files/20260701-155546_1800x1800.jpg?v=1782892696"
+      "href": "//jujubit.ai/cdn/shop/files/20260701-155546_1800x1800.jpg?v=1782892696"
     },
     {
       "name": "Shipping",
@@ -896,23 +1034,23 @@
       "href": "/collections/just-restocked/products/crimson-monarch-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
-      "name": "Shadow Knight-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
-      "href": "/collections/just-restocked/products/shadow-knight-detailed-sculpt-miniature-for-rpg-display-collection"
+      "name": "Elven Archer-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/elven-archer-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
       "name": "Dark Lords-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
       "href": "/collections/just-restocked/products/dark-lords-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
-      "name": "Elven Archer-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
-      "href": "/collections/just-restocked/products/elven-archer-detailed-sculpt-miniature-for-rpg-display-collection"
+      "name": "Shadow Knight-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
+      "href": "/collections/just-restocked/products/shadow-knight-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
       "name": "Whisper Blade-Detailed Sculpt Miniature for RPG, Display & Collection\n              from $24.99",
       "href": "/collections/just-restocked/products/whisper-blade-detailed-sculpt-miniature-for-rpg-display-collection"
     },
     {
-      "name": "View all103 products",
+      "name": "View all116 products",
       "href": "/collections/just-restocked"
     },
     {
@@ -920,7 +1058,7 @@
       "href": "/"
     },
     {
-      "name": "instagram\n        Instagram",
+      "name": "instagram\n        \n        Instagram",
       "href": "https://www.instagram.com/thisisjujubit_"
     },
     {
@@ -982,6 +1120,170 @@
     {
       "name": "FAQs",
       "href": "/pages/faqs"
+    },
+    {
+      "name": "Australia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Austria (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Belgium (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Brazil (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Cambodia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Canada (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Caribbean Netherlands (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Czechia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Denmark (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Finland (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "France (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Germany (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Greece (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Hong Kong SAR (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Iceland (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Indonesia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Ireland (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Italy (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Japan (JPY\n                          ¥)",
+      "href": "#"
+    },
+    {
+      "name": "Malaysia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Mexico (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Netherlands (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "New Zealand (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Norway (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Philippines (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Poland (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Portugal (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Qatar (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Saudi Arabia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Singapore (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Slovakia (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "South Korea (KRW\n                          ₩)",
+      "href": "#"
+    },
+    {
+      "name": "Spain (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Sweden (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Switzerland (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Thailand (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Türkiye (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "United Arab Emirates (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "United Kingdom (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "United States (USD\n                          $)",
+      "href": "#"
+    },
+    {
+      "name": "Vietnam (USD\n                          $)",
+      "href": "#"
     },
     {
       "name": "Powered by Shopify",

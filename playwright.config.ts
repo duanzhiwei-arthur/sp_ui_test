@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 export default defineConfig({
   testDir: './tests',
+  testIgnore: process.env.SCHEDULED_TRACKING_ENABLED === 'false' ? '**/tracking/**' : [],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,

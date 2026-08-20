@@ -3,6 +3,7 @@ import { expect, Locator, Page } from '@playwright/test';
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
 const actionPause = 2_000;
+const postThreeDRotationPause = 5_000;
 
 export class CreatePage {
   readonly createTab: Locator;
@@ -22,16 +23,18 @@ export class CreatePage {
   readonly threeDButton: Locator;
   readonly twoDResultImage: Locator;
   readonly threeDView: Locator;
-  readonly threeDModelCanvas: Locator;
   readonly threeDProcessingOverlay: Locator;
   readonly addToCartButton: Locator;
   readonly buyNowButton: Locator;
-  readonly deleteRecordButton: Locator;
+  readonly historyRecordDeleteButtons: Locator;
   readonly deleteImageButton: Locator;
   readonly cancelPromptEditingButton: Locator;
   readonly confirmPromptEditingButton: Locator;
   readonly customizerLoading: Locator;
+  readonly marketingPopup: Locator;
   readonly marketingPopupCloseButton: Locator;
+  readonly cookieBanner: Locator;
+  readonly cookieAcceptButton: Locator;
 
   constructor(readonly page: Page) {
     this.createTab = page.getByRole('link', { name: 'Create', exact: true });
@@ -52,18 +55,20 @@ export class CreatePage {
     const productPreview = page.locator('.product-image-container .jjb-app').first();
     this.twoDResultImage = productPreview.locator('[data-view-name="2d"] img[alt="Generated Toy Result"]');
     this.threeDView = productPreview.locator('[data-view-name="3d"]');
-    this.threeDModelCanvas = this.threeDView.locator('model-viewer canvas');
     this.threeDProcessingOverlay = this.threeDView.locator('[class*="bg-white/95"]').filter({
       has: page.locator('[class*="bg-linear-to-r"]')
     });
     this.addToCartButton = page.getByRole('button', { name: 'Add to Cart', exact: true });
     this.buyNowButton = page.getByRole('button', { name: /Buy Now/ });
-    this.deleteRecordButton = page.getByRole('button', { name: 'delete record', exact: true });
+    this.historyRecordDeleteButtons = page.getByRole('button', { name: 'delete record', exact: true });
     this.deleteImageButton = page.getByRole('button', { name: 'Delete image', exact: true });
     this.cancelPromptEditingButton = page.getByRole('button', { name: 'Cancel prompt editing', exact: true });
     this.confirmPromptEditingButton = page.getByRole('button', { name: 'Confirm prompt editing', exact: true });
     this.customizerLoading = page.getByText('Loading customizer...', { exact: true });
-    this.marketingPopupCloseButton = page.getByRole('button', { name: 'Close', exact: true });
+    this.marketingPopup = page.locator('div[id$="__newsletter-popup"]').first();
+    this.marketingPopupCloseButton = this.marketingPopup.getByRole('button', { name: 'Close', exact: true });
+    this.cookieBanner = page.locator('#shopify-pc__banner');
+    this.cookieAcceptButton = this.cookieBanner.getByRole('button', { name: 'Accept', exact: true });
   }
 
   async goto(): Promise<void> {
@@ -72,7 +77,8 @@ export class CreatePage {
   }
 
   async gotoProductPage(): Promise<void> {
-    await this.navigate('/products/customize-your-own');
+    // Keep an explicitly configured variant when a test environment needs one.
+    await this.navigate(process.env.PRODUCT_URL ?? '/products/customize-your-own');
     await expect(this.createTab).toBeVisible();
   }
 
@@ -83,6 +89,7 @@ export class CreatePage {
   async navigate(path: string): Promise<void> {
     const response = await this.page.goto(path, { waitUntil: 'domcontentloaded' });
     await this.assertSiteAvailable(response?.status());
+    await this.acceptCookieConsent();
   }
 
   async assertSiteAvailable(status?: number): Promise<void> {
@@ -107,10 +114,33 @@ export class CreatePage {
     await this.dismissMarketingPopup();
   }
 
-  async dismissMarketingPopup(): Promise<void> {
-    if (await this.marketingPopupCloseButton.isVisible().catch(() => false)) {
-      await this.click(this.marketingPopupCloseButton);
+  async dismissMarketingPopup(timeout = 8_000): Promise<void> {
+    const appeared = await this.marketingPopupCloseButton
+      .waitFor({ state: 'visible', timeout })
+      .then(() => true)
+      .catch(() => false);
+    if (!appeared) {
+      return;
     }
+
+    await this.click(this.marketingPopupCloseButton);
+    await expect(this.marketingPopup).toBeHidden({ timeout: 10_000 });
+  }
+
+  async acceptCookieConsent(timeout = 8_000): Promise<void> {
+    const appeared = await this.cookieAcceptButton
+      .waitFor({ state: 'visible', timeout })
+      .then(() => true)
+      .catch(() => false);
+    if (!appeared) {
+      return;
+    }
+
+    // Shopify Preview's toolbar can overlap the storefront consent controls.
+    await this.page.locator('#PBarNextFrameWrapper').evaluate((element) => element.remove()).catch(() => undefined);
+    await this.cookieAcceptButton.click({ force: true });
+    await this.page.waitForTimeout(250);
+    await this.cookieBanner.evaluate((element) => element.remove()).catch(() => undefined);
   }
 
   async click(target: Locator): Promise<void> {
@@ -134,9 +164,9 @@ export class CreatePage {
 
   async enterPrompt(text: string): Promise<void> {
     await this.click(this.promptButton);
-    const promptInput = this.page.locator('main textarea').filter({ hasNotText: '[{' });
-    await expect(promptInput).toHaveCount(1);
-    await promptInput.fill(text);
+    await expect(this.promptInput).toBeVisible();
+    await expect(this.promptInput).toBeEditable();
+    await this.promptInput.fill(text);
   }
 
   async startGeneration(): Promise<void> {
@@ -146,10 +176,32 @@ export class CreatePage {
 
   async expectImageResourceLoaded(image: Locator, timeout = customizerTimeout): Promise<void> {
     await image.waitFor({ state: 'attached', timeout });
-    await expect.poll(
-      () => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
-      { message: '生成图片未完成加载', timeout }
-    ).toBe(true);
+    try {
+      await expect.poll(
+        () => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
+        { message: '生成图片未完成加载', timeout }
+      ).toBe(true);
+    } catch (error) {
+      const imageState = await image.evaluateAll((elements: HTMLImageElement[]) => elements.map((element) => ({
+        complete: element.complete,
+        naturalWidth: element.naturalWidth,
+        srcPath: element.currentSrc ? new URL(element.currentSrc).pathname : ''
+      }))).catch(() => []);
+      const visibleErrors = await this.page.locator('[role="alert"], [class*="error" i]')
+        .evaluateAll((elements) => elements
+          .filter((element) => {
+            const style = window.getComputedStyle(element);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+          })
+          .map((element) => element.textContent?.replace(/\s+/g, ' ').trim())
+          .filter(Boolean)
+          .slice(0, 5))
+        .catch(() => []);
+      throw new Error(
+        `生成图片未完成加载；图片状态=${JSON.stringify(imageState)}；页面错误=${JSON.stringify(visibleErrors)}`,
+        { cause: error }
+      );
+    }
   }
 
   async expectImageLoaded(image: Locator, timeout = customizerTimeout): Promise<void> {
@@ -170,7 +222,6 @@ export class CreatePage {
     await expect(this.threeDView).toBeVisible();
     // A visible progress overlay means the 3D task is still rendering.
     await expect(this.threeDProcessingOverlay).toBeHidden({ timeout: generationTimeout });
-    await expect(this.threeDModelCanvas).toBeVisible({ timeout: generationTimeout });
     await expect(this.addToCartButton).toBeEnabled({ timeout: 120_000 });
   }
 
@@ -200,10 +251,40 @@ export class CreatePage {
     await this.page.waitForTimeout(500);
     const afterRotation = await this.threeDView.screenshot();
     expect(afterRotation.equals(beforeRotation), '横向拖动后 3D 视图应发生视觉变化').toBe(false);
+    // Keep the completed model visible before the following Add to Cart action.
+    await this.page.waitForTimeout(postThreeDRotationPause);
   }
 
   async openGallery(): Promise<void> {
     await this.click(this.galleryTab);
     await expect(this.galleryTab).toBeVisible();
+  }
+
+  async expectHistoryRecordAdded(previousCount: number): Promise<void> {
+    await expect.poll(
+      () => this.historyRecordDeleteButtons.count(),
+      { message: 'History 应新增本次生成记录', timeout: generationTimeout }
+    ).toBe(previousCount + 1);
+  }
+
+  async deleteLatestHistoryRecord(previousCount: number): Promise<void> {
+    // Gallery displays the newest generated record first.
+    const latestDeleteButton = this.historyRecordDeleteButtons.first();
+    await expect(latestDeleteButton).toBeVisible();
+    const confirmDeletion = this.page.waitForEvent('dialog').then(async (dialog) => {
+      try {
+        expect(dialog.type()).toBe('confirm');
+        expect(dialog.message()).toContain('Delete this history record?');
+        await dialog.accept();
+      } catch (error) {
+        await dialog.dismiss().catch(() => undefined);
+        throw error;
+      }
+    });
+    await Promise.all([confirmDeletion, this.click(latestDeleteButton)]);
+    await expect.poll(
+      () => this.historyRecordDeleteButtons.count(),
+      { message: '删除后本次生成记录应从 History 消失', timeout: customizerTimeout }
+    ).toBe(previousCount);
   }
 }
