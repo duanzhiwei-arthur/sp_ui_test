@@ -209,7 +209,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 ```text
 FEISHU_APP_ID
 FEISHU_APP_SECRET
-FEISHU_RECEIVE_ID  # 个人 open_id
+FEISHU_RECEIVE_ID  # 个人企业邮箱，例如 name@company.com
 ```
 
 如需指定商品变体，可在 **Variables** 中配置可选的 `PRODUCT_URL`。每次执行无论成功或失败都会将 `playwright-report/` 和 `test-results/` 上传为 GitHub Artifact，并在飞书消息中附上对应的 Actions 运行链接。托管 Runner 使用 GitHub 的共享出口 IP；若生产站对该 IP 返回 `HTTP 429` 或 `legal-rate-limited`，报告会保留证据，但需要改用固定出口 IP 的 self-hosted Runner 才能避免该限制。

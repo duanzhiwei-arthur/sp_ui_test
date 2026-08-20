@@ -41,7 +41,7 @@ jobs:
       # The application bot sends only a direct message to the configured person.
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
-      FEISHU_RECEIVE_ID_TYPE: open_id
+      FEISHU_RECEIVE_ID_TYPE: email
       FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_RECEIVE_ID }}
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
