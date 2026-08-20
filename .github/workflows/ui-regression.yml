@@ -15,6 +15,11 @@ on:
         options:
           - safe
           - all
+      simulate_failure_record:
+        description: 'Verification only: create a clearly marked Feishu failure-record document.'
+        required: true
+        default: false
+        type: boolean
 
 # Do not allow two production guest sessions to generate concurrently.
 concurrency:
@@ -49,6 +54,8 @@ jobs:
       # Failure docs are created in this Wiki node through the application bot.
       FEISHU_EXECUTION_RECORDS_PARENT: ${{ secrets.FEISHU_EXECUTION_RECORDS_PARENT }}
       FEISHU_SOLUTION_LIBRARY_ROOT: ''
+      # Manual verification only. This is false for all scheduled runs.
+      FEISHU_FAILURE_RECORD_VALIDATION: ${{ inputs.simulate_failure_record || 'false' }}
 
     steps:
       - name: Check out repository

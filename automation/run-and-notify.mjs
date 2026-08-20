@@ -87,8 +87,13 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   });
 
   const finishedAt = new Date();
-  const summary = await loadSummary();
-  const messageExitCode = testExitCode === 0 && !summary.readError ? 0 : 1;
+  let summary = await loadSummary();
+  const validateFailureRecord = process.env.FEISHU_FAILURE_RECORD_VALIDATION === 'true';
+  if (validateFailureRecord) {
+    summary = addFailureRecordValidationCase(summary);
+    console.warn('[feishu-doc] 已启用失败记录权限验证：将创建一份明确标注的验证文档。');
+  }
+  const messageExitCode = testExitCode === 0 && !summary.readError && !validateFailureRecord ? 0 : 1;
   const message = buildMessage({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
   try {
@@ -98,13 +103,39 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
 
   try {
-    await createExecutionRecord({ testExitCode, mode, startedAt, finishedAt, summary });
+    await createExecutionRecord({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
   } catch (error) {
     // A documentation failure must not hide the original Playwright outcome.
     console.error(`[feishu-doc] 执行记录创建失败：${error instanceof Error ? error.message : String(error)}`);
   }
 
-  process.exitCode = testExitCode;
+  process.exitCode = messageExitCode;
+}
+
+function addFailureRecordValidationCase(summary) {
+  const title = '机器人失败报告创建权限验证（手动触发）';
+  const alreadyIncluded = (summary.caseResults ?? []).some((item) => item.title === title);
+  if (alreadyIncluded) {
+    return summary;
+  }
+  const stats = summary.stats ?? {};
+  return {
+    ...summary,
+    stats: {
+      ...stats,
+      unexpected: Number(stats.unexpected ?? 0) + 1
+    },
+    failures: [...(summary.failures ?? []), title],
+    failureDetails: [
+      ...(summary.failureDetails ?? []),
+      {
+        title,
+        reason: '本条为手动触发的权限验证，不代表 JuJuBit 业务功能异常。',
+        analysis: '用于确认 GitHub 托管 Runner 的企业应用机器人可在目标节点下创建并写入失败报告。'
+      }
+    ],
+    caseResults: [...(summary.caseResults ?? []), { title, status: 'failed' }]
+  };
 }
 
 function run(command, args, env) {
