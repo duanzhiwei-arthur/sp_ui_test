@@ -44,7 +44,7 @@ PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=624857117167
 # 独立埋点专项：只允许非生产测试域名；不运行既有 UI 回归
 TRACKING_BASE_URL=https://test.example.com npm run test:tracking
 
-# 仅在明确授权时对生产域名执行埋点专项
+# 仅在明确授权时对生产域名执行埋点专项（从 https://jujubit.ai/ 首页点击 Create 进入画板）
 ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai npm run test:tracking
 
 # Preview 环境异常埋点专项（接口 Mock + 浏览器故障注入）
@@ -52,9 +52,8 @@ TRACKING_BASE_URL=https://your-store.myshopifypreview.com \
 TRACKING_FAULT_INJECTION_ENABLED=true \
 npm run test:tracking:exceptions
 
-# 只执行 119 条目录审计，并生成结构化 JSON
+# 只执行 119 条目录审计，并生成结构化 JSON；入口为首页，随后点击 Create
 ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai \
-  PRODUCT_URL='/products/customize-your-own?variant=62485711716723' \
   npx playwright test tests/tracking/catalog-audit.spec.ts --config=playwright.tracking.config.ts
 
 # 将目录审计 JSON 渲染成飞书文档 XML

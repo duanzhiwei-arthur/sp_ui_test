@@ -8,6 +8,7 @@ export class TrackingPage {
   readonly cancelPromptEditingButton: Locator;
   readonly galleryTab: Locator;
   readonly createTab: Locator;
+  readonly homeCreateLink: Locator;
   readonly modeToggleButton: Locator;
   readonly soloMode: Locator;
   readonly styleButton: Locator;
@@ -38,6 +39,10 @@ export class TrackingPage {
     this.cancelPromptEditingButton = page.getByRole('button', { name: 'Cancel prompt editing', exact: true });
     this.galleryTab = page.getByRole('button', { name: 'Gallery', exact: true });
     this.createTab = page.getByRole('button', { name: 'Create', exact: true });
+    // The desktop navigation is the stable, visible Create entry on the home
+    // page. Do not use a product URL directly: tracking needs the actual
+    // homepage-to-Create journey as well.
+    this.homeCreateLink = page.locator('a.jjb-header__menu-link[href*="/products/customize-your-own"]');
     this.modeToggleButton = page.getByRole('button', { name: 'Upgrade', exact: true });
     this.soloMode = page.getByRole('button', { name: 'Solo', exact: true });
     this.styleButton = page.getByRole('button', { name: 'Free Style', exact: true }).first();
@@ -62,7 +67,23 @@ export class TrackingPage {
     this.marketingPopupCloseButton = this.marketingPopup.getByRole('button', { name: 'Close', exact: true });
   }
 
-  async goto(options: { requireCustomizer?: boolean; consent?: 'accept' | 'decline' | 'none' } = {}): Promise<void> {
+  async gotoHome(options: { consent?: 'accept' | 'decline' | 'none' } = {}): Promise<void> {
+    const response = await this.page.goto(process.env.TRACKING_ENTRY_URL ?? '/', { waitUntil: 'domcontentloaded' });
+    const status = response?.status();
+    if (status === 410) {
+      throw new Error(`测试环境已失效（HTTP 410）：${this.page.url()}。请更新 TRACKING_BASE_URL 后重试。`);
+    }
+    expect(status, '埋点测试首页应可访问').toBeLessThan(400);
+    await this.handleCookieConsent(options.consent ?? 'accept');
+  }
+
+  /**
+   * Enter the customizer through the site's Create navigation.  Keeping this
+   * separate from gotoHome makes homepage and canvas events independently
+   * attributable while exercising the real user path.
+   */
+  async gotoCustomizer(options: { requireCustomizer?: boolean; consent?: 'accept' | 'decline' | 'none' } = {}): Promise<void> {
+    await this.gotoHome({ consent: options.consent });
     // The storefront can render the customizer from its cached/fallback config
     // while the legacy builder endpoint returns 500. UI readiness, not that
     // unrelated request's status, is the execution precondition.
@@ -70,22 +91,19 @@ export class TrackingPage {
       (response) => response.url().includes('/apps/builder/store/products/'),
       { timeout: 300_000 }
     ).catch(() => null);
-    // DOMContentLoaded is early enough to avoid waiting on third-party assets while
-    // ensuring Preview's injected consent UI and customizer bootstrap are mounted.
-    const response = await this.page.goto(
-      process.env.PRODUCT_URL ?? '/products/customize-your-own',
-      { waitUntil: 'domcontentloaded' }
-    );
-    const status = response?.status();
-    if (status === 410) {
-      throw new Error(`测试环境已失效（HTTP 410）：${this.page.url()}。请更新 TRACKING_BASE_URL 后重试。`);
-    }
-    expect(status, '测试页面应可访问').toBeLessThan(400);
-    await this.handleCookieConsent(options.consent ?? 'accept');
+    await Promise.all([
+      this.page.waitForURL(/\/products\/customize-your-own(?:[/?#]|$)/, { timeout: 300_000 }),
+      this.click(this.homeCreateLink)
+    ]);
     if (options.requireCustomizer !== false) {
       await this.waitForCustomizer(builderResponse);
       await this.dismissMarketingPopup();
     }
+  }
+
+  /** Backward-compatible name for existing canvas-oriented tracking tests. */
+  async goto(options: { requireCustomizer?: boolean; consent?: 'accept' | 'decline' | 'none' } = {}): Promise<void> {
+    await this.gotoCustomizer(options);
   }
 
   async click(target: Locator, timeout = Number(process.env.TRACKING_CONTROL_TIMEOUT_MS ?? 10_000)): Promise<void> {

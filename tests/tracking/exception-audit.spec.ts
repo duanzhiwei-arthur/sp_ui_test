@@ -148,7 +148,7 @@ test.describe('异常埋点：接口 Mock 与浏览器故障注入', () => {
     const report = buildTrackingAuditReport({
       catalog: trackingCaseCatalog,
       steps,
-      targetUrl: new URL(process.env.PRODUCT_URL ?? '/products/customize-your-own', baseUrl).toString(),
+      targetUrl: new URL(process.env.TRACKING_ENTRY_URL ?? '/', baseUrl).toString(),
       skipReasons: {
         'DOC-030': '跳过：需要 Canvas 跨域导出污染状态，未在本轮注入。',
         'DOC-036': '跳过：需要已有生成资产，避免额外生成成本。',

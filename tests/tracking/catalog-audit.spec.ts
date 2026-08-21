@@ -52,7 +52,7 @@ test.describe('119 条埋点目录审计', () => {
 
     await runStep(
       'initial-render',
-      '打开商品自定义器并等待画板完成渲染',
+      '打开测试首页并通过 Create 进入商品自定义器，等待画板完成渲染',
       ['DOC-003', 'DOC-014', 'DOC-027', 'DOC-028', 'DOC-111', 'DOC-119'],
       async () => {
         await create.goto({ requireCustomizer: false });
@@ -206,7 +206,7 @@ test.describe('119 条埋点目录审计', () => {
     const report = buildTrackingAuditReport({
       catalog: trackingCaseCatalog,
       steps,
-      targetUrl: new URL(process.env.PRODUCT_URL ?? '/products/customize-your-own', trackingBaseUrl).toString(),
+      targetUrl: new URL(process.env.TRACKING_ENTRY_URL ?? '/', trackingBaseUrl).toString(),
       skipReasons: {
         'DOC-007': '跳过：当前页面无 Refine 功能入口。',
         'DOC-011': '跳过：本轮 2D 正常生成，没有 Retry 入口。',
