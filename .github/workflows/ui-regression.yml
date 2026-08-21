@@ -43,11 +43,11 @@ jobs:
       TRACKING_TEST_ENABLED: 'false'
       TRACKING_FAULT_INJECTION_ENABLED: 'false'
 
-      # The application bot sends only a direct message to the configured person.
+      # The application bot posts its result card to the configured Feishu group.
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
-      FEISHU_RECEIVE_ID_TYPE: email
-      FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_RECEIVE_ID }}
+      FEISHU_RECEIVE_ID_TYPE: chat_id
+      FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_GROUP_CHAT_ID }}
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
 
