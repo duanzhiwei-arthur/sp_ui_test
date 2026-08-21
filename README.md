@@ -171,7 +171,7 @@ FEISHU_WEBHOOK_SECRET=
 
 汇总、失败用例和失败截图会合并到第一条飞书富文本消息。若系统已安装 `ffmpeg`，或在 `.env` 配置了 `FFMPEG_PATH`，脚本会把 Playwright 的 WebM 录屏转成 MP4，并紧跟汇总发送为带截图封面的原生视频消息，可在飞书内点击播放；无法转换时降级为 WebM 文件附件。
 
-通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；埋点专项使用 `test:tracking`、`test:tracking:contract` 或 `test:tracking:exceptions` 手动运行。每次埋点执行完成后，都会在 `FEISHU_TRACKING_RECORDS_PARENT` 指定的 Wiki 节点下新建一份执行记录（无论通过或失败）；该节点与 UI 失败记录节点可不同。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录。埋点建档使用企业应用机器人创建 Docx，因此机器人必须先被添加到目标知识库，并对父节点具备编辑和创建子页面权限。
+通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；`npm run test:tracking` 只运行常规埋点验证与 119 条目录审计，执行一次真实 2D/3D 生成和一次加购，不进入 Checkout 或删除历史资产。契约校验与异常注入分别只能用 `test:tracking:contract`、`test:tracking:exceptions` 手动运行；异常注入仅允许 Preview/本地地址。每次埋点执行完成后，都会在 `FEISHU_TRACKING_RECORDS_PARENT` 指定的 Wiki 节点下新建一份执行记录（无论通过或失败）；该节点与 UI 失败记录节点可不同。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录。埋点建档使用企业应用机器人创建 Docx，因此机器人必须先被添加到目标知识库，并对父节点具备编辑和创建子页面权限。
 
 若配置 `FEISHU_SOLUTION_LIBRARY_ROOT`，失败后脚本会递归查询该 Wiki 节点下的全部 Doc/Docx 子文档，依据用例名称、错误码、组件名和异常关键词匹配最多 5 篇相关记录，并把可点击的文档引用、匹配关键词和相关正文摘录写入失败记录。知识库不可用或没有命中时仍会创建失败记录，并保留框架内置建议。
 
