@@ -64,7 +64,7 @@ export class TrackingPage {
     this.cookieAcceptButton = this.cookieBanner.getByRole('button', { name: 'Accept', exact: true });
     this.cookieDeclineButton = this.cookieBanner.getByRole('button', { name: /decline|reject|拒绝/i }).first();
     this.marketingPopup = page.locator('div[id$="__newsletter-popup"]').first();
-    this.marketingPopupCloseButton = this.marketingPopup.getByRole('button', { name: 'Close', exact: true });
+    this.marketingPopupCloseButton = page.getByRole('button', { name: /close (membership dialog|newsletter|popup)/i }).first();
   }
 
   async gotoHome(options: { consent?: 'accept' | 'decline' | 'none' } = {}): Promise<void> {
@@ -75,6 +75,7 @@ export class TrackingPage {
     }
     expect(status, '埋点测试首页应可访问').toBeLessThan(400);
     await this.handleCookieConsent(options.consent ?? 'accept');
+    await this.dismissMarketingPopup();
   }
 
   /**
@@ -160,13 +161,23 @@ export class TrackingPage {
   }
 
   async dismissMarketingPopup(): Promise<void> {
+    // The homepage currently serves either a newsletter popup or a membership
+    // dialog from the same popup section. Both block the Create navigation.
     const appeared = await this.marketingPopupCloseButton
       .waitFor({ state: 'visible', timeout: 8_000 })
       .then(() => true)
       .catch(() => false);
-    if (appeared) {
-      await this.marketingPopupCloseButton.click({ force: true });
+    const closed = appeared && await this.marketingPopupCloseButton
+      .click({ force: true, timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!closed) {
+      // A/B variants occasionally omit a labelled close button. Removing only
+      // this non-product marketing layer keeps the user journey intact and
+      // prevents it from masking the real Create control.
+      await this.marketingPopup.evaluate((element) => element.remove()).catch(() => undefined);
     }
+    await this.marketingPopup.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => undefined);
   }
 
   private async waitForCustomizer(builderResponse: Promise<import('@playwright/test').Response | null>): Promise<void> {
