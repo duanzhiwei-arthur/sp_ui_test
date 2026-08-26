@@ -17,8 +17,7 @@ test.describe('线上游客态生成流程', () => {
       await create.goto();
       await create.openGallery();
       historyCountBefore = await create.historyRecordDeleteButtons.count();
-      await create.click(create.createTab);
-      await expect(create.uploadButton).toBeVisible();
+      await create.openBlankCreate();
     });
 
     await test.step('上传图片并写入 Prompt', async () => {
@@ -54,9 +53,7 @@ test.describe('线上游客态生成流程', () => {
     await create.uploadImage(assetPath(testData.soloImage));
     await create.startGeneration();
     await create.openGallery();
-    await create.click(create.createTab);
-    await expect(create.uploadButton).toBeVisible();
-    await expect(create.generateButton).toBeDisabled();
+    await create.openBlankCreate();
     await create.uploadImage(assetPath(testData.soloImage));
     await expect(create.generateButton).toBeEnabled();
   });

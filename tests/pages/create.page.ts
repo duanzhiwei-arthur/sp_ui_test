@@ -37,18 +37,19 @@ export class CreatePage {
   readonly cookieAcceptButton: Locator;
 
   constructor(readonly page: Page) {
-    this.createTab = page.getByRole('link', { name: 'Create', exact: true });
-    this.galleryTab = page.getByRole('button', { name: 'Gallery', exact: true });
-    this.styleButton = page.getByRole('button', { name: 'Free Style', exact: true }).first();
+    const createCanvas = page.locator('#jjb-create-canvas');
+    this.createTab = createCanvas.getByRole('button', { name: 'Create', exact: true });
+    this.galleryTab = createCanvas.getByRole('button', { name: 'Gallery', exact: true });
+    this.styleButton = createCanvas.getByRole('button', { name: 'Free Style', exact: true });
     this.trpgStyleButton = page.getByRole('button', { name: 'TRPG', exact: true });
     this.soloMode = page.getByRole('button', { name: 'Solo', exact: true });
     this.duoMode = page.getByRole('button', { name: 'Duo', exact: true });
-    this.modeToggleButton = page.getByRole('button', { name: 'Upgrade', exact: true });
-    this.upload = page.locator('main input[type="file"]');
+    this.modeToggleButton = createCanvas.getByLabel('Upgrade', { exact: true });
+    this.upload = createCanvas.locator('input[type="file"]');
     this.promptButton = page.getByRole('button', { name: 'Add Your Prompt', exact: true });
     this.promptInput = page.getByPlaceholder('Add Your Prompt', { exact: true });
-    this.uploadButton = page.getByRole('button', { name: 'Upload your picture', exact: true });
-    this.generateButton = page.getByRole('button', { name: 'Generate' });
+    this.uploadButton = createCanvas.getByRole('button', { name: 'Upload your picture', exact: true });
+    this.generateButton = createCanvas.getByRole('button', { name: 'Generate' });
     this.proToolButtons = this.generateButton.locator('xpath=preceding-sibling::button');
     this.twoDButton = page.getByRole('button', { name: '2D', exact: true });
     this.threeDButton = page.getByRole('button', { name: '3D', exact: true });
@@ -258,6 +259,12 @@ export class CreatePage {
   async openGallery(): Promise<void> {
     await this.click(this.galleryTab);
     await expect(this.galleryTab).toBeVisible();
+  }
+
+  async openBlankCreate(): Promise<void> {
+    await this.click(this.createTab);
+    await expect(this.uploadButton).toBeVisible();
+    await expect(this.generateButton).toBeDisabled();
   }
 
   async expectHistoryRecordAdded(previousCount: number): Promise<void> {
