@@ -31,7 +31,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const summary = await loadSummary();
   const durationMs = summary.stats?.duration ?? 0;
   const startedAt = new Date(finishedAt.getTime() - durationMs);
-  const testExitCode = (summary.stats?.unexpected ?? 0) > 0 ? 1 : 0;
+  const testExitCode = hasBusinessFailure(summary) ? 1 : 0;
   if (process.argv.includes('--execution-record-test')) {
     await createExecutionRecord({ testExitCode, mode, startedAt, finishedAt, summary });
   } else if (testExitCode === 0) {
@@ -53,7 +53,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const summary = await loadSummary();
   const durationMs = summary.stats?.duration ?? 0;
   const startedAt = new Date(finishedAt.getTime() - durationMs);
-  const testExitCode = summary.readError || (summary.stats?.unexpected ?? 0) > 0 ? 1 : 0;
+  const testExitCode = hasBusinessFailure(summary) ? 1 : 0;
   const message = buildMessage({ testExitCode, mode, startedAt, finishedAt, summary });
   const card = buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary });
 
@@ -81,7 +81,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   if (process.argv.includes('--headed')) {
     playwrightArgs.push('--headed');
   }
-  const testExitCode = await run(playwrightBin, playwrightArgs, {
+  const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
     ALLOW_PRODUCTION_GENERATION: mode === 'all' ? 'true' : 'false',
     SCHEDULED_TRACKING_ENABLED: 'false',
@@ -95,7 +95,10 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   if (validateFailureRecord) {
     console.warn('[feishu-doc] 已启用失败记录权限验证：将创建一份明确标注的验证文档，但不会影响用例结果。');
   }
-  const messageExitCode = testExitCode === 0 && !summary.readError ? 0 : 1;
+  // Playwright exits with zero when a failed first attempt passes on retry,
+  // but reports that case as flaky. Treat that as a failed scheduled run: it
+  // needs the same visible notification and failure record as a final failure.
+  const messageExitCode = playwrightExitCode === 0 && !hasBusinessFailure(summary) ? 0 : 1;
   const message = buildMessage({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
   const card = buildResultCard({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
@@ -183,19 +186,22 @@ async function loadSummary() {
 
 function collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults) {
   for (const spec of suite.specs ?? []) {
-    caseResults.push({ title: spec.title, status: resolveCaseStatus(spec) });
-    if (spec.ok === false) {
+    const caseStatus = resolveCaseStatus(spec);
+    caseResults.push({ title: spec.title, status: caseStatus });
+    if (['failed', 'flaky'].includes(caseStatus)) {
       failures.push(spec.title);
       const failedResults = (spec.tests ?? [])
         .flatMap((test) => test.results ?? [])
-        .filter((result) => ['failed', 'timedOut', 'interrupted'].includes(result.status));
+        .filter((result) => ['failed', 'timedOut', 'interrupted', 'flaky'].includes(result.status));
       const attachments = failedResults.flatMap((result) => result.attachments ?? []);
       failureArtifacts.push({
         title: spec.title,
         screenshot: findSafeAttachment(attachments, (item) => item.contentType?.startsWith('image/')),
         video: findSafeAttachment(attachments, (item) => item.contentType?.startsWith('video/'))
       });
-      const reason = normalizeFailureReason(failedResults.at(-1)?.error?.message);
+      const reason = normalizeFailureReason(failedResults.at(-1)?.error?.message ?? (
+        caseStatus === 'flaky' ? '用例首次执行失败，重试后通过（Playwright flaky）。' : undefined
+      ));
       failureDetails.push({
         title: spec.title,
         reason,
@@ -223,6 +229,11 @@ function resolveCaseStatus(spec) {
     return 'passed';
   }
   return 'unknown';
+}
+
+function hasBusinessFailure(summary) {
+  return Boolean(summary.readError) || (summary.caseResults ?? [])
+    .some((item) => ['failed', 'flaky', 'unknown'].includes(item.status));
 }
 
 function normalizeFailureReason(message) {
@@ -325,7 +336,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
     lines.push('全部用例：');
     for (const item of summary.caseResults) {
       lines.push(`- [${formatCaseStatus(item.status)}] ${item.title}`);
-      if (item.status === 'failed') {
+      if (['failed', 'flaky'].includes(item.status)) {
         const detail = summary.failureDetails.find((failure) => failure.title === item.title);
         lines.push(`  失败原因：${formatFailureReasonForMessage(detail?.analysis)}`);
       }
@@ -673,8 +684,8 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
 
   for (const item of summary.caseResults ?? []) {
     const detail = summary.failureDetails?.find((failure) => failure.title === item.title);
-    const description = item.status === 'failed'
-      ? `失败｜${item.title}｜${formatFailureReasonForMessage(detail?.analysis ?? detail?.reason)}`
+    const description = ['failed', 'flaky'].includes(item.status)
+      ? `${item.status === 'flaky' ? '不稳定' : '失败'}｜${item.title}｜${formatFailureReasonForMessage(detail?.analysis ?? detail?.reason)}`
       : `${formatCaseStatus(item.status)}｜${item.title}`;
     blocks.push(textBlock(description));
   }
