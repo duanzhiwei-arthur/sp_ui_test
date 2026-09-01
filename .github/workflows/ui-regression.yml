@@ -1,6 +1,10 @@
 name: Scheduled UI regression
 
 on:
+  schedule:
+    # GitHub Actions uses UTC. Offset from the top of the hour to reduce load-related delay.
+    - cron: '17 3 * * 1-5'   # 11:17 Asia/Shanghai
+    - cron: '47 10 * * 1-5'  # 18:47 Asia/Shanghai
   workflow_dispatch:
     inputs:
       mode:
@@ -24,9 +28,6 @@ concurrency:
 
 jobs:
   regression:
-    # Defense in depth: an old schedule event may arrive after the cron was removed.
-    # Only an explicit dispatch is allowed to reach the production-generation job.
-    if: github.event_name == 'workflow_dispatch'
     name: Chromium UI regression
     runs-on: ubuntu-latest
     timeout-minutes: 45

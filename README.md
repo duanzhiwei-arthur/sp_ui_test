@@ -129,25 +129,14 @@ npm run report
 
 当前线上页面尚未提供稳定的 `data-testid`。现有定位器以可访问名称、`data-view-name` 和局部页面结构为主。页面改版后应优先同步生成图片、3D 进度层、工具图标、购物车商品和 Checkout 关键区域的定位器。
 
-## 准点触发远端执行
+## 远端定时执行
 
-GitHub Actions 的原生 `schedule` 在高负载时可能延迟数小时。项目改用 macOS `launchd` 在本机准点提交 `workflow_dispatch`，测试仍在 GitHub 托管 Runner 中运行，继续使用 GitHub Secrets、Artifact 和飞书通知：
+项目使用 GitHub Actions 原生 `schedule` 在远端执行，不依赖本地电脑开机。计划时间错开整点高峰，以降低调度延迟：
 
-- `11:00`
-- `18:30`
+- `11:17`（北京时间）
+- `18:47`（北京时间）
 
-配置文件见 `automation/com.jujubit.ui-regression.plist`，手动检查脚本见 `automation/trigger-remote-ui-regression.sh`。launchd 的触发命令直接写在 plist 中，避免 macOS 后台任务读取 Desktop 新增脚本时受到权限限制。本机只调用 GitHub API，不运行 Playwright，也不读取飞书密钥。触发日志写入 `automation/logs/remote-dispatch.*.log`。
-
-本机需要安装并登录 GitHub CLI，且登录令牌具备 `workflow` 权限：
-
-```bash
-gh auth status
-automation/trigger-remote-ui-regression.sh --check
-```
-
-定时触发依赖本机在计划时间保持开机、联网且不处于深度睡眠。若本机不可用，该时次不会补跑；可在 GitHub Actions 页面使用 `Run workflow` 手动补跑。
-
-触发脚本只允许在工作日 `11:00–11:14` 或 `18:30–18:44` 提交，避免 Mac 从睡眠中恢复后在深夜补跑。人工调试脚本时可显式传入 `--force`；该参数会真实触发全量远端执行，日常应优先在 GitHub Actions 页面手动操作。
+配置文件见 `.github/workflows/ui-regression.yml`。测试在 GitHub 托管 Runner 中运行，继续使用 GitHub Secrets、Artifact 和飞书通知。GitHub 高负载时 schedule 仍可能延迟，若必须严格准点，需要接入独立云端定时器。
 
 通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；`npm run test:tracking` 只运行常规埋点验证与 119 条目录审计，执行一次真实 2D/3D 生成和一次加购，不进入 Checkout 或删除历史资产。契约校验与异常注入分别只能用 `test:tracking:contract`、`test:tracking:exceptions` 手动运行；异常注入仅允许 Preview/本地地址。每次埋点执行完成后，都会在 `FEISHU_TRACKING_RECORDS_PARENT` 指定的 Wiki 节点下新建一份执行记录（无论通过或失败）；该节点与 UI 失败记录节点可不同。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录。埋点建档使用企业应用机器人创建 Docx，因此机器人必须先被添加到目标知识库，并对父节点具备编辑和创建子页面权限。
 
@@ -160,16 +149,6 @@ lark-cli auth login --domain docs --domain drive
 lark-cli auth status --json --verify
 ```
 
-定时任务的 plist 已设置 `HOME=/Users/macbookair`，用于读取 GitHub CLI 的本机登录态。
-
-安装或更新本机定时任务：
-
-```bash
-cp automation/com.jujubit.ui-regression.plist ~/Library/LaunchAgents/
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regression.plist 2>/dev/null || true
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regression.plist
-```
-
 通知内容包含执行状态、运行模式、机器名、开始时间、耗时、通过/失败/跳过数量、全部用例名称及各自状态、每条失败用例的自动根因分析、失败截图、录屏附件和本机 HTML 报告路径。整体结果和 case 通过时显示 `✅`，失败、不稳定、跳过或未知状态显示 `❌`。失败文档同时保留自动分析和 Playwright 原始错误。即使飞书发送失败，脚本仍保留 Playwright 原始退出码，避免把测试失败误报为通知失败。
 
 执行全量用例时使用 `npm run test:all` 或 `npm run test:all:headed`。不要在需要发送飞书结果的运行中追加 `--reporter=list`，该参数会覆盖配置中的 JSON reporter，导致 `notify:test` 无法读取每条 case。若报告缺失，飞书会明确显示 `❌ 结果报告缺失`，不会再误报执行通过。
@@ -180,7 +159,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 
 ## GitHub Actions 远端执行
 
-仓库已提供 `.github/workflows/ui-regression.yml`：它只接受 `workflow_dispatch`，不再使用可能延迟投递的 GitHub 原生 `schedule`；Job 还会校验事件类型，迟到的旧 schedule 事件不会进入生产生成任务。工作日北京时间 `11:00` 和 `18:30` 由上述本机 launchd 触发；也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
+仓库通过 `.github/workflows/ui-regression.yml` 在远端按工作日计划执行，也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
 
 在仓库的 **Settings → Secrets and variables → Actions → Secrets** 中配置下列 Secrets，通知将只发送给个人单聊，不会发送到群：
 
