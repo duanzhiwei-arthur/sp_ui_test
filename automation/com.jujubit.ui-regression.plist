@@ -12,14 +12,13 @@
     <string>/Users/macbookair</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
-    <key>SCHEDULED_TRACKING_ENABLED</key>
-    <string>false</string>
+    <key>SCHEDULED_TEST_MODE</key>
+    <string>all</string>
   </dict>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/npm</string>
-    <string>run</string>
-    <string>test:scheduled</string>
+    <string>/bin/zsh</string>
+    <string>/Users/macbookair/Desktop/sp_ui_test/automation/trigger-remote-ui-regression.sh</string>
   </array>
   <key>StartCalendarInterval</key>
   <array>
@@ -105,8 +104,8 @@
     </dict>
   </array>
   <key>StandardOutPath</key>
-  <string>/Users/macbookair/Desktop/sp_ui_test/automation/logs/daily.stdout.log</string>
+  <string>/Users/macbookair/Desktop/sp_ui_test/automation/logs/remote-dispatch.stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/macbookair/Desktop/sp_ui_test/automation/logs/daily.stderr.log</string>
+  <string>/Users/macbookair/Desktop/sp_ui_test/automation/logs/remote-dispatch.stderr.log</string>
 </dict>
 </plist>

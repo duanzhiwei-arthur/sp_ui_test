@@ -53,7 +53,7 @@ test.describe('线上游客态生成流程', () => {
     await create.uploadImage(assetPath(testData.soloImage));
     await create.startGeneration();
     await create.openGallery();
-    await create.openBlankCreate();
+    await create.openCreate();
     await create.uploadImage(assetPath(testData.soloImage));
     await expect(create.generateButton).toBeEnabled();
   });

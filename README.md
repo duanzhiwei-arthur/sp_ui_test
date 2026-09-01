@@ -23,7 +23,7 @@ cp .env.example .env
    - Solo 可以切换为 Duo，并恢复为 Solo。
    - Pro 模式显示 3 个工具图标，Basic 模式不显示这些图标。
 3. TC-03：核心冒烟：Create -> 上传图片 -> 2D 成功 -> 3D 成功 -> 横向拖动 3D 内容 2 秒 -> 加购 -> Checkout。
-4. TC-04：开始生成 -> Gallery -> 返回 Create -> 确认空白创建状态 -> 重新上传图片 -> Generate 可用。
+4. TC-04：开始生成 -> Gallery -> 等待 Create 可点击并返回 -> 重新上传图片 -> Generate 可用。
 5. TC-05：Create -> 上传图片并写入 Prompt -> 2D 成功 -> 3D 成功 -> 横向拖动 3D 内容 2 秒 -> History 新增记录 -> 删除最新记录并确认已删除。
 
 `ALLOW_PRODUCTION_GENERATION=false` 时，TC-03、TC-04 和 TC-05 自动跳过，只执行 TC-01、TC-02。设置为 `true` 后按以上顺序执行全部 5 条 case。
@@ -129,46 +129,25 @@ npm run report
 
 当前线上页面尚未提供稳定的 `data-testid`。现有定位器以可访问名称、`data-view-name` 和局部页面结构为主。页面改版后应优先同步生成图片、3D 进度层、工具图标、购物车商品和 Checkout 关键区域的定位器。
 
-## 本机定时执行
+## 准点触发远端执行
 
-使用 macOS `launchd` 在本机每天执行两次全部 5 条 case，并在结束后发送飞书通知：
+GitHub Actions 的原生 `schedule` 在高负载时可能延迟数小时。项目改用 macOS `launchd` 在本机准点提交 `workflow_dispatch`，测试仍在 GitHub 托管 Runner 中运行，继续使用 GitHub Secrets、Artifact 和飞书通知：
 
 - `11:00`
 - `18:30`
 
-配置文件见 `automation/com.jujubit.ui-regression.plist`。报告保存在 `playwright-report/`，失败证据保存在 `test-results/`，运行日志写入 `automation/logs/`。定时执行依赖本机保持开机、联网且不处于深度睡眠。
+配置文件见 `automation/com.jujubit.ui-regression.plist`，触发脚本见 `automation/trigger-remote-ui-regression.sh`。本机只调用 GitHub API，不运行 Playwright，也不读取飞书密钥。触发日志写入 `automation/logs/remote-dispatch.*.log`。
 
-在 `.env` 中配置调度模式和企业应用机器人。单聊可以使用企业邮箱，不必先查 `open_id`：
+本机需要安装并登录 GitHub CLI，且登录令牌具备 `workflow` 权限：
 
-```dotenv
-# 本机定时任务执行全部 5 条 case
-SCHEDULED_TEST_MODE=all
-
-# 飞书开放平台“凭证与基础信息”中的应用凭证
-FEISHU_APP_ID=cli_xxx
-FEISHU_APP_SECRET=xxx
-
-# 单聊可用 email/open_id，群聊使用 chat_id
-FEISHU_RECEIVE_ID_TYPE=email
-FEISHU_RECEIVE_ID=your.name@company.com
-
-# “sp—ui自动化执行记录”目录的完整 Wiki 链接或节点 token
-FEISHU_EXECUTION_RECORDS_PARENT=https://your-company.feishu.cn/wiki/xxxxxxxx
-
-# 故障知识库根节点；失败时递归检索其全部子文档
-FEISHU_SOLUTION_LIBRARY_ROOT=https://your-company.feishu.cn/wiki/xxxxxxxx
-
-# Apple Silicon Homebrew 的默认安装位置
-LARK_CLI_PATH=/opt/homebrew/bin/lark-cli
-
-# 可选兼容通道：企业应用配置全部留空时，使用群自定义机器人发送纯文本
-FEISHU_WEBHOOK_URL=
-FEISHU_WEBHOOK_SECRET=
+```bash
+gh auth status
+automation/trigger-remote-ui-regression.sh --check
 ```
 
-企业应用需要启用机器人能力，并开通 `im:message:send_as_bot` 和图片/文件资源上传权限。应用发布后，接收人必须在应用可用范围内。失败时脚本会从 Playwright JSON 报告中关联每条失败用例；飞书限制截图最大 10 MB、录屏最大 30 MB，超限附件会跳过但不影响结果文本。
+定时触发依赖本机在计划时间保持开机、联网且不处于深度睡眠。若本机不可用，该时次不会补跑；可在 GitHub Actions 页面使用 `Run workflow` 手动补跑。
 
-汇总、失败用例和失败截图会合并到第一条飞书富文本消息。若系统已安装 `ffmpeg`，或在 `.env` 配置了 `FFMPEG_PATH`，脚本会把 Playwright 的 WebM 录屏转成 MP4，并紧跟汇总发送为带截图封面的原生视频消息，可在飞书内点击播放；无法转换时降级为 WebM 文件附件。
+触发脚本只允许在工作日 `11:00–11:14` 或 `18:30–18:44` 提交，避免 Mac 从睡眠中恢复后在深夜补跑。人工调试脚本时可显式传入 `--force`；该参数会真实触发全量远端执行，日常应优先在 GitHub Actions 页面手动操作。
 
 通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；`npm run test:tracking` 只运行常规埋点验证与 119 条目录审计，执行一次真实 2D/3D 生成和一次加购，不进入 Checkout 或删除历史资产。契约校验与异常注入分别只能用 `test:tracking:contract`、`test:tracking:exceptions` 手动运行；异常注入仅允许 Preview/本地地址。每次埋点执行完成后，都会在 `FEISHU_TRACKING_RECORDS_PARENT` 指定的 Wiki 节点下新建一份执行记录（无论通过或失败）；该节点与 UI 失败记录节点可不同。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录。埋点建档使用企业应用机器人创建 Docx，因此机器人必须先被添加到目标知识库，并对父节点具备编辑和创建子页面权限。
 
@@ -181,7 +160,7 @@ lark-cli auth login --domain docs --domain drive
 lark-cli auth status --json --verify
 ```
 
-定时任务的 plist 已设置 `HOME=/Users/macbookair`，用于读取相同的本机用户登录态。飞书文档创建失败会写入 `automation/logs/daily.stderr.log`，但不会覆盖 Playwright 的退出码，也不会把原本成功的测试标记为失败。
+定时任务的 plist 已设置 `HOME=/Users/macbookair`，用于读取 GitHub CLI 的本机登录态。
 
 安装或更新本机定时任务：
 
@@ -199,9 +178,9 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 
 生产风险控制：串行执行、固定游客素材、真实生成必须显式授权、流程止于 Checkout，且绝不点击 `Pay now` 或提交付款。
 
-## GitHub Actions 定时执行
+## GitHub Actions 远端执行
 
-仓库已提供 `.github/workflows/ui-regression.yml`：它使用 GitHub 托管 Ubuntu Runner，在工作日北京时间 `11:00` 和 `18:30` 运行。也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
+仓库已提供 `.github/workflows/ui-regression.yml`：它只接受 `workflow_dispatch`，不再使用可能延迟投递的 GitHub 原生 `schedule`。工作日北京时间 `11:00` 和 `18:30` 由上述本机 launchd 触发；也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
 
 在仓库的 **Settings → Secrets and variables → Actions → Secrets** 中配置下列 Secrets，通知将只发送给个人单聊，不会发送到群：
 

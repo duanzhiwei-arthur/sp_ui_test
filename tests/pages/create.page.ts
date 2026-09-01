@@ -261,8 +261,17 @@ export class CreatePage {
     await expect(this.galleryTab).toBeVisible();
   }
 
-  async openBlankCreate(): Promise<void> {
+  async openCreate(): Promise<void> {
+    // Generation can keep updating the Gallery briefly. Wait until the tab is
+    // actionable before returning instead of assuming Create is immediately ready.
+    await expect(this.createTab).toBeVisible();
+    await expect(this.createTab).toBeEnabled({ timeout: customizerTimeout });
     await this.click(this.createTab);
+    await expect(this.generateButton).toBeVisible({ timeout: customizerTimeout });
+  }
+
+  async openBlankCreate(): Promise<void> {
+    await this.openCreate();
     await expect(this.uploadButton).toBeVisible();
     await expect(this.generateButton).toBeDisabled();
   }

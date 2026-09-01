@@ -1,10 +1,6 @@
 name: Scheduled UI regression
 
 on:
-  schedule:
-    # GitHub Actions uses UTC: 03:00/10:30 UTC are 11:00/18:30 in Asia/Shanghai.
-    - cron: '0 3 * * 1-5'
-    - cron: '30 10 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -54,7 +50,7 @@ jobs:
       # Failure docs are created in this Wiki node through the application bot.
       FEISHU_EXECUTION_RECORDS_PARENT: ${{ secrets.FEISHU_EXECUTION_RECORDS_PARENT }}
       FEISHU_SOLUTION_LIBRARY_ROOT: ''
-      # Manual verification only. This is false for all scheduled runs.
+      # Manual verification only. This is false for regular dispatched runs.
       FEISHU_FAILURE_RECORD_VALIDATION: ${{ inputs.simulate_failure_record || 'false' }}
 
     steps:
@@ -73,7 +69,7 @@ jobs:
       - name: Install Chromium and Linux dependencies
         run: npx playwright install --with-deps chromium
 
-      - name: Run scheduled regression and notify Feishu
+      - name: Run dispatched regression and notify Feishu
         run: npm run test:scheduled
 
       - name: Upload Playwright report and failure evidence
