@@ -136,7 +136,7 @@ GitHub Actions 的原生 `schedule` 在高负载时可能延迟数小时。项�
 - `11:00`
 - `18:30`
 
-配置文件见 `automation/com.jujubit.ui-regression.plist`，触发脚本见 `automation/trigger-remote-ui-regression.sh`。本机只调用 GitHub API，不运行 Playwright，也不读取飞书密钥。触发日志写入 `automation/logs/remote-dispatch.*.log`。
+配置文件见 `automation/com.jujubit.ui-regression.plist`，手动检查脚本见 `automation/trigger-remote-ui-regression.sh`。launchd 的触发命令直接写在 plist 中，避免 macOS 后台任务读取 Desktop 新增脚本时受到权限限制。本机只调用 GitHub API，不运行 Playwright，也不读取飞书密钥。触发日志写入 `automation/logs/remote-dispatch.*.log`。
 
 本机需要安装并登录 GitHub CLI，且登录令牌具备 `workflow` 权限：
 
@@ -180,7 +180,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jujubit.ui-regressio
 
 ## GitHub Actions 远端执行
 
-仓库已提供 `.github/workflows/ui-regression.yml`：它只接受 `workflow_dispatch`，不再使用可能延迟投递的 GitHub 原生 `schedule`。工作日北京时间 `11:00` 和 `18:30` 由上述本机 launchd 触发；也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
+仓库已提供 `.github/workflows/ui-regression.yml`：它只接受 `workflow_dispatch`，不再使用可能延迟投递的 GitHub 原生 `schedule`；Job 还会校验事件类型，迟到的旧 schedule 事件不会进入生产生成任务。工作日北京时间 `11:00` 和 `18:30` 由上述本机 launchd 触发；也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
 
 在仓库的 **Settings → Secrets and variables → Actions → Secrets** 中配置下列 Secrets，通知将只发送给个人单聊，不会发送到群：
 

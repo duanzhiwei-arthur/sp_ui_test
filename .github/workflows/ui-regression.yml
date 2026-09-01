@@ -24,6 +24,9 @@ concurrency:
 
 jobs:
   regression:
+    # Defense in depth: an old schedule event may arrive after the cron was removed.
+    # Only an explicit dispatch is allowed to reach the production-generation job.
+    if: github.event_name == 'workflow_dispatch'
     name: Chromium UI regression
     runs-on: ubuntu-latest
     timeout-minutes: 45
