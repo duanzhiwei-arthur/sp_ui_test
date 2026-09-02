@@ -61,19 +61,43 @@ test.describe('线上游客态生成流程', () => {
   // Keep this probe last: when the membership entry is absent, Generate still
   // starts a background task before the case is intentionally skipped.
   test('TC-06: 生成后会员权益入口可打开会员弹窗', async ({ page }) => {
+    const stableId = process.env.TEST_MEMBERSHIP_STABLE_ID ?? 'jujubit-ui-e2e-membership-20260902';
+    await page.addInitScript((id) => {
+      // Statsig namespaces its localStorage StableID by the SDK-key hash.
+      // Keep the generic keys too for storefront builds that read them directly.
+      // Statsig reads this entry through JSON.parse, so the value must be a
+      // JSON-encoded string rather than the raw ID.
+      window.localStorage.setItem('statsig.stable_id.3770913638', JSON.stringify(id));
+      window.localStorage.setItem('stable_id', id);
+      window.localStorage.setItem('stableId', id);
+    }, stableId);
+
     const create = new CreatePage(page);
     await create.goto();
+    await expect.poll(
+      () => page.evaluate(async () => {
+        const statsig = window as Window & {
+          statsigReady?: Promise<void>;
+          statsigClient?: { getContext(): { stableID?: string } };
+        };
+        await statsig.statsigReady;
+        return statsig.statsigClient?.getContext().stableID;
+      }),
+      { message: 'Statsig 应读取 TC-06 固定 stable_id', timeout: 30_000 }
+    ).toBe(stableId);
     await create.uploadImage(assetPath(testData.soloImage));
     await create.startGeneration();
 
     const membershipShown = await create.membershipBenefitsText
-      .waitFor({ state: 'visible', timeout: 30_000 })
+      .waitFor({ state: 'visible', timeout: 120_000 })
       .then(() => true)
       .catch(() => false);
-    test.skip(!membershipShown, '当前页面没有 Member Benefits: 20% OFF 会员入口。');
+    test.skip(!membershipShown, `stable_id=${stableId} 未命中 Member Benefits: 20% OFF 会员实验组。`);
 
-    await expect(create.modeToggleButton).toBeVisible();
-    await create.click(create.modeToggleButton);
+    // The membership card is rendered with the generated Gallery result.
+    // Click its own Upgrade action while the entry is still visible.
+    await expect(create.membershipUpgradeButton).toBeVisible();
+    await create.click(create.membershipUpgradeButton);
     await expect(create.membershipDialogTitle).toBeVisible();
     await expect(create.membershipDialogCloseButton).toBeVisible();
   });

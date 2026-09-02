@@ -37,9 +37,9 @@ TEST_PROMPT=生成2个小狗
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
 | TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
-| TC-06 | 上传 → Generate → 检查 `Member Benefits: 20% OFF`；存在时打开会员弹窗 | 是，未等待生成完成 |
+| TC-06 | 上传 → Generate → 检查 `Member Benefits: 20% OFF`；存在时点击对应 Upgrade 并打开会员弹窗 | 是，未等待生成完成 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 在会员入口不存在时会单独标记为 skipped。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 固定写入 `TEST_MEMBERSHIP_STABLE_ID`（默认 `jujubit-ui-e2e-membership-20260902`）到 Statsig 的 `localStorage.statsig.stable_id.3770913638`；未出现会员入口时会单独标记为 skipped。
 
 ## 常用命令
 
@@ -113,7 +113,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-全量模式会创建 4 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。TC-06 的会员入口不存在时会跳过会员弹窗断言，但此前已发起生成任务。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+全量模式会创建 4 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。TC-06 使用固定 `stable_id` 验证会员实验，若入口不存在会跳过会员弹窗断言，但此前已发起生成任务。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
 
 若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
 

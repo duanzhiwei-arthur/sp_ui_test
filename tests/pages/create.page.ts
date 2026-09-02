@@ -34,6 +34,7 @@ export class CreatePage {
   readonly marketingPopup: Locator;
   readonly marketingPopupCloseButton: Locator;
   readonly membershipBenefitsText: Locator;
+  readonly membershipUpgradeButton: Locator;
   readonly membershipDialogTitle: Locator;
   readonly membershipDialogCloseButton: Locator;
   readonly cookieBanner: Locator;
@@ -71,9 +72,14 @@ export class CreatePage {
     this.customizerLoading = page.getByText('Loading customizer...', { exact: true });
     this.marketingPopup = page.locator('div[id$="__newsletter-popup"]').first();
     this.marketingPopupCloseButton = this.marketingPopup.getByRole('button', { name: 'Close', exact: true });
-    this.membershipBenefitsText = page.getByText(/Member Benefits:\s*20%\s*OFF/i).first();
-    this.membershipDialogTitle = page.getByText(/JUJUBIT MEMBERSHIP/i).first();
-    this.membershipDialogCloseButton = page.getByRole('button', { name: 'Close membership dialog', exact: true }).first();
+    this.membershipBenefitsText = page.locator('span:visible')
+      .filter({ hasText: /^Member Benefits:\s*20%\s*OFF$/i }).first();
+    this.membershipUpgradeButton = this.membershipBenefitsText.locator('xpath=ancestor::div[1]')
+      .getByRole('button', { name: 'Upgrade', exact: true });
+    const membershipDialog = page.locator('[data-jjb-membership-popup]:not([hidden])');
+    this.membershipDialogTitle = membershipDialog.getByText(/JUJUBIT MEMBERSHIP/i).first();
+    this.membershipDialogCloseButton = membershipDialog
+      .getByRole('button', { name: 'Close membership dialog', exact: true }).first();
     this.cookieBanner = page.locator('#shopify-pc__banner');
     this.cookieAcceptButton = this.cookieBanner.getByRole('button', { name: 'Accept', exact: true });
   }
