@@ -37,8 +37,9 @@ TEST_PROMPT=生成2个小狗
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
 | TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
+| TC-06 | 上传 → Generate → 检查 `Member Benefits: 20% OFF`；存在时打开会员弹窗 | 是，未等待生成完成 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05 会跳过。只有显式传入 `true` 才会执行完整链路。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 在会员入口不存在时会单独标记为 skipped。
 
 ## 常用命令
 
@@ -51,7 +52,7 @@ npm run test:smoke
 # 每日安全回归：强制关闭真实生成
 npm run test:daily
 
-# 全量 5 条：真实生成、加购、Checkout；不发送飞书
+# 全量 6 条：真实生成、加购、Checkout；不发送飞书
 PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
 ALLOW_PRODUCTION_GENERATION=true \
 SCHEDULED_TRACKING_ENABLED=false \
@@ -95,7 +96,7 @@ npm run record:test
 - cron: '47 10 * * 1-5'
 ```
 
-计划使用 GitHub 托管 Runner，以 `all` 模式执行完整 5 条用例。工作流有并发组保护，避免两个生产游客会话同时生成。也可在 Actions 页面通过 **Run workflow** 手动选择 `safe` 或 `all`。
+计划使用 GitHub 托管 Runner，以 `all` 模式执行完整 6 条用例。工作流有并发组保护，避免两个生产游客会话同时生成。也可在 Actions 页面通过 **Run workflow** 手动选择 `safe` 或 `all`。
 
 GitHub 的原生 `schedule` 在高负载时可能延迟，甚至晚于计划时间数小时；错开整点只能降低概率，不能保证准点。若必须严格准点，需要使用独立云端定时器调用 `workflow_dispatch`。
 
@@ -112,7 +113,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-全量模式会创建 3 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+全量模式会创建 4 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。TC-06 的会员入口不存在时会跳过会员弹窗断言，但此前已发起生成任务。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
 
 若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
 

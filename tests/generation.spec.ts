@@ -45,8 +45,8 @@ test.describe('线上游客态生成流程', () => {
     });
   });
 
-  // This scenario intentionally leaves a background task running, so keep it
-  // last to avoid consuming the generation slot needed by TC-05.
+  // This scenario intentionally leaves a background task running. Run it after
+  // completed-generation coverage, but before the final membership probe.
   test('TC-04: 生成期间返回 Create 后可继续创建任务', async ({ page }) => {
     const create = new CreatePage(page);
     await create.goto();
@@ -56,5 +56,25 @@ test.describe('线上游客态生成流程', () => {
     await create.openCreate();
     await create.uploadImage(assetPath(testData.soloImage));
     await expect(create.generateButton).toBeEnabled();
+  });
+
+  // Keep this probe last: when the membership entry is absent, Generate still
+  // starts a background task before the case is intentionally skipped.
+  test('TC-06: 生成后会员权益入口可打开会员弹窗', async ({ page }) => {
+    const create = new CreatePage(page);
+    await create.goto();
+    await create.uploadImage(assetPath(testData.soloImage));
+    await create.startGeneration();
+
+    const membershipShown = await create.membershipBenefitsText
+      .waitFor({ state: 'visible', timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false);
+    test.skip(!membershipShown, '当前页面没有 Member Benefits: 20% OFF 会员入口。');
+
+    await expect(create.modeToggleButton).toBeVisible();
+    await create.click(create.modeToggleButton);
+    await expect(create.membershipDialogTitle).toBeVisible();
+    await expect(create.membershipDialogCloseButton).toBeVisible();
   });
 });
