@@ -53,7 +53,7 @@ test.describe('119 条埋点目录审计', () => {
     await runStep(
       'initial-render',
       '打开测试首页并通过 Create 进入商品自定义器，等待画板完成渲染',
-      ['DOC-003', 'DOC-014', 'DOC-027', 'DOC-028', 'DOC-111', 'DOC-119'],
+      ['DOC-003', 'DOC-028', 'DOC-111', 'DOC-119'],
       async () => {
         await create.goto({ requireCustomizer: false });
         await create.dismissMarketingPopup();
@@ -126,7 +126,7 @@ test.describe('119 条埋点目录审计', () => {
     await runStep(
       'image-upload',
       '选择有效图片并等待画板读取完成',
-      ['DOC-022', 'DOC-023', 'DOC-031', 'DOC-033', 'DOC-084'],
+      ['DOC-031', 'DOC-033', 'DOC-084'],
       () => create.uploadFixture(),
       5_000
     );
@@ -209,6 +209,10 @@ test.describe('119 条埋点目录审计', () => {
       targetUrl: new URL(process.env.TRACKING_ENTRY_URL ?? '/', trackingBaseUrl).toString(),
       skipReasons: {
         'DOC-007': '跳过：当前页面无 Refine 功能入口。',
+        'DOC-014': '跳过：当前页面未提供稳定的 Inspiration 预设列表入口。',
+        'DOC-022': '跳过：旧版全轮询上传开始事件已废弃，当前实现使用 jjb_canvas_v3_image_upload_selected。',
+        'DOC-023': '跳过：旧版全轮询上传成功事件已废弃，当前实现使用 jjb_canvas_v3_canvas_image_added。',
+        'DOC-027': '跳过：当前匿名会话未展示会员入口，未安全触发会员曝光。',
         'DOC-011': '跳过：本轮 2D 正常生成，没有 Retry 入口。',
         'DOC-026': '跳过：匿名 Gallery 未提供可稳定定位的历史资产选择控件。',
         'DOC-029': '跳过：本轮使用 Pro 画板，未执行 Basic 图片删除。',

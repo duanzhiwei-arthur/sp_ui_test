@@ -42,6 +42,7 @@ export interface PlatformRouteExpectation {
 }
 
 const stableWindowMs = 2_000;
+const transportAssociationWindowMs = 10_000;
 const defaultEventTimeoutMs = Number(process.env.TRACKING_EVENT_TIMEOUT_MS ?? 30_000);
 const defaultDeliveryTimeoutMs = Number(process.env.TRACKING_DELIVERY_TIMEOUT_MS ?? 15_000);
 const sensitiveKey = /(?:access_?)?token|authorization|cookie|password|secret/i;
@@ -52,11 +53,13 @@ export class TrackingCollector {
   private readonly trackCalls: UnifiedTrackCall[] = [];
   private readonly requestEvents = new WeakMap<Request, TrackingEvent[]>();
   private readonly requestPlatforms = new WeakMap<Request, TrackingPlatform>();
+  private readonly recentTransportEvents: Array<TrackingEvent & { sentAt: number }> = [];
   private readonly lastDelivery = new Map<TrackingPlatform, {
     completedAt: number;
     responseStatus?: number;
     requestFailure?: string;
   }>();
+  private readonly lastRequestAt = new Map<TrackingPlatform, number>();
 
   private constructor(private readonly page: Page) {
     page.on('request', (request) => this.capture(request));
@@ -300,6 +303,20 @@ export class TrackingCollector {
     const event = this.find(expectation)[0];
     this.expectParams(event, expectation);
     this.expectNoSensitiveData(event.params);
+    // Flush queued SDK batches before judging transport delivery. Statsig and
+    // Monitor may defer a small event batch until their periodic timer; the
+    // explicit flush makes the browser request observable in this assertion.
+    if (!event.transportStarted && (event.platform === 'statsig' || event.platform === 'monitor')) {
+      await this.page.evaluate((platform) => {
+        const target = window as Window & {
+          Monitor?: { flush?: () => unknown };
+          statsigClient?: { flush?: () => unknown };
+        };
+        return platform === 'monitor'
+          ? target.Monitor?.flush?.()
+          : target.statsigClient?.flush?.();
+      }, event.platform).catch(() => undefined);
+    }
     // SDK callbacks and batched transports are asynchronous. Give the browser
     // request a short window to start before treating a local SDK call as a
     // transport failure.
@@ -348,6 +365,16 @@ export class TrackingCollector {
 
     this.requestPlatforms.set(request, platform);
     if (platform !== 'ga4') {
+      const requestStartedAt = Date.now();
+      this.lastRequestAt.set(platform, requestStartedAt);
+      const captured = parseEvents(platform, request);
+      for (const networkEvent of captured) {
+        networkEvent.transportStarted = true;
+        networkEvent.capturedAt = requestStartedAt;
+        this.events.push(networkEvent);
+        this.recentTransportEvents.push({ ...networkEvent, sentAt: requestStartedAt });
+      }
+      this.pruneRecentTransportEvents(requestStartedAt);
       const pending = this.pending(platform);
       for (const event of pending) {
         event.transportStarted = true;
@@ -405,6 +432,19 @@ export class TrackingCollector {
     params: unknown,
     capturedAt: number
   ): void {
+    const matchingTransport = this.recentTransportEvents
+      .filter((event) => event.platform === platform && event.name === name &&
+        Math.abs(event.sentAt - capturedAt) <= transportAssociationWindowMs)
+      .sort((left, right) => Math.abs(left.sentAt - capturedAt) - Math.abs(right.sentAt - capturedAt))[0];
+    if (matchingTransport) {
+      matchingTransport.params = {
+        ...matchingTransport.params,
+        ...(params && typeof params === 'object' && !Array.isArray(params)
+          ? params as Record<string, unknown>
+          : {})
+      };
+      return;
+    }
     const event: TrackingEvent = {
       name,
       params: params && typeof params === 'object' && !Array.isArray(params)
@@ -416,11 +456,24 @@ export class TrackingCollector {
       capturedAt
     };
     const delivery = this.lastDelivery.get(platform);
+    const recentRequestAt = this.lastRequestAt.get(platform);
+    if (recentRequestAt !== undefined && Math.abs(recentRequestAt - capturedAt) <= transportAssociationWindowMs) {
+      event.transportStarted = true;
+    }
     if (delivery && delivery.completedAt >= capturedAt) {
       event.responseStatus = delivery.responseStatus;
       event.requestFailure = delivery.requestFailure;
     }
     this.events.push(event);
+  }
+
+  private pruneRecentTransportEvents(now: number): void {
+    const firstLiveIndex = this.recentTransportEvents.findIndex((event) =>
+      now - event.sentAt <= transportAssociationWindowMs
+    );
+    if (firstLiveIndex > 0) {
+      this.recentTransportEvents.splice(0, firstLiveIndex);
+    }
   }
 
   private captureUnifiedTrackCall(name: string, params: unknown, options: unknown, capturedAt: number): void {

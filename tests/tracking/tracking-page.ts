@@ -93,7 +93,10 @@ export class TrackingPage {
       { timeout: 300_000 }
     ).catch(() => null);
     await Promise.all([
-      this.page.waitForURL(/\/products\/customize-your-own(?:[/?#]|$)/, { timeout: 300_000 }),
+      this.page.waitForURL(/\/products\/customize-your-own(?:[/?#]|$)/, {
+        timeout: 300_000,
+        waitUntil: 'domcontentloaded'
+      }),
       this.click(this.homeCreateLink)
     ]);
     if (options.requireCustomizer !== false) {
