@@ -1,173 +1,168 @@
 # JuJuBit UI Regression
 
-Playwright + TypeScript 的线上游客态 UI 回归框架。测试范围止于 Checkout 订单摘要，严禁执行付款。
+基于 Playwright + TypeScript 的 JuJuBit 游客态 UI 回归框架。覆盖创作、生成、购物车、Checkout 与埋点审计；所有订单验证止于 Checkout 页面，**绝不填写支付信息、点击或提交 `Pay now`**。
 
-## 初始化
+## 快速开始
 
 ```bash
 npm install
 npx playwright install chromium
 cp .env.example .env
+
+# 安全冒烟：只跑 TC-01、TC-02，不创建线上生成任务
+npm run test:smoke
 ```
 
-把无隐私、无版权风险的测试图片放入 `assets/`，并在 `.env` 配置 `TEST_IMAGE_SOLO`。默认示例路径为 `assets/solo.jpg`。只有 `ALLOW_PRODUCTION_GENERATION=true` 时才允许运行真实生成、加购和 Checkout 流程。
+在 `.env` 中配置测试素材和目标地址：
 
-## 用例与执行顺序
+```dotenv
+BASE_URL=https://jujubit.ai
+PRODUCT_URL=https://jujubit.ai/products/customize-your-own?variant=62485711716723
+TEST_IMAGE_SOLO=assets/two-dogs.jpeg
+TEST_IMAGE_DUO=assets/two-dogs.jpeg
+TEST_IMAGE_LARGE=assets/two-dogs.jpeg
+TEST_PROMPT=生成2个小狗
+```
 
-框架固定使用一个 worker 串行执行，当前共 5 条 case：
+测试图片必须无隐私和版权风险。`assets/two-dogs.jpeg` 是仓库内的默认示例素材。
 
-1. TC-01：首页 `Create` 可以进入创作页面，自定义器完成加载且 Gallery 可见。
-2. TC-02：自定义器基础交互可以正常切换：
-   - Free Style 菜单可以选择 TRPG，并重新切回 Free Style。
-   - Prompt 编辑框可见、可编辑，取消和确认按钮可见。
-   - Solo 可以切换为 Duo，并恢复为 Solo。
-   - Pro 模式显示 3 个工具图标，Basic 模式不显示这些图标。
-3. TC-03：核心冒烟：Create -> 上传图片 -> 2D 成功 -> 3D 成功 -> 横向拖动 3D 内容 2 秒 -> 加购 -> Checkout。
-4. TC-04：开始生成 -> Gallery -> 等待 Create 可点击并返回 -> 重新上传图片 -> Generate 可用。
-5. TC-05：Create -> 上传图片并写入 Prompt -> 2D 成功 -> 3D 成功 -> 横向拖动 3D 内容 2 秒 -> History 新增记录 -> 删除最新记录并确认已删除。
+## UI 回归用例
 
-`ALLOW_PRODUCTION_GENERATION=false` 时，TC-03、TC-04 和 TC-05 自动跳过，只执行 TC-01、TC-02。设置为 `true` 后按以上顺序执行全部 5 条 case。
+测试固定使用一个 worker 串行执行。
 
-## 运行
+| 用例 | 覆盖范围 | 真实生成 |
+| --- | --- | --- |
+| TC-01 | 首页进入 Create；自定义器加载完成；Gallery 可见 | 否 |
+| TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
+| TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
+| TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
+| TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
+
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05 会跳过。只有显式传入 `true` 才会执行完整链路。
+
+## 常用命令
+
+### UI 回归
 
 ```bash
-# 安全冒烟：只执行 TC-01、TC-02
+# 安全冒烟：TC-01、TC-02
 npm run test:smoke
 
-# 每日安全回归：强制关闭线上生成
+# 每日安全回归：强制关闭真实生成
 npm run test:daily
 
-# 指定商品变体执行全量生成流程（不会支付）
+# 全量 5 条：真实生成、加购、Checkout；不发送飞书
 PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
-  ALLOW_PRODUCTION_GENERATION=true npx playwright test --project=chromium
+ALLOW_PRODUCTION_GENERATION=true \
+SCHEDULED_TRACKING_ENABLED=false \
+npx playwright test --project=chromium
 
-# 独立埋点专项：只允许非生产测试域名；不运行既有 UI 回归
-TRACKING_BASE_URL=https://test.example.com npm run test:tracking
-
-# 仅在明确授权时对生产域名执行埋点专项（从 https://jujubit.ai/ 首页点击 Create 进入画板）
-ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai npm run test:tracking
-
-# Preview 环境异常埋点专项（接口 Mock + 浏览器故障注入）
-TRACKING_BASE_URL=https://your-store.myshopifypreview.com \
-TRACKING_FAULT_INJECTION_ENABLED=true \
-npm run test:tracking:exceptions
-
-# 只执行 119 条目录审计，并生成结构化 JSON；入口为首页，随后点击 Create
-ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai \
-  npx playwright test tests/tracking/catalog-audit.spec.ts --config=playwright.tracking.config.ts
-
-# 将目录审计 JSON 渲染成飞书文档 XML
-npm run report:tracking -- test-results/tracking-catalog-audit.json test-results/tracking-catalog-report.xml
-
-# 按 SCHEDULED_TEST_MODE 执行；结束后发送通知，失败时创建失败记录
-npm run test:scheduled
-
-# 只预览最近一次结果将生成的消息，不运行测试、不发送飞书
-npm run notify:preview
-
-# 不运行测试，把最近一次结果和失败附件发送到飞书
-npm run notify:test
-
-# 不运行测试、不写飞书，只预览最近一次结果对应的执行记录 XML
-npm run record:preview
-
-# 不运行测试；最近一次结果失败时创建一篇飞书测试失败文档
-npm run record:test
-
-# 只执行 TC-03 核心生成、加购和 Checkout
+# 只运行 TC-03
 ALLOW_PRODUCTION_GENERATION=true npm run test:core-smoke
 
-# 无界面串行执行全部 5 条 case，保留 JSON 报告并发送飞书
+# 全量执行并发送飞书通知（无头 / 有头）
 npm run test:all
-
-# 可视 Chromium 串行执行全部 5 条 case，保留 JSON 报告并发送飞书
 npm run test:all:headed
 
-# 类型检查和用例发现检查
+# 类型检查、用例发现、打开最近一次报告
 npm run validate
-
-# 打开最近一次 HTML 报告
 npm run report
 ```
 
-## 核心等待与断言
+不要在需要 JSON 结果和飞书通知的命令后追加 `--reporter=list`，否则会覆盖 Playwright JSON reporter，导致通知脚本无法读取每条用例结果。
 
-- 页面等待 `Loading customizer...` 完全消失且 Generate 出现后再执行后续操作。
-- 常规资源与交互最多等待 2 分钟；条件提前满足时立即继续，不等待上限结束。
-- 2D 和 3D 生成阶段最多分别等待 5 分钟；图片或模型提前生成时立即继续。
-- 所有可视点击操作前后各停留约 2 秒，便于观察页面状态变化。
-- 2D 验证在左侧商品预览区等待生成图片节点和资源加载完成；若页面已自动进入 3D，则立即切回 2D 做可见性断言。
-- 3D 验证等待生成进度层消失和 Add to Cart 可用，再横向拖动模型 2 秒；只有拖动前后画面发生视觉变化才判定 3D 生成成功。滑动完成后停留 5 秒，再执行加购。
-- 导航后若检测到 HTTP 429 或 `legal-rate-limited`，立即报告运行环境被限流，不再无意义等待页面元素超时。
-- 加购后进入 `/cart`，确认 Checkout 商品数量非零，再进入 Checkout。
-- Checkout 只断言订单摘要、地址表单、折扣入口和 `Pay now` 可见；测试不会点击或提交付款。
+### 通知与失败记录
 
-## 埋点专项
+```bash
+# 按 SCHEDULED_TEST_MODE 运行 UI 回归；结束后通知飞书，失败时创建失败记录
+npm run test:scheduled
 
-埋点测试与既有 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认只允许非生产环境；如需明确授权生产验证，必须额外设置 `ALLOW_PRODUCTION_TRACKING=true`。完整目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除历史资产或付款。
+# 基于最近一次 results.json 操作，不重新运行测试
+npm run notify:preview
+npm run notify:test
+npm run record:preview
+npm run record:test
+```
 
-- `TrackingCollector` 采集 GA4、Statsig 和 Monitor 的浏览器端请求及响应状态：GA4 解析 `/g/collect` 的 `en`、`ep.*`、`epn.*`；Monitor 优先解析真实批量结构 `events[].data.name`；Statsig 兼容常见 `eventName + metadata` 结构。
-- 每个契约统一验证：操作前清空记录，真实点击或首次有效曝光后恰好上报一次，浏览器发起对应平台请求，等待 2 秒稳定窗口后仍不得重复，并校验必填、未定义及敏感业务参数。HTTP 回执作为“平台接收”辅助证据展示，不作为前端埋点通过的硬条件。
-- GA4 契约在 `tests/tracking/tracking-contracts.ts`，可复用 UI 动作在 `tests/tracking/tracking-actions.ts`。新增埋点时先补动作映射和平台契约，避免把未实现 case 误报为通过。
-- `catalog-audit.spec.ts` 将飞书源文档的 119 条目录逐条输出为通过、失败或跳过；通过和失败分别使用 `✅`、`❌`，结果总数必须严格闭合为 119。
-- `exception-audit.spec.ts` 只允许 Preview/本地地址，使用真实接口路径注入 HTTP 500/503，并通过 `FileReader` 故障注入验证异常埋点。Mock 命中记录会写入步骤证据；接口未命中时不会把场景误报为埋点通过。
-- 事件等待默认 30 秒；响应确认默认 15 秒；控件点击仅短暂尝试 10 秒，分别可通过 `TRACKING_EVENT_TIMEOUT_MS`、`TRACKING_DELIVERY_TIMEOUT_MS` 与 `TRACKING_CONTROL_TIMEOUT_MS` 调整。控件不可用不会单独判失败：只要对应埋点已出现，仍继续校验上报次数、参数和网络送达；最终结果只以埋点证据为准。
-
-## 生产风险控制
-
-执行全部 case 会创建 3 次真实 AI 生成任务。TC-03 还会加入 1 件真实购物车商品并进入 Checkout；TC-04 会开始生成后返回 Create，但不会再次点击 Generate；TC-05 会生成后删除自己的 History 记录。框架绝不填写支付信息、点击 `Pay now` 或提交付款。
-
-普通 `npm run test:smoke` 不包含 TC-03、TC-04、TC-05，避免环境开关变化时误触发线上生成。真实生成还要求测试图片文件存在，否则对应 case 自动跳过。
-
-## 结果与证据
-
-- HTML 报告：`playwright-report/`
-- 失败截图、视频、trace 和错误上下文：`test-results/`
-- TC-03 页面元素快照：`generation-elements.json`、`cart-elements.json`、`checkout-elements.json`
-
-## 定位器维护
-
-当前线上页面尚未提供稳定的 `data-testid`。现有定位器以可访问名称、`data-view-name` 和局部页面结构为主。页面改版后应优先同步生成图片、3D 进度层、工具图标、购物车商品和 Checkout 关键区域的定位器。
+通知失败不会覆盖原始 Playwright 退出码。失败截图上限 10 MB、视频上限 30 MB；视频无法转为 MP4 时会降级为 WebM 附件。
 
 ## 远端定时执行
 
-项目使用 GitHub Actions 原生 `schedule` 在远端执行，不依赖本地电脑开机。计划时间错开整点高峰，以降低调度延迟：
+远端任务由 GitHub Actions 运行，不依赖本地电脑。工作日计划时间（北京时间）为 11:17 和 18:47，对应配置在 `.github/workflows/ui-regression.yml`：
 
-- `11:17`（北京时间）
-- `18:47`（北京时间）
+```yaml
+- cron: '17 3 * * 1-5'
+- cron: '47 10 * * 1-5'
+```
 
-配置文件见 `.github/workflows/ui-regression.yml`。测试在 GitHub 托管 Runner 中运行，继续使用 GitHub Secrets、Artifact 和飞书通知。GitHub 高负载时 schedule 仍可能延迟，若必须严格准点，需要接入独立云端定时器。
+计划使用 GitHub 托管 Runner，以 `all` 模式执行完整 5 条用例。工作流有并发组保护，避免两个生产游客会话同时生成。也可在 Actions 页面通过 **Run workflow** 手动选择 `safe` 或 `all`。
 
-通过 `npm run test:scheduled` 执行时会强制忽略 `tests/tracking/`，不会执行或上报正常/异常埋点自动化；`npm run test:tracking` 只运行常规埋点验证与 119 条目录审计，执行一次真实 2D/3D 生成和一次加购，不进入 Checkout 或删除历史资产。契约校验与异常注入分别只能用 `test:tracking:contract`、`test:tracking:exceptions` 手动运行；异常注入仅允许 Preview/本地地址。每次埋点执行完成后，都会在 `FEISHU_TRACKING_RECORDS_PARENT` 指定的 Wiki 节点下新建一份执行记录（无论通过或失败）；该节点与 UI 失败记录节点可不同。UI 用例失败时，脚本才会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指定的 Wiki 节点下新建失败记录。埋点建档使用企业应用机器人创建 Docx，因此机器人必须先被添加到目标知识库，并对父节点具备编辑和创建子页面权限。
+GitHub 的原生 `schedule` 在高负载时可能延迟，甚至晚于计划时间数小时；错开整点只能降低概率，不能保证准点。若必须严格准点，需要使用独立云端定时器调用 `workflow_dispatch`。
 
-若配置 `FEISHU_SOLUTION_LIBRARY_ROOT`，失败后脚本会递归查询该 Wiki 节点下的全部 Doc/Docx 子文档，依据用例名称、错误码、组件名和异常关键词匹配最多 5 篇相关记录，并把可点击的文档引用、匹配关键词和相关正文摘录写入失败记录。知识库不可用或没有命中时仍会创建失败记录，并保留框架内置建议。
+远端工作流需要配置以下 GitHub Actions Secrets：
 
-首次启用或登录态过期时，在终端完成用户授权并确认 `verified` 为 `true`：
+```text
+FEISHU_APP_ID
+FEISHU_APP_SECRET
+FEISHU_GROUP_CHAT_ID
+FEISHU_EXECUTION_RECORDS_PARENT
+```
+
+可选 Actions Variable：`PRODUCT_URL`。每次运行都会上传 `playwright-report/` 与 `test-results/` Artifact，保留 14 天。失败时机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指向的 Wiki 节点下创建失败记录；机器人需要是该知识库成员，并具备创建子页面和编辑权限。
+
+## 生产影响与安全边界
+
+全量模式会创建 3 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+
+若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
+
+## 埋点专项
+
+埋点测试与 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认仅允许非生产环境；生产验证必须显式设置 `ALLOW_PRODUCTION_TRACKING=true`。
+
+```bash
+# 完整埋点审计：analytics + 119 条目录审计
+TRACKING_BASE_URL=https://test.example.com npm run test:tracking
+
+# 明确授权后，对生产环境运行完整埋点审计
+ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai npm run test:tracking
+
+# 运行运行时契约校验
+TRACKING_BASE_URL=https://test.example.com npm run test:tracking:contract
+
+# Preview / 本地环境的异常注入
+TRACKING_BASE_URL=https://your-store.myshopifypreview.com npm run test:tracking:exceptions
+
+# 将目录审计 JSON 渲染为飞书文档 XML
+npm run report:tracking -- test-results/tracking-catalog-audit.json test-results/tracking-catalog-report.xml
+```
+
+完整目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
+
+采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后恰好上报一次、请求已发起、稳定窗口内无重复、必填参数完整且无敏感字段。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
+
+埋点运行完成后会在 `FEISHU_TRACKING_RECORDS_PARENT` 下创建执行记录；机器人需要被添加到对应 Wiki 并具备编辑权限。
+
+## 结果、证据与定位
+
+| 内容 | 位置 |
+| --- | --- |
+| HTML 报告 | `playwright-report/` |
+| JSON 结果 | `test-results/results.json` |
+| 失败截图、视频、trace、错误上下文 | `test-results/` |
+| 埋点 HTML 报告 | `playwright-tracking-report/` |
+| 埋点目录审计 JSON | `test-results/tracking-catalog-audit.json` |
+| TC-03 页面元素快照 | `generation-elements.json`、`cart-elements.json`、`checkout-elements.json` |
+
+普通交互最多等待 2 分钟；2D 与 3D 生成各最多 5 分钟。2D 验证图片资源实际加载；3D 等待进度层消失、Add to Cart 可用，并验证横向拖动后画面变化。Checkout 仅校验订单摘要、地址表单、折扣入口和 `Pay now` 可见。
+
+线上尚未提供稳定的 `data-testid`，定位器以无障碍名称、`data-view-name` 和局部结构为主。页面改版后，优先复核生成图片、3D 进度层、工具图标、购物车商品及 Checkout 关键区域的定位器。
+
+## 飞书权限与本地授权
+
+企业应用需启用机器人能力，并具备 `im:message:send_as_bot`、图片/文件上传及目标 Wiki 编辑权限。需要本地操作飞书文档时，先完成用户授权：
 
 ```bash
 lark-cli auth login --domain docs --domain drive
 lark-cli auth status --json --verify
 ```
-
-通知内容包含执行状态、运行模式、机器名、开始时间、耗时、通过/失败/跳过数量、全部用例名称及各自状态、每条失败用例的自动根因分析、失败截图、录屏附件和本机 HTML 报告路径。整体结果和 case 通过时显示 `✅`，失败、不稳定、跳过或未知状态显示 `❌`。失败文档同时保留自动分析和 Playwright 原始错误。即使飞书发送失败，脚本仍保留 Playwright 原始退出码，避免把测试失败误报为通知失败。
-
-执行全量用例时使用 `npm run test:all` 或 `npm run test:all:headed`。不要在需要发送飞书结果的运行中追加 `--reporter=list`，该参数会覆盖配置中的 JSON reporter，导致 `notify:test` 无法读取每条 case。若报告缺失，飞书会明确显示 `❌ 结果报告缺失`，不会再误报执行通过。
-
-`SCHEDULED_TEST_MODE=all` 每次会触发 3 次真实生成、1 次加购并进入 Checkout，TC-05 会删除自己的 History 记录。启用前应确认生成成本、历史记录和购物车数据影响；任何模式都不会点击付款。
-
-生产风险控制：串行执行、固定游客素材、真实生成必须显式授权、流程止于 Checkout，且绝不点击 `Pay now` 或提交付款。
-
-## GitHub Actions 远端执行
-
-仓库通过 `.github/workflows/ui-regression.yml` 在远端按工作日计划执行，也可在 GitHub Actions 页面通过 `Run workflow` 手动选择安全模式或全量模式。全量模式会执行 3 次真实生成、加购和 Checkout 验证。
-
-在仓库的 **Settings → Secrets and variables → Actions → Secrets** 中配置下列 Secrets，通知将只发送给个人单聊，不会发送到群：
-
-```text
-FEISHU_APP_ID
-FEISHU_APP_SECRET
-FEISHU_RECEIVE_ID  # 个人企业邮箱，例如 name@company.com
-FEISHU_EXECUTION_RECORDS_PARENT  # 失败文档库的 Wiki 节点链接或 token
-```
-
-如需指定商品变体，可在 **Variables** 中配置可选的 `PRODUCT_URL`。每次执行无论成功或失败都会将 `playwright-report/` 和 `test-results/` 上传为 GitHub Artifact，并在飞书消息中附上对应的 Actions 运行链接。失败时，企业应用机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 下创建结构化 Docx 报告；需在飞书知识库中将该企业应用机器人加入成员并授予目标节点编辑权限。托管 Runner 使用 GitHub 的共享出口 IP；若生产站对该 IP 返回 `HTTP 429` 或 `legal-rate-limited`，报告会保留证据，但需要改用固定出口 IP 的 self-hosted Runner 才能避免该限制。
