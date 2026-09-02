@@ -37,6 +37,7 @@ export class CreatePage {
   readonly membershipUpgradeButton: Locator;
   readonly membershipDialogTitle: Locator;
   readonly membershipDialogCloseButton: Locator;
+  readonly membershipJoinButton: Locator;
   readonly cookieBanner: Locator;
   readonly cookieAcceptButton: Locator;
 
@@ -80,6 +81,8 @@ export class CreatePage {
     this.membershipDialogTitle = membershipDialog.getByText(/JUJUBIT MEMBERSHIP/i).first();
     this.membershipDialogCloseButton = membershipDialog
       .getByRole('button', { name: 'Close membership dialog', exact: true }).first();
+    this.membershipJoinButton = membershipDialog
+      .getByRole('button', { name: 'Join for $19.90/mo', exact: true }).first();
     this.cookieBanner = page.locator('#shopify-pc__banner');
     this.cookieAcceptButton = this.cookieBanner.getByRole('button', { name: 'Accept', exact: true });
   }

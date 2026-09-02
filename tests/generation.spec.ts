@@ -100,5 +100,24 @@ test.describe('线上游客态生成流程', () => {
     await create.click(create.membershipUpgradeButton);
     await expect(create.membershipDialogTitle).toBeVisible();
     await expect(create.membershipDialogCloseButton).toBeVisible();
+
+    const loggedIn = await page.evaluate(() => Boolean((window as Window & {
+      theme?: { customerId?: string | number | null };
+    }).theme?.customerId));
+    await expect(create.membershipJoinButton).toBeVisible();
+    await Promise.all([
+      page.waitForURL((url) => loggedIn
+        ? /airwallex/i.test(`${url.hostname}${url.pathname}`)
+        : /customer_authentication\/login|\/account(?:\/login)?|shopify\.com\/authentication\/[^/]+\/login/i
+          .test(`${url.hostname}${url.pathname}${url.search}`),
+        { timeout: 120_000 }),
+      create.membershipJoinButton.click()
+    ]);
+
+    if (loggedIn) {
+      expect(page.url()).toMatch(/airwallex/i);
+    } else {
+      expect(page.url()).toMatch(/customer_authentication\/login|\/account(?:\/login)?/i);
+    }
   });
 });
