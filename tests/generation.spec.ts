@@ -105,19 +105,21 @@ test.describe('线上游客态生成流程', () => {
       theme?: { customerId?: string | number | null };
     }).theme?.customerId));
     await expect(create.membershipJoinButton).toBeVisible();
+    const expectedRedirect = loggedIn
+      ? /airwallex/i
+      : /(?:customer_authentication\/login|\/account(?:\/login)?|shopify\.com\/authentication\/[^/]+\/(?:login|oauth\/authorize))/i;
     await Promise.all([
-      page.waitForURL((url) => loggedIn
-        ? /airwallex/i.test(`${url.hostname}${url.pathname}`)
-        : /customer_authentication\/login|\/account(?:\/login)?|shopify\.com\/authentication\/[^/]+\/login/i
-          .test(`${url.hostname}${url.pathname}${url.search}`),
-        { timeout: 120_000 }),
+      page.waitForURL((url) => expectedRedirect.test(`${url.hostname}${url.pathname}${url.search}`), {
+        timeout: 120_000,
+        waitUntil: 'domcontentloaded'
+      }),
       create.membershipJoinButton.click()
     ]);
 
     if (loggedIn) {
       expect(page.url()).toMatch(/airwallex/i);
     } else {
-      expect(page.url()).toMatch(/customer_authentication\/login|\/account(?:\/login)?/i);
+      expect(page.url()).toMatch(expectedRedirect);
     }
   });
 });

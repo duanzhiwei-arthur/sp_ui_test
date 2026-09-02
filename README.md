@@ -39,7 +39,7 @@ TEST_PROMPT=生成2个小狗
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
 | TC-06 | 上传 → Generate → 检查 `Member Benefits: 20% OFF`；存在时点击对应 Upgrade、打开会员弹窗，再点击 Join | 是，未等待生成完成 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 固定写入 `TEST_MEMBERSHIP_STABLE_ID`（默认 `jujubit-ui-e2e-membership-20260902`）到 Statsig 的 `localStorage.statsig.stable_id.3770913638`；未出现会员入口时会单独标记为 skipped。会员弹窗中的 Join 按钮会按登录态断言：已登录应进入 Airwallex，未登录应进入登录页。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 固定写入 `TEST_MEMBERSHIP_STABLE_ID`（默认 `jujubit-ui-e2e-membership-20260902`）到 Statsig 的 `localStorage.statsig.stable_id.3770913638`；未出现会员入口时会单独标记为 skipped。会员弹窗中的 Join 按钮会按登录态断言：已登录应进入 Airwallex，未登录应进入 Shopify 登录或 OAuth 授权页。
 
 ## 常用命令
 
