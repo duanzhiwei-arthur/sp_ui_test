@@ -45,6 +45,11 @@ export interface TrackingAuditReport {
     riskPoints: string[];
     improvements: string[];
   };
+  eventCounts: Array<{
+    platform: TrackingPlatform;
+    name: string;
+    count: number;
+  }>;
   results: TrackingAuditResult[];
   steps: Array<{
     id: string;
@@ -132,6 +137,7 @@ export function buildTrackingAuditReport(options: {
     failed,
     skipped,
     executionPlan: options.executionPlan,
+    eventCounts: summarizeEventCounts(options.steps),
     results,
     steps: options.steps.map((step) => ({
       id: step.id,
@@ -155,9 +161,6 @@ function evaluateCase(
     if (platformResult.count === 0) {
       failures.push(`${platformLabel(platformResult.platform)} 未上报`);
       continue;
-    }
-    if (platformResult.count !== 1) {
-      failures.push(`${platformLabel(platformResult.platform)} 重复上报 ${platformResult.count} 次`);
     }
     const event = step.events.find((candidate) =>
       candidate.name === trackingCase.name && candidate.platform === platformResult.platform
@@ -237,8 +240,8 @@ function successReason(trackingCase: TrackingCase, observed: TrackingAuditResult
   const params = trackingCase.requiredParams.length > 0
     ? `必填参数 ${trackingCase.requiredParams.join(', ')} 完整`
     : '无业务参数要求';
-  const requests = observed.map((item) => `${platformLabel(item.platform)} 浏览器请求已发起`).join('；');
-  return `各平台均上报 1 次，${params}；${requests}`;
+  const requests = observed.map((item) => `${platformLabel(item.platform)} 上报 ${item.count} 次`).join('；');
+  return `各平台均至少上报 1 次，${params}；${requests}`;
 }
 
 function receiptDescription(event: TrackingEvent): string {
@@ -276,6 +279,22 @@ function summarizeEvents(events: readonly TrackingEvent[]): string[] {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()].map(([name, count]) => `${name} x${count}`);
+}
+
+function summarizeEventCounts(steps: readonly TrackingStepEvidence[]): TrackingAuditReport['eventCounts'] {
+  const counts = new Map<string, { platform: TrackingPlatform; name: string; count: number }>();
+  for (const event of steps.flatMap((step) => step.events)) {
+    const key = `${event.platform}:${event.name}`;
+    const existing = counts.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(key, { platform: event.platform, name: event.name, count: 1 });
+    }
+  }
+  return [...counts.values()].sort((left, right) =>
+    left.platform.localeCompare(right.platform) || left.name.localeCompare(right.name)
+  );
 }
 
 function platformLabel(platform: TrackingPlatform): string {

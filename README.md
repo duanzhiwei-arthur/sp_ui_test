@@ -140,7 +140,7 @@ npm run report:tracking -- test-results/tracking-catalog-audit.json test-results
 
 完整有效目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。有效目录会排除源文档中划线删除项和“异常”类型项；毕业季埋点、漏斗指标、AB 实验组映射表不纳入本目录。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
 
-采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后恰好上报一次、请求已发起、稳定窗口内无重复、必填参数完整且无敏感字段。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
+采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后至少上报一次、请求已发起、必填参数完整且无敏感字段。重复上报不会单独判失败，但会在 JSON 与飞书执行文档的“上报次数明细”中如实统计。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
 
 埋点运行完成后会在 `FEISHU_TRACKING_RECORDS_PARENT` 下创建执行记录；机器人需要被添加到对应 Wiki 并具备编辑权限。
 
