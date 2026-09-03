@@ -49,6 +49,7 @@ export interface TrackingAuditReport {
     platform: TrackingPlatform;
     name: string;
     count: number;
+    params: Array<Record<string, unknown>>;
   }>;
   results: TrackingAuditResult[];
   steps: Array<{
@@ -278,19 +279,31 @@ function summarizeEvents(events: readonly TrackingEvent[]): string[] {
 }
 
 function summarizeEventCounts(steps: readonly TrackingStepEvidence[]): TrackingAuditReport['eventCounts'] {
-  const counts = new Map<string, { platform: TrackingPlatform; name: string; count: number }>();
+  const counts = new Map<string, {
+    platform: TrackingPlatform;
+    name: string;
+    count: number;
+    params: Array<Record<string, unknown>>;
+  }>();
   for (const event of steps.flatMap((step) => step.events)) {
     const key = `${event.platform}:${event.name}`;
     const existing = counts.get(key);
     if (existing) {
       existing.count += 1;
+      if (!existing.params.some((item) => sameParameters(item, event.params))) {
+        existing.params.push(event.params);
+      }
     } else {
-      counts.set(key, { platform: event.platform, name: event.name, count: 1 });
+      counts.set(key, { platform: event.platform, name: event.name, count: 1, params: [event.params] });
     }
   }
   return [...counts.values()].sort((left, right) =>
     left.platform.localeCompare(right.platform) || left.name.localeCompare(right.name)
   );
+}
+
+function sameParameters(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function platformLabel(platform: TrackingPlatform): string {

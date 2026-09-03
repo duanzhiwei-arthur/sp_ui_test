@@ -68,6 +68,7 @@ async function createTrackingRecord({ label, report, testExitCode, startedAt, fi
     method: 'POST', headers: appHeaders(token),
     body: JSON.stringify({ children: buildBlocks({ label, report, testExitCode, startedAt, finishedAt }) })
   });
+  await appendEventCountTables({ documentId, token, eventCounts: report.eventCounts ?? [] });
   return `https://a9ihi0un9c.feishu.cn/docx/${documentId}`;
 }
 
@@ -78,8 +79,6 @@ function buildBlocks({ label, report, testExitCode, startedAt, finishedAt }) {
   const skipped = Number(report.skipped ?? 0);
   const status = testExitCode === 0 && failed === 0 && !report.readError ? '执行通过' : '发现埋点异常';
   const failedRows = (report.results ?? []).filter((item) => item.status === 'failed').slice(0, 15);
-  const eventCountRows = (report.eventCounts ?? [])
-    .map((item) => `${platformLabel(item.platform)}｜${item.name}｜${item.count} 次`);
   const blocks = [
     headingBlock(`JuJuBit ${label} · ${status}`, 1),
     textBlock(`状态：${status}${report.replayed ? '（补写记录）' : ''}    总目录：${total}`),
@@ -100,12 +99,8 @@ function buildBlocks({ label, report, testExitCode, startedAt, finishedAt }) {
   if (failedRows.length === 0) blocks.push(textBlock('无失败埋点。'));
   for (const item of failedRows) blocks.push(textBlock(`${item.id ?? '未编号'}｜${item.name ?? '未命名事件'}｜${shorten(item.reason, 420)}`));
   if (failed > failedRows.length) blocks.push(textBlock(`其余 ${failed - failedRows.length} 条失败项请查看本地 JSON 审计报告。`));
-  blocks.push(headingBlock('上报次数明细', 2));
-  if (eventCountRows.length === 0) {
-    blocks.push(textBlock('本次没有观察到可识别的埋点上报。'));
-  } else {
-    for (const row of chunkLines(eventCountRows, 1_300)) blocks.push(textBlock(row));
-  }
+  blocks.push(headingBlock('上报次数与参数明细', 2));
+  blocks.push(textBlock('下表按平台与事件汇总本次浏览器观察到的上报次数；参数列保留本次实际发送的去重样本。'));
   blocks.push(headingBlock('本地报告', 2));
   blocks.push(textBlock(`结构化审计：${path.relative(projectRoot, auditPath)}`));
   blocks.push(textBlock('HTML 报告：playwright-tracking-report/index.html'));
@@ -116,16 +111,82 @@ function headingBlock(content, level) { const key = `heading${level}`; return { 
 function textBlock(content) { return { block_type: 2, text: { elements: [textRun(content)] } }; }
 function textRun(content) { return { text_run: { content: shorten(content, 1500), text_element_style: {} } }; }
 function shorten(value, length) { return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, length); }
-function chunkLines(lines, maxLength) {
-  const chunks = []; let current = '';
-  for (const line of lines) {
-    if (current && current.length + line.length + 1 > maxLength) { chunks.push(current); current = ''; }
-    current += `${current ? '\n' : ''}${line}`;
+function platformLabel(platform) { return platform === 'ga4' ? 'GA4' : platform === 'statsig' ? 'Statsig' : 'Monitor'; }
+
+async function appendEventCountTables({ documentId, token, eventCounts }) {
+  if (eventCounts.length === 0) {
+    await appendTextBlocks(documentId, token, [textBlock('本次没有观察到可识别的埋点上报。')]);
+    return;
   }
-  if (current) chunks.push(current);
+  // Keep one compact table (one row per platform) so a large event inventory
+  // does not exceed Docx table limits or trigger API rate limits. Each cell
+  // contains newline-separated event records with count and parameter samples.
+  const platforms = ['ga4', 'statsig', 'monitor'];
+  const rows = platforms.map((platform) => {
+    const items = eventCounts.filter((item) => item.platform === platform);
+    return [
+      platformLabel(platform),
+      items.length === 0 ? '—' : items.map((item) => String(item.name ?? '未命名事件')).join('\n'),
+      items.length === 0 ? '—' : items.map((item) => `${Number(item.count ?? 0)} 次`).join('\n'),
+      items.length === 0 ? '—' : items.map((item) => formatParameterSamples(item.params)).join('\n---\n')
+    ];
+  });
+  const tableRows = [['平台', '事件名', '上报次数', '实际上报参数'], ...rows];
+  const table = await createTable(documentId, token, tableRows);
+  await populateTableCells(documentId, token, table.table.cells, tableRows);
+}
+
+async function createTable(documentId, token, rows) {
+  const body = await fetchFeishu(
+    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(documentId)}/children`,
+    {
+      method: 'POST', headers: appHeaders(token), body: JSON.stringify({
+        children: [{
+          block_type: 31,
+          table: { property: { row_size: rows.length, column_size: 4, column_width: [100, 240, 90, 430] } }
+        }]
+      })
+    }
+  );
+  const table = body.data?.children?.[0];
+  if (!table?.table?.cells) throw new Error('飞书未返回上报次数表格单元格。');
+  return table;
+}
+
+async function populateTableCells(documentId, token, cells, rows) {
+  const contents = rows.flat().map((value) => shorten(value, 1_400));
+  await mapWithConcurrency(cells.map((cellId, index) => async () => {
+    await appendTextBlocks(documentId, token, [textBlock(contents[index] ?? '')], cellId);
+  }), 2);
+}
+
+async function appendTextBlocks(documentId, token, children, parentBlockId = documentId) {
+  await fetchFeishu(
+    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(parentBlockId)}/children`,
+    { method: 'POST', headers: appHeaders(token), body: JSON.stringify({ children }) }
+  );
+}
+
+function formatParameterSamples(samples) {
+  const unique = [...new Set((samples ?? []).map((params) => JSON.stringify(params ?? {})))];
+  return unique.length === 0 ? '{}' : unique.join('\n');
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
   return chunks;
 }
-function platformLabel(platform) { return platform === 'ga4' ? 'GA4' : platform === 'statsig' ? 'Statsig' : 'Monitor'; }
+
+async function mapWithConcurrency(tasks, concurrency) {
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, async () => {
+    while (cursor < tasks.length) {
+      const task = tasks[cursor++];
+      await task();
+    }
+  }));
+}
 function parseWikiNodeToken(value) { return value?.match(/\/wiki\/([^/?#]+)/i)?.[1] ?? value; }
 function splitArgs(value) { return value?.trim() ? value.trim().split(/\s+/) : []; }
 function formatDuration(ms) { const total = Math.max(0, Math.round(Number(ms) / 1000)); const minutes = Math.floor(total / 60); const seconds = total % 60; return minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`; }
@@ -143,7 +204,17 @@ async function getTenantAccessToken(config) {
 }
 function appHeaders(token) { return { authorization: `Bearer ${token}`, 'content-type': 'application/json; charset=utf-8' }; }
 async function fetchFeishu(endpoint, options = {}) {
-  const response = await fetch(`${feishuApiBase}${endpoint}`, options); const body = await response.json().catch(() => ({}));
-  if (!response.ok || (body.code !== undefined && body.code !== 0)) throw new Error(`OpenAPI 返回 HTTP ${response.status}，code=${body.code ?? 'unknown'}，msg=${body.msg ?? 'unknown'}`);
-  return body;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch(`${feishuApiBase}${endpoint}`, options);
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 429 && attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+      continue;
+    }
+    if (!response.ok || (body.code !== undefined && body.code !== 0)) {
+      throw new Error(`OpenAPI 返回 HTTP ${response.status}，code=${body.code ?? 'unknown'}，msg=${body.msg ?? 'unknown'}`);
+    }
+    return body;
+  }
+  throw new Error('OpenAPI 请求重试耗尽。');
 }
