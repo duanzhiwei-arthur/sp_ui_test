@@ -118,22 +118,31 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
     await appendTextBlocks(documentId, token, [textBlock('本次没有观察到可识别的埋点上报。')]);
     return;
   }
-  // Keep one compact table (one row per platform) so a large event inventory
-  // does not exceed Docx table limits or trigger API rate limits. Each cell
-  // contains newline-separated event records with count and parameter samples.
-  const platforms = ['ga4', 'statsig', 'monitor'];
-  const rows = platforms.map((platform) => {
-    const items = eventCounts.filter((item) => item.platform === platform);
-    return [
-      platformLabel(platform),
-      items.length === 0 ? '—' : items.map((item) => String(item.name ?? '未命名事件')).join('\n'),
-      items.length === 0 ? '—' : items.map((item) => `${Number(item.count ?? 0)} 次`).join('\n'),
-      items.length === 0 ? '—' : items.map((item) => formatParameterSamples(item.params)).join('\n---\n')
-    ];
-  });
-  const tableRows = [['平台', '事件名', '上报次数', '实际上报参数'], ...rows];
-  const table = await createTable(documentId, token, tableRows);
-  await populateTableCells(documentId, token, table.table.cells, tableRows);
+  const grouped = new Map();
+  for (const item of eventCounts) {
+    const key = String(item.name ?? '未命名事件');
+    const row = grouped.get(key) ?? { name: key, params: item.params ?? [], counts: new Map() };
+    row.counts.set(item.platform, Number(item.count ?? 0));
+    row.params.push(...(item.params ?? []));
+    grouped.set(key, row);
+  }
+  const rows = [...grouped.values()].map((item) => [
+    item.name,
+    formatParameterSamples(item.params),
+    ['ga4', 'statsig', 'monitor']
+      .filter((platform) => item.counts.has(platform))
+      .map(platformLabel)
+      .join('、'),
+    ['ga4', 'statsig', 'monitor']
+      .filter((platform) => item.counts.has(platform))
+      .map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform)}次`)
+      .join('\n')
+  ]);
+  for (const rowGroup of chunkArray(rows, 4)) {
+    const tableRows = [['标识', '参数', '上报平台', '上报次数'], ...rowGroup];
+    const table = await createTable(documentId, token, tableRows);
+    await populateTableCells(documentId, token, table.table.cells, tableRows);
+  }
 }
 
 async function createTable(documentId, token, rows) {
@@ -143,7 +152,7 @@ async function createTable(documentId, token, rows) {
       method: 'POST', headers: appHeaders(token), body: JSON.stringify({
         children: [{
           block_type: 31,
-          table: { property: { row_size: rows.length, column_size: 4, column_width: [100, 240, 90, 430] } }
+          table: { property: { row_size: rows.length, column_size: 4, column_width: [240, 480, 130, 180] } }
         }]
       })
     }
@@ -154,9 +163,9 @@ async function createTable(documentId, token, rows) {
 }
 
 async function populateTableCells(documentId, token, cells, rows) {
-  const contents = rows.flat().map((value) => shorten(value, 1_400));
+  const contents = rows.flat().map((value) => tableCellText(value));
   await mapWithConcurrency(cells.map((cellId, index) => async () => {
-    await appendTextBlocks(documentId, token, [textBlock(contents[index] ?? '')], cellId);
+    await appendTextBlocks(documentId, token, [tableTextBlock(contents[index] ?? '')], cellId);
   }), 2);
 }
 
@@ -170,6 +179,21 @@ async function appendTextBlocks(documentId, token, children, parentBlockId = doc
 function formatParameterSamples(samples) {
   const unique = [...new Set((samples ?? []).map((params) => JSON.stringify(params ?? {})))];
   return unique.length === 0 ? '{}' : unique.join('\n');
+}
+
+function tableCellText(value) {
+  return String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+    .slice(0, 1_400);
+}
+
+function tableTextBlock(content) {
+  return {
+    block_type: 2,
+    text: { elements: [{ text_run: { content: tableCellText(content), text_element_style: {} } }] }
+  };
 }
 
 function chunkArray(items, size) {
