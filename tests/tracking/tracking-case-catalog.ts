@@ -14,7 +14,7 @@ export interface TrackingCase {
 }
 
 /** Generated from the approved Feishu tracking test document (2026-08-10). */
-export const trackingCaseCatalog = [
+const sourceTrackingCaseCatalog = [
   {
     "id": "DOC-001",
     "kind": "business",
@@ -1664,6 +1664,40 @@ export const trackingCaseCatalog = [
     "actionDescription": "营销弹窗曝光时"
   }
 ] as const satisfies readonly TrackingCase[];
+
+/**
+ * Excluded by the latest approved Feishu document: struck-through entries and
+ * entries explicitly classified as exception events. Graduation, funnel and
+ * experiment-mapping sections are intentionally not represented in this UI
+ * audit catalog and are therefore unaffected by this filter.
+ */
+const excludedTrackingEventNames = new Set([
+  'POD_Generate_Start', 'diy_refine_click', 'POD_diy_Inspiration_click',
+  'POD_diy_template_select', 'POD_Generate_Error', 'POD_Generate_Poll_Fallback',
+  'POD_Poll_Error', 'POD_Poll_Timeout', 'POD_Upload_Start', 'POD_Upload_Success',
+  'jjb_canvas_v3_canvas_export_tainted_error', 'jjb_canvas_v3_canvas_image_read_error',
+  'jjb_canvas_v3_canvas_object_delete', 'jjb_canvas_v3_cart_action_error',
+  'jjb_canvas_v3_cart_record_track_error', 'jjb_canvas_v3_experiment_error',
+  'jjb_canvas_v3_fabric_load_error', 'jjb_canvas_v3_ga4_callback_event_error',
+  'jjb_canvas_v3_ga4_event_error', 'jjb_canvas_v3_gaussian_splat_load_error',
+  'jjb_canvas_v3_generate_2d_error', 'jjb_canvas_v3_generate_2d_export_error',
+  'jjb_canvas_v3_generate_3d_error', 'jjb_canvas_v3_generate_3d_on_demand',
+  'jjb_canvas_v3_generate_s3_polling_flow_error', 'jjb_canvas_v3_history_delete_error',
+  'jjb_canvas_v3_history_image_generated_3d_recovery',
+  'jjb_canvas_v3_history_image_generated_3d_recovery_error',
+  'jjb_canvas_v3_history_load_more_error', 'jjb_canvas_v3_history_refresh_error',
+  'jjb_canvas_v3_history_thumbnail_error', 'jjb_canvas_v3_image_upload_compress_fallback',
+  'jjb_canvas_v3_lottie_load_error', 'jjb_canvas_v3_membership_quota_load_error',
+  'jjb_canvas_v3_model_viewer_load_error', 'jjb_canvas_v3_model_viewer_parser_setup_error',
+  'jjb_canvas_v3_parse_price_error', 'jjb_canvas_v3_poll_record_error',
+  'jjb_canvas_v3_poll_record_failed', 'jjb_canvas_v3_preset_model_generate_error',
+  'jjb_canvas_v3_refine_2d_apply', 'jjb_canvas_v3_refine_2d_blocked',
+  'jjb_canvas_v3_refine_2d_click', 'POD_Generate'
+]);
+
+export const trackingCaseCatalog = sourceTrackingCaseCatalog.filter(
+  (item) => !excludedTrackingEventNames.has(item.name)
+) as unknown as readonly TrackingCase[];
 
 export const trackingCatalogSummary = {
   total: trackingCaseCatalog.length,

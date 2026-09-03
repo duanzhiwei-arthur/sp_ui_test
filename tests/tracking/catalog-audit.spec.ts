@@ -13,7 +13,7 @@ const trackingEnabled = process.env.TRACKING_TEST_ENABLED === 'true' && Boolean(
   (!productionHosts.has(new URL(trackingBaseUrl ?? 'https://jujubit.ai').hostname) || productionTrackingAllowed);
 const auditOutput = process.env.TRACKING_AUDIT_OUTPUT ?? 'test-results/tracking-catalog-audit.json';
 
-test.describe('119 条埋点目录审计', () => {
+test.describe('有效埋点目录审计', () => {
   test.skip(
     !trackingEnabled,
     '需配置 TRACKING_BASE_URL；生产域名还必须显式设置 ALLOW_PRODUCTION_TRACKING=true。'
@@ -41,7 +41,7 @@ test.describe('119 条埋点目录审计', () => {
       const page = await context.newPage();
       const tracking = await TrackingCollector.create(page);
       const create = new TrackingPage(page);
-      const runStep = async (
+    const runStep = async (
       id: string,
       action: string,
       attemptedCaseIds: readonly string[],
@@ -59,7 +59,9 @@ test.describe('119 条埋点目录审计', () => {
       steps.push({
         id,
         action,
-        attemptedCaseIds,
+        attemptedCaseIds: attemptedCaseIds.filter((caseId) =>
+          trackingCaseCatalog.some((trackingCase) => trackingCase.id === caseId)
+        ),
         events: tracking.snapshot(),
         actionError,
         unifiedTrackCalls: tracking.snapshotTrackCalls()
@@ -76,7 +78,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
         'initial-render',
         '新游客会话：打开首页并通过 Create 进入商品自定义器，首次渲染后立即采集曝光',
-        ['DOC-003', 'DOC-028', 'DOC-111', 'DOC-119'],
+      ['DOC-003', 'DOC-028', 'DOC-111', 'DOC-119'],
         async () => {
           await create.goto({ requireCustomizer: false });
           await create.dismissMarketingPopup();
@@ -98,7 +100,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
       'style-switch',
       '打开风格菜单并选择 TRPG',
-      ['DOC-003', 'DOC-015', 'DOC-112'],
+      ['DOC-003', 'DOC-112'],
       async () => {
         await create.click(create.styleButton);
         await create.click(create.trpgStyleButton);
@@ -109,7 +111,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
       'inspiration-select',
       '点击第一个 Inspiration 预设模型',
-      ['DOC-013', 'DOC-102'],
+      [],
       async () => {
         await create.click(create.inspirationButtons.first());
       },
@@ -119,7 +121,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
       'upgrade-pro',
       '从 Basic 切换到 Pro 画板',
-      ['DOC-002', 'DOC-006', 'DOC-044', 'DOC-045', 'DOC-108'],
+      ['DOC-002', 'DOC-044', 'DOC-045', 'DOC-108'],
       () => create.click(create.modeToggleButton),
       5_000
       );
@@ -127,7 +129,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
       'prompt-toolbar',
       '点击 Pro 工具栏 Text 并关闭编辑器',
-      ['DOC-012', 'DOC-107'],
+      ['DOC-107'],
       async () => {
         await create.click(create.promptButton);
         await create.click(create.cancelPromptEditingButton);
@@ -156,7 +158,7 @@ test.describe('119 条埋点目录审计', () => {
       await runStep(
       'image-upload',
       '选择有效图片并等待画板读取完成',
-      ['DOC-031', 'DOC-033', 'DOC-084'],
+      ['DOC-033', 'DOC-084'],
       () => create.uploadFixture(),
       5_000
       );
@@ -290,8 +292,8 @@ test.describe('119 条埋点目录审计', () => {
       contentType: 'application/json'
     });
 
-    expect(report.total).toBe(119);
-    expect(report.passed + report.failed + report.skipped).toBe(119);
+    expect(report.total).toBe(trackingCaseCatalog.length);
+    expect(report.passed + report.failed + report.skipped).toBe(trackingCaseCatalog.length);
     if (process.env.TRACKING_STRICT === 'true') {
       expect(report.failed, 'TRACKING_STRICT=true 时埋点失败必须返回非零退出码').toBe(0);
     }

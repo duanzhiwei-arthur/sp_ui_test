@@ -122,7 +122,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 埋点测试与 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认仅允许非生产环境；生产验证必须显式设置 `ALLOW_PRODUCTION_TRACKING=true`。
 
 ```bash
-# 完整埋点审计：analytics + 119 条目录审计
+# 完整埋点审计：analytics + 有效目录审计
 TRACKING_BASE_URL=https://test.example.com npm run test:tracking
 
 # 明确授权后，对生产环境运行完整埋点审计
@@ -138,7 +138,7 @@ TRACKING_BASE_URL=https://your-store.myshopifypreview.com npm run test:tracking:
 npm run report:tracking -- test-results/tracking-catalog-audit.json test-results/tracking-catalog-report.xml
 ```
 
-完整目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
+完整有效目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。有效目录会排除源文档中划线删除项和“异常”类型项；毕业季埋点、漏斗指标、AB 实验组映射表不纳入本目录。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
 
 采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后恰好上报一次、请求已发起、稳定窗口内无重复、必填参数完整且无敏感字段。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
 
@@ -152,7 +152,7 @@ npm run report:tracking -- test-results/tracking-catalog-audit.json test-results
 | JSON 结果 | `test-results/results.json` |
 | 失败截图、视频、trace、错误上下文 | `test-results/` |
 | 埋点 HTML 报告 | `playwright-tracking-report/` |
-| 埋点目录审计 JSON | `test-results/tracking-catalog-audit.json` |
+| 埋点有效目录审计 JSON | `test-results/tracking-catalog-audit.json` |
 | TC-03 页面元素快照 | `generation-elements.json`、`cart-elements.json`、`checkout-elements.json` |
 
 普通交互最多等待 2 分钟；2D 与 3D 生成各最多 5 分钟。2D 验证图片资源实际加载；3D 等待进度层消失、Add to Cart 可用，并验证横向拖动后画面变化。Checkout 仅校验订单摘要、地址表单、折扣入口和 `Pay now` 可见。
