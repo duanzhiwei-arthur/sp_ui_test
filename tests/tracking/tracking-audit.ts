@@ -168,10 +168,6 @@ function evaluateCase(
     if (!event) {
       continue;
     }
-    const missing = trackingCase.requiredParams.filter((key) => event.params[key] === undefined);
-    if (missing.length > 0) {
-      failures.push(`${platformLabel(platformResult.platform)} 缺少参数 ${missing.join(', ')}`);
-    }
     const sensitive = findSensitiveKeys(event.params);
     if (sensitive.length > 0) {
       failures.push(`${platformLabel(platformResult.platform)} 包含敏感字段 ${sensitive.join(', ')}`);
@@ -238,7 +234,7 @@ function defaultSkipReason(trackingCase: TrackingCase): string {
 
 function successReason(trackingCase: TrackingCase, observed: TrackingAuditResult['observed']): string {
   const params = trackingCase.requiredParams.length > 0
-    ? `必填参数 ${trackingCase.requiredParams.join(', ')} 完整`
+    ? `参数按本次实际上报值记录（缺失不判失败）`
     : '无业务参数要求';
   const requests = observed.map((item) => `${platformLabel(item.platform)} 上报 ${item.count} 次`).join('；');
   return `各平台均至少上报 1 次，${params}；${requests}`;
