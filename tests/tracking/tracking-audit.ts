@@ -40,6 +40,11 @@ export interface TrackingAuditReport {
   passed: number;
   failed: number;
   skipped: number;
+  executionPlan?: {
+    strategy: string;
+    riskPoints: string[];
+    improvements: string[];
+  };
   results: TrackingAuditResult[];
   steps: Array<{
     id: string;
@@ -59,6 +64,7 @@ export function buildTrackingAuditReport(options: {
   steps: readonly TrackingStepEvidence[];
   targetUrl: string;
   skipReasons?: Readonly<Record<string, string>>;
+  executionPlan?: TrackingAuditReport['executionPlan'];
 }): TrackingAuditReport {
   const attempted = new Set(options.steps.flatMap((step) => [...step.attemptedCaseIds]));
   const results = options.catalog.map((trackingCase) => {
@@ -125,6 +131,7 @@ export function buildTrackingAuditReport(options: {
     passed,
     failed,
     skipped,
+    executionPlan: options.executionPlan,
     results,
     steps: options.steps.map((step) => ({
       id: step.id,

@@ -19,23 +19,39 @@ test.describe('119 条埋点目录审计', () => {
     '需配置 TRACKING_BASE_URL；生产域名还必须显式设置 ALLOW_PRODUCTION_TRACKING=true。'
   );
 
-  test('逐条执行可安全触发动作并生成完整结果', async ({ page }, testInfo) => {
+  test('逐条执行可安全触发动作并生成完整结果', async ({ browser }, testInfo) => {
     test.setTimeout(1_200_000);
-    const tracking = await TrackingCollector.create(page);
-    const create = new TrackingPage(page);
     const steps: TrackingStepEvidence[] = [];
 
-    const runStep = async (
+    const runScene = async (
+      execute: (scene: {
+        page: Awaited<ReturnType<typeof browser.newPage>>;
+        tracking: TrackingCollector;
+        create: TrackingPage;
+        runStep: (
+          id: string,
+          action: string,
+          attemptedCaseIds: readonly string[],
+          executeStep: () => Promise<void>,
+          settleMs?: number
+        ) => Promise<void>;
+      }) => Promise<void>
+    ): Promise<void> => {
+      const context = await browser.newContext({ baseURL: trackingBaseUrl });
+      const page = await context.newPage();
+      const tracking = await TrackingCollector.create(page);
+      const create = new TrackingPage(page);
+      const runStep = async (
       id: string,
       action: string,
       attemptedCaseIds: readonly string[],
-      execute: () => Promise<void>,
+      executeStep: () => Promise<void>,
       settleMs = 3_000
     ): Promise<void> => {
       tracking.clear();
       let actionError: string | undefined;
       try {
-        await execute();
+        await executeStep();
       } catch (error) {
         actionError = error instanceof Error ? error.message : String(error);
       }
@@ -49,27 +65,37 @@ test.describe('119 条埋点目录审计', () => {
         unifiedTrackCalls: tracking.snapshotTrackCalls()
       });
     };
+      try {
+        await execute({ page, tracking, create, runStep });
+      } finally {
+        await context.close();
+      }
+    };
 
-    await runStep(
-      'initial-render',
-      '打开测试首页并通过 Create 进入商品自定义器，等待画板完成渲染',
-      ['DOC-003', 'DOC-028', 'DOC-111', 'DOC-119'],
-      async () => {
-        await create.goto({ requireCustomizer: false });
-        await create.dismissMarketingPopup();
-        await page.waitForTimeout(10_000);
-      },
-      3_000
-    );
+    await runScene(async ({ page, create, runStep }) => {
+      await runStep(
+        'initial-render',
+        '新游客会话：打开首页并通过 Create 进入商品自定义器，首次渲染后立即采集曝光',
+        ['DOC-003', 'DOC-028', 'DOC-111', 'DOC-119'],
+        async () => {
+          await create.goto({ requireCustomizer: false });
+          await create.dismissMarketingPopup();
+          await page.waitForTimeout(10_000);
+        },
+        3_000
+      );
+    });
 
-    await runStep(
+    await runScene(async ({ create, runStep }) => {
+      await create.goto();
+      await runStep(
       'upload-entry',
       '点击上传图片入口',
       ['DOC-001', 'DOC-040'],
       () => create.click(create.uploadButton)
-    );
+      );
 
-    await runStep(
+      await runStep(
       'style-switch',
       '打开风格菜单并选择 TRPG',
       ['DOC-003', 'DOC-015', 'DOC-112'],
@@ -78,9 +104,9 @@ test.describe('119 条埋点目录审计', () => {
         await create.click(create.trpgStyleButton);
       },
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'inspiration-select',
       '点击第一个 Inspiration 预设模型',
       ['DOC-013', 'DOC-102'],
@@ -88,17 +114,17 @@ test.describe('119 条埋点目录审计', () => {
         await create.click(create.inspirationButtons.first());
       },
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'upgrade-pro',
       '从 Basic 切换到 Pro 画板',
       ['DOC-002', 'DOC-006', 'DOC-044', 'DOC-045', 'DOC-108'],
       () => create.click(create.modeToggleButton),
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'prompt-toolbar',
       '点击 Pro 工具栏 Text 并关闭编辑器',
       ['DOC-012', 'DOC-107'],
@@ -106,40 +132,44 @@ test.describe('119 条埋点目录审计', () => {
         await create.click(create.promptButton);
         await create.click(create.cancelPromptEditingButton);
       }
-    );
+      );
 
-    await runStep(
+      await runStep(
       'paint-toolbar',
       '开启 Pro 画笔模式',
       ['DOC-010', 'DOC-093', 'DOC-107'],
       () => create.click(create.paintButton)
-    );
+      );
 
-    await runStep(
+      await runStep(
       'figure-mode',
       '切换 Solo/Duo 主体模式',
       ['DOC-004', 'DOC-046'],
       () => create.click(create.soloMode),
       6_000
-    );
+      );
+    });
 
-    await runStep(
+    await runScene(async ({ tracking, create, runStep }) => {
+      await create.goto();
+      await create.click(create.modeToggleButton);
+      await runStep(
       'image-upload',
       '选择有效图片并等待画板读取完成',
       ['DOC-031', 'DOC-033', 'DOC-084'],
       () => create.uploadFixture(),
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'generate-start',
       '点击 Generate 并进入 2D 生成流程',
       ['DOC-005', 'DOC-008', 'DOC-009', 'DOC-055', 'DOC-107', 'DOC-109'],
       () => create.startGeneration(),
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'two-d-result',
       '等待并展示 2D 结果',
       ['DOC-019', 'DOC-024', 'DOC-056', 'DOC-106'],
@@ -148,9 +178,9 @@ test.describe('119 条埋点目录审计', () => {
         await tracking.flushAndWait(3_000);
       },
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'three-d-result',
       '点击 3D 并等待模型完成展示',
       ['DOC-025', 'DOC-050', 'DOC-060', 'DOC-063', 'DOC-064', 'DOC-089', 'DOC-091', 'DOC-106', 'DOC-110'],
@@ -159,17 +189,17 @@ test.describe('119 条埋点目录审计', () => {
         await tracking.flushAndWait(3_000);
       },
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'gallery',
       '进入 Gallery 并等待历史记录刷新',
       ['DOC-016', 'DOC-079', 'DOC-087', 'DOC-110'],
       () => create.click(create.galleryTab),
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'add-to-cart',
       '点击 Add to Cart，验证加购与购物车信息上报',
       ['DOC-037', 'DOC-038', 'DOC-118'],
@@ -177,9 +207,11 @@ test.describe('119 条埋点目录审计', () => {
         await create.click(create.addToCartButton);
       },
       5_000
-    );
+      );
+    });
 
-    await runStep(
+    await runScene(async ({ page, create, runStep }) => {
+      await runStep(
       'membership-impression',
       '访问会员方案页并等待付费墙曝光',
       ['DOC-117'],
@@ -188,9 +220,9 @@ test.describe('119 条埋点目录审计', () => {
         expect(response?.status(), '会员方案页应可访问').toBeLessThan(400);
       },
       5_000
-    );
+      );
 
-    await runStep(
+      await runStep(
       'membership-click',
       '点击会员方案页的首个方案按钮',
       ['DOC-116'],
@@ -201,12 +233,28 @@ test.describe('119 条埋点目录审计', () => {
         await create.click(planControl);
       },
       5_000
-    );
+      );
+    });
 
     const report = buildTrackingAuditReport({
       catalog: trackingCaseCatalog,
       steps,
       targetUrl: new URL(process.env.TRACKING_ENTRY_URL ?? '/', trackingBaseUrl).toString(),
+      executionPlan: {
+        strategy: '按触发类型拆分为独立浏览器场景：首次曝光、编辑点击、生成完成与加购、会员条件页；每个场景独立上下文，事件只在对应前置状态下验证。',
+        riskPoints: [
+          '单一长会话会让前一步改变后一步的页面状态，导致曝光事件错过或点击事件前置不成立。',
+          '第三方资源、异步 SDK 批次和页面跳转可能让网络请求晚于 SDK 回调到达，产生“未上报”误判。',
+          '真实生成和加购会产生线上成本与数据影响；不能为覆盖目录而执行删除、付款或重复生成。',
+          '实验分流、会员入口和 Inspiration 列表属于条件场景，未命中时不能当作业务失败。'
+        ],
+        improvements: [
+          '曝光事件在新场景首次进入目标状态后立即采集；点击事件在动作前清空记录并只验证本次动作。',
+          '生成/异步完成事件等待明确完成信号；Statsig/Monitor 在断言前 flush，并保留 SDK 与批次请求的关联证据。',
+          '废弃事件、不可安全触发的异常和缺少前置入口的目录项明确标记为 skipped。',
+          '保留一次真实生成、一次加购和零付款边界，避免用例覆盖扩大生产影响。'
+        ]
+      },
       skipReasons: {
         'DOC-007': '跳过：当前页面无 Refine 功能入口。',
         'DOC-014': '跳过：当前页面未提供稳定的 Inspiration 预设列表入口。',
