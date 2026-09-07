@@ -138,11 +138,13 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
       .map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform)}次`)
       .join('\n')
   ]);
-  for (const rowGroup of chunkArray(rows, 4)) {
-    const tableRows = [['标识', '参数', '上报平台', '上报次数'], ...rowGroup];
-    const table = await createTable(documentId, token, tableRows);
-    await populateTableCells(documentId, token, table.table.cells, tableRows);
+  const tableRows = [['标识', '参数', '上报平台', '上报次数'], [rows[0][0], rows[0][1], rows[0][2], rows[0][3]]];
+  const table = await createTable(documentId, token, tableRows);
+  let tableBlock = table;
+  for (let index = 1; index < rows.length; index += 1) {
+    tableBlock = await insertTableRow(documentId, token, tableBlock.block_id, tableBlock.table.property.row_size);
   }
+  await populateTableCells(documentId, token, tableBlock.table.cells, [['标识', '参数', '上报平台', '上报次数'], ...rows]);
 }
 
 async function createTable(documentId, token, rows) {
@@ -159,6 +161,19 @@ async function createTable(documentId, token, rows) {
   );
   const table = body.data?.children?.[0];
   if (!table?.table?.cells) throw new Error('飞书未返回上报次数表格单元格。');
+  return table;
+}
+
+async function insertTableRow(documentId, token, tableBlockId, rowIndex) {
+  const body = await fetchFeishu(
+    `/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/blocks/${encodeURIComponent(tableBlockId)}`,
+    {
+      method: 'PATCH', headers: appHeaders(token),
+      body: JSON.stringify({ insert_table_row: { row_index: rowIndex } })
+    }
+  );
+  const table = body.data?.block;
+  if (!table?.table?.cells) throw new Error('飞书未返回追加后的表格单元格。');
   return table;
 }
 
