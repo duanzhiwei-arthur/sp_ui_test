@@ -68,7 +68,12 @@ async function createTrackingRecord({ label, report, testExitCode, startedAt, fi
     method: 'POST', headers: appHeaders(token),
     body: JSON.stringify({ children: buildBlocks({ label, report, testExitCode, startedAt, finishedAt }) })
   });
-  await appendEventCountTables({ documentId, token, eventCounts: report.eventCounts ?? [] });
+  await appendEventCountTables({
+    documentId,
+    token,
+    eventCounts: report.eventCounts ?? [],
+    results: report.results ?? []
+  });
   return `https://a9ihi0un9c.feishu.cn/docx/${documentId}`;
 }
 
@@ -113,12 +118,13 @@ function textRun(content) { return { text_run: { content: shorten(content, 1500)
 function shorten(value, length) { return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, length); }
 function platformLabel(platform) { return platform === 'ga4' ? 'GA4' : platform === 'statsig' ? 'Statsig' : 'Monitor'; }
 
-async function appendEventCountTables({ documentId, token, eventCounts }) {
+async function appendEventCountTables({ documentId, token, eventCounts, results }) {
   if (eventCounts.length === 0) {
     await appendTextBlocks(documentId, token, [textBlock('本次没有观察到可识别的埋点上报。')]);
     return;
   }
   const grouped = new Map();
+  const actionByName = new Map(results.map((item) => [item.name, item.action]));
   for (const item of eventCounts) {
     const key = String(item.name ?? '未命名事件');
     const row = grouped.get(key) ?? { name: key, params: item.params ?? [], counts: new Map() };
@@ -129,6 +135,7 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
   const rows = [...grouped.values()].map((item, index) => [
     String(index + 1),
     item.name,
+    actionByName.get(item.name) ?? '运行时采集事件',
     formatParameterSamples(item.params),
     ['ga4', 'statsig', 'monitor']
       .filter((platform) => item.counts.has(platform))
@@ -139,7 +146,7 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
       .map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform)}次`)
       .join('\n')
   ]);
-  const header = ['序号', '标识', '参数', '上报平台', '上报次数'];
+  const header = ['序号', '标识', '动作', '参数', '上报平台', '上报次数'];
   const tableRows = [header, rows[0]];
   const table = await createTable(documentId, token, tableRows);
   let tableBlock = table;
@@ -156,7 +163,13 @@ async function createTable(documentId, token, rows) {
       method: 'POST', headers: appHeaders(token), body: JSON.stringify({
         children: [{
           block_type: 31,
-          table: { property: { row_size: rows.length, column_size: 5, column_width: [60, 230, 450, 120, 170] } }
+          table: {
+            property: {
+              row_size: rows.length,
+              column_size: 6,
+              column_width: [55, 210, 280, 400, 115, 170]
+            }
+          }
         }]
       })
     }
