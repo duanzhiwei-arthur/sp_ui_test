@@ -37,9 +37,10 @@ TEST_PROMPT=生成2个小狗
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
 | TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
-| TC-06 | 上传 → Generate → 检查 `Member Benefits: 20% OFF`；存在时点击对应 Upgrade、打开会员弹窗，再点击 Join | 是，未等待生成完成 |
+| TC-06 | 会员实验 Treatment：校验 stable_id/分组 → 上传 → Generate → 会员入口 → 弹窗 → Join | 是，未等待生成完成 |
+| TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 会员入口不展示 | 否 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行完整链路。TC-06 固定写入 `TEST_MEMBERSHIP_STABLE_ID`（默认 `jujubit-ui-e2e-membership-20260902`）到 Statsig 的 `localStorage.statsig.stable_id.3770913638`；未出现会员入口时会单独标记为 skipped。会员弹窗中的 Join 按钮会按登录态断言：已登录应进入 Airwallex，未登录应进入 Shopify 登录或 OAuth 授权页。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行真实生成。实验注册表与 fixture 位于 `tests/experiments/`，可执行 spec 位于 `tests/zz-experiments/`，确保串行全量回归时实验最后运行。fixture 会在导航前注入固定 stable_id，等待 Statsig 初始化后同时校验实际 stable_id 和实验参数值，再执行 UI 断言。TC-06 Treatment 默认使用 `jujubit-ui-e2e-membership-20260902`；Control 需要配置 `TEST_MEMBERSHIP_CONTROL_STABLE_ID`，未配置时明确跳过。
 
 ## 常用命令
 
@@ -60,6 +61,12 @@ npx playwright test --project=chromium
 
 # 只运行 TC-03
 ALLOW_PRODUCTION_GENERATION=true npm run test:core-smoke
+
+# 运行全部活跃实验；会员 Treatment 会真实生成一次
+ALLOW_PRODUCTION_GENERATION=true npm run test:experiments
+
+# 只运行会员 Control / Treatment 实验
+ALLOW_PRODUCTION_GENERATION=true npm run test:experiments:membership
 
 # 全量执行并发送飞书通知（无头 / 有头）
 npm run test:all
@@ -113,7 +120,13 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-全量模式会创建 4 次真实 AI 生成任务；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录。TC-06 使用固定 `stable_id` 验证会员实验，若入口不存在会跳过会员弹窗断言，但此前已发起生成任务。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+全量模式共创建 4 次真实 AI 生成任务（TC-03、TC-04、TC-05、TC-06 各 1 次）；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录；TC-06 止于 Airwallex/登录入口。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+
+## 实验自动化
+
+实验配置统一维护在 `tests/experiments/experiment-registry.ts`，每个实验登记实验名、参数名、生命周期、环境、负责人、关联用例及各分组固定 stable_id。`experiment.fixture.ts` 负责导航前注入、Statsig storage key 计算、实际分组校验和报告注解；`tests/zz-experiments/` 下的业务 spec 只负责对应分组的 UI 行为，并在全量串行回归最后执行。
+
+新增实验时：先为每个分组准备独立 stable_id，再登记 Control/Treatment 期望值，最后分别编写两组 UI 断言。一个 stable_id 不应复用于多个实验，避免组合分流污染。实验结束后将生命周期改为 `rolled_out` 或 `stopped`，并把最终行为迁移回基础回归。
 
 若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
 

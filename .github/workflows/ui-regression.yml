@@ -39,6 +39,9 @@ jobs:
       TEST_IMAGE_DUO: assets/two-dogs.jpeg
       TEST_IMAGE_LARGE: assets/two-dogs.jpeg
       TEST_PROMPT: 生成2个小狗
+      TEST_MEMBERSHIP_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_STABLE_ID || 'jujubit-ui-e2e-membership-20260902' }}
+      TEST_MEMBERSHIP_CONTROL_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_CONTROL_STABLE_ID }}
+      TEST_STATSIG_CLIENT_KEY: ${{ vars.TEST_STATSIG_CLIENT_KEY || 'client-2tnhqG57crRsKHR9oTHbP4UsCNu7zQjghyI8otQUMU4' }}
       SCHEDULED_TRACKING_ENABLED: 'false'
       TRACKING_TEST_ENABLED: 'false'
       TRACKING_FAULT_INJECTION_ENABLED: 'false'

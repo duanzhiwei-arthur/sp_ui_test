@@ -6,6 +6,8 @@
     "test": "playwright test",
     "test:smoke": "playwright test --grep @smoke",
     "test:core-smoke": "playwright test tests/full-flow-inventory.spec.ts --grep @core-smoke",
+    "test:experiments": "playwright test tests/zz-experiments",
+    "test:experiments:membership": "playwright test tests/zz-experiments/membership-banner.spec.ts",
     "test:daily": "ALLOW_PRODUCTION_GENERATION=false playwright test --project=chromium",
     "test:tracking": "TRACKING_TEST_ENABLED=true TRACKING_RECORD_LABEL='完整埋点自动化' TRACKING_PLAYWRIGHT_ARGS='tests/tracking/analytics.spec.ts tests/tracking/catalog-audit.spec.ts' node automation/run-tracking-and-record.mjs",
     "test:tracking:contract": "TRACKING_TEST_ENABLED=true TRACKING_CONTRACT_TEST_ENABLED=true TRACKING_RECORD_LABEL='埋点契约自动化' TRACKING_PLAYWRIGHT_ARGS='tests/tracking/tracking-contract.spec.ts' node automation/run-tracking-and-record.mjs",
