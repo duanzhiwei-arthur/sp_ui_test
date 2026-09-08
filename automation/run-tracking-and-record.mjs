@@ -119,12 +119,12 @@ function shorten(value, length) { return String(value ?? '').replace(/\s+/g, ' '
 function platformLabel(platform) { return platform === 'ga4' ? 'GA4' : platform === 'statsig' ? 'Statsig' : 'Monitor'; }
 
 async function appendEventCountTables({ documentId, token, eventCounts, results }) {
-  if (eventCounts.length === 0) {
+  if (eventCounts.length === 0 && results.length === 0) {
     await appendTextBlocks(documentId, token, [textBlock('本次没有观察到可识别的埋点上报。')]);
     return;
   }
   const grouped = new Map();
-  const actionByName = new Map(results.map((item) => [item.name, item.action]));
+  const resultByName = new Map(results.map((item) => [item.name, item]));
   for (const item of eventCounts) {
     const key = String(item.name ?? '未命名事件');
     const row = grouped.get(key) ?? { name: key, params: item.params ?? [], counts: new Map() };
@@ -132,28 +132,52 @@ async function appendEventCountTables({ documentId, token, eventCounts, results 
     row.params.push(...(item.params ?? []));
     grouped.set(key, row);
   }
-  const rows = [...grouped.values()].map((item, index) => [
-    String(index + 1),
-    item.name,
-    actionByName.get(item.name) ?? '运行时采集事件',
-    formatParameterSamples(item.params),
-    ['ga4', 'statsig', 'monitor']
-      .filter((platform) => item.counts.has(platform))
-      .map(platformLabel)
-      .join('、'),
-    ['ga4', 'statsig', 'monitor']
-      .filter((platform) => item.counts.has(platform))
-      .map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform)}次`)
-      .join('\n')
-  ]);
+  for (const result of results) {
+    const row = grouped.get(result.name) ?? { name: result.name, params: [], counts: new Map() };
+    for (const platform of result.observed ?? []) {
+      if (!row.counts.has(platform.platform)) row.counts.set(platform.platform, Number(platform.count ?? 0));
+      if (platform.params && Object.keys(platform.params).length > 0) row.params.push(platform.params);
+    }
+    grouped.set(result.name, row);
+  }
+  const orderedNames = [
+    ...results.map((item) => item.name),
+    ...[...grouped.keys()].filter((name) => !resultByName.has(name))
+  ];
+  const rows = [...new Set(orderedNames)].map((name, index) => {
+    const item = grouped.get(name);
+    const result = resultByName.get(name);
+    const expectedPlatforms = String(result?.platforms ?? '')
+      .split('、').filter(Boolean).map((label) => label.toLowerCase());
+    const platforms = ['ga4', 'statsig', 'monitor'].filter((platform) =>
+      item.counts.has(platform) || expectedPlatforms.includes(platform)
+    );
+    const skipped = result?.status === 'skipped';
+    return {
+      skipped,
+      cells: [
+        String(index + 1),
+        name,
+        result?.action ?? '运行时采集事件',
+        item.params.length > 0 ? formatParameterSamples(item.params) : (result?.params ?? '{}'),
+        platforms.map(platformLabel).join('、') || '—',
+        skipped
+          ? `跳过\n${result?.reason ?? ''}`
+          : platforms.map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform) ?? 0}次`).join('\n')
+      ]
+    };
+  });
   const header = ['序号', '标识', '动作', '参数', '上报平台', '上报次数'];
-  const tableRows = [header, rows[0]];
+  const tableRows = [header, rows[0].cells];
   const table = await createTable(documentId, token, tableRows);
   let tableBlock = table;
   for (let index = 1; index < rows.length; index += 1) {
     tableBlock = await insertTableRow(documentId, token, tableBlock.block_id, tableBlock.table.property.row_size);
   }
-  await populateTableCells(documentId, token, tableBlock.table.cells, [header, ...rows]);
+  await populateTableCells(documentId, token, tableBlock.table.cells, [
+    { cells: header, skipped: false },
+    ...rows
+  ]);
 }
 
 async function createTable(documentId, token, rows) {
@@ -193,9 +217,13 @@ async function insertTableRow(documentId, token, tableBlockId, rowIndex) {
 }
 
 async function populateTableCells(documentId, token, cells, rows) {
-  const contents = rows.flat().map((value) => tableCellText(value));
+  const cellData = rows.flatMap((row) => row.cells.map((value) => ({
+    content: tableCellText(value),
+    red: row.skipped
+  })));
   await mapWithConcurrency(cells.map((cellId, index) => async () => {
-    await appendTextBlocks(documentId, token, [tableTextBlock(contents[index] ?? '')], cellId);
+    const cell = cellData[index] ?? { content: '', red: false };
+    await appendTextBlocks(documentId, token, [tableTextBlock(cell.content, cell.red)], cellId);
   }), 2);
 }
 
@@ -219,10 +247,17 @@ function tableCellText(value) {
     .slice(0, 1_400);
 }
 
-function tableTextBlock(content) {
+function tableTextBlock(content, red = false) {
   return {
     block_type: 2,
-    text: { elements: [{ text_run: { content: tableCellText(content), text_element_style: {} } }] }
+    text: {
+      elements: [{
+        text_run: {
+          content: tableCellText(content),
+          text_element_style: red ? { text_color: 1 } : {}
+        }
+      }]
+    }
   };
 }
 
