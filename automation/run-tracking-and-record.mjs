@@ -153,8 +153,10 @@ async function appendEventCountTables({ documentId, token, eventCounts, results 
       item.counts.has(platform) || expectedPlatforms.includes(platform)
     );
     const skipped = result?.status === 'skipped';
+    const unreported = !skipped && platforms.length > 0 &&
+      platforms.some((platform) => (item.counts.get(platform) ?? 0) === 0);
     return {
-      skipped,
+      color: skipped ? 'red' : unreported ? 'yellow' : undefined,
       cells: [
         String(index + 1),
         name,
@@ -175,7 +177,7 @@ async function appendEventCountTables({ documentId, token, eventCounts, results 
     tableBlock = await insertTableRow(documentId, token, tableBlock.block_id, tableBlock.table.property.row_size);
   }
   await populateTableCells(documentId, token, tableBlock.table.cells, [
-    { cells: header, skipped: false },
+    { cells: header, color: undefined },
     ...rows
   ]);
 }
@@ -219,11 +221,11 @@ async function insertTableRow(documentId, token, tableBlockId, rowIndex) {
 async function populateTableCells(documentId, token, cells, rows) {
   const cellData = rows.flatMap((row) => row.cells.map((value) => ({
     content: tableCellText(value),
-    red: row.skipped
+    color: row.color
   })));
   await mapWithConcurrency(cells.map((cellId, index) => async () => {
-    const cell = cellData[index] ?? { content: '', red: false };
-    await appendTextBlocks(documentId, token, [tableTextBlock(cell.content, cell.red)], cellId);
+    const cell = cellData[index] ?? { content: '', color: undefined };
+    await appendTextBlocks(documentId, token, [tableTextBlock(cell.content, cell.color)], cellId);
   }), 2);
 }
 
@@ -247,14 +249,15 @@ function tableCellText(value) {
     .slice(0, 1_400);
 }
 
-function tableTextBlock(content, red = false) {
+function tableTextBlock(content, color) {
+  const textColor = color === 'red' ? 1 : color === 'yellow' ? 3 : undefined;
   return {
     block_type: 2,
     text: {
       elements: [{
         text_run: {
           content: tableCellText(content),
-          text_element_style: red ? { text_color: 1 } : {}
+          text_element_style: textColor ? { text_color: textColor } : {}
         }
       }]
     }
