@@ -126,7 +126,8 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
     row.params.push(...(item.params ?? []));
     grouped.set(key, row);
   }
-  const rows = [...grouped.values()].map((item) => [
+  const rows = [...grouped.values()].map((item, index) => [
+    String(index + 1),
     item.name,
     formatParameterSamples(item.params),
     ['ga4', 'statsig', 'monitor']
@@ -138,13 +139,14 @@ async function appendEventCountTables({ documentId, token, eventCounts }) {
       .map((platform) => `${platformLabel(platform)}上报${item.counts.get(platform)}次`)
       .join('\n')
   ]);
-  const tableRows = [['标识', '参数', '上报平台', '上报次数'], [rows[0][0], rows[0][1], rows[0][2], rows[0][3]]];
+  const header = ['序号', '标识', '参数', '上报平台', '上报次数'];
+  const tableRows = [header, rows[0]];
   const table = await createTable(documentId, token, tableRows);
   let tableBlock = table;
   for (let index = 1; index < rows.length; index += 1) {
     tableBlock = await insertTableRow(documentId, token, tableBlock.block_id, tableBlock.table.property.row_size);
   }
-  await populateTableCells(documentId, token, tableBlock.table.cells, [['标识', '参数', '上报平台', '上报次数'], ...rows]);
+  await populateTableCells(documentId, token, tableBlock.table.cells, [header, ...rows]);
 }
 
 async function createTable(documentId, token, rows) {
@@ -154,7 +156,7 @@ async function createTable(documentId, token, rows) {
       method: 'POST', headers: appHeaders(token), body: JSON.stringify({
         children: [{
           block_type: 31,
-          table: { property: { row_size: rows.length, column_size: 4, column_width: [240, 480, 130, 180] } }
+          table: { property: { row_size: rows.length, column_size: 5, column_width: [60, 230, 450, 120, 170] } }
         }]
       })
     }
