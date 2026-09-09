@@ -29,6 +29,11 @@ on:
         required: false
         default: ''
         type: string
+      event_id:
+        description: 'Feishu event ID used to suppress delivery retries.'
+        required: false
+        default: ''
+        type: string
       simulate_failure_record:
         description: 'Verification only: create a clearly marked Feishu failure-record document.'
         required: true
@@ -76,26 +81,50 @@ jobs:
       FEISHU_FAILURE_RECORD_VALIDATION: ${{ inputs.simulate_failure_record || 'false' }}
 
     steps:
+      - name: Ignore duplicate Feishu delivery
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEISHU_EVENT_ID: ${{ inputs.event_id || '' }}
+        run: |
+          SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
+          if [ -z "$SAFE_EVENT_ID" ]; then
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=feishu-event-$SAFE_EVENT_ID&per_page=1" --jq '.total_count')"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "duplicate=true" >> "$GITHUB_OUTPUT"
+            echo "Duplicate Feishu event ignored: $SAFE_EVENT_ID"
+          else
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out repository
+        if: steps.dedupe.outputs.duplicate != 'true'
         uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: steps.dedupe.outputs.duplicate != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
+        if: steps.dedupe.outputs.duplicate != 'true'
         run: npm ci
 
       - name: Install Chromium and Linux dependencies
+        if: steps.dedupe.outputs.duplicate != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run dispatched regression and notify Feishu
+        if: steps.dedupe.outputs.duplicate != 'true'
         run: npm run test:scheduled
 
       - name: Upload Playwright report and failure evidence
-        if: always()
+        if: always() && steps.dedupe.outputs.duplicate != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ui-regression-${{ github.run_id }}
@@ -103,4 +132,21 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Record processed Feishu event
+        if: always() && inputs.event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        env:
+          FEISHU_EVENT_ID: ${{ inputs.event_id }}
+        run: |
+          SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
+          mkdir -p .feishu-event-marker
+          printf '%s\n' "$SAFE_EVENT_ID" > .feishu-event-marker/event-id.txt
+
+      - name: Upload Feishu event marker
+        if: always() && inputs.event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: feishu-event-${{ inputs.event_id }}
+          path: .feishu-event-marker/event-id.txt
           retention-days: 14
