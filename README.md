@@ -38,9 +38,9 @@ TEST_PROMPT=生成2个小狗
 | TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
 | TC-06 | 会员实验 Treatment：校验 stable_id/分组 → 上传 → Generate → 会员入口 → 弹窗 → Join | 是，未等待生成完成 |
-| TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 会员入口不展示 | 否 |
+| TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06 会跳过。只有显式传入 `true` 才会执行真实生成。实验注册表与 fixture 位于 `tests/experiments/`，可执行 spec 位于 `tests/zz-experiments/`，确保串行全量回归时实验最后运行。fixture 会在导航前注入固定 stable_id，等待 Statsig 初始化后同时校验实际 stable_id 和实验参数值，再执行 UI 断言。TC-06 Treatment 默认使用 `jujubit-ui-e2e-membership-20260902`；Control 需要配置 `TEST_MEMBERSHIP_CONTROL_STABLE_ID`，未配置时明确跳过。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。只有显式传入 `true` 才会执行真实生成。实验注册表与 fixture 位于 `tests/experiments/`，可执行 spec 位于 `tests/zz-experiments/`，确保串行全量回归时实验最后运行。Control 与 Treatment 共用上传 → Generate 触发路径；点击后等待会员入口或生成结果出现，再校验实际 stable_id 和实验参数值，避免实验尚未触发时提前断言。TC-06 Treatment 默认使用 `jujubit-ui-e2e-membership-20260902`；Control 需要配置 `TEST_MEMBERSHIP_CONTROL_STABLE_ID`，未配置时明确跳过。
 
 ## 常用命令
 
@@ -120,7 +120,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-全量模式共创建 4 次真实 AI 生成任务（TC-03、TC-04、TC-05、TC-06 各 1 次）；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录；TC-06 止于 Airwallex/登录入口。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+全量模式共创建 5 次真实 AI 生成任务（TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各 1 次）；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录；TC-06 止于 Airwallex/登录入口；TC-EXP-01 等待生成结果后验证 Control 入口隐藏。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
 
 ## 实验自动化
 
