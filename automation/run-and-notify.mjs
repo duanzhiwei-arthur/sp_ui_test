@@ -15,6 +15,7 @@ const resultsFile = process.env.PLAYWRIGHT_RESULTS_FILE
   : path.join(projectRoot, 'test-results', 'results.json');
 const reportFile = path.join(projectRoot, 'playwright-report', 'index.html');
 const mode = (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
+const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
 const maxFileBytes = 30 * 1024 * 1024;
@@ -22,8 +23,16 @@ const maxCommandOutputBytes = 2 * 1024 * 1024;
 const commandTimeoutMs = 60_000;
 const knowledgeFetchConcurrency = 4;
 
-if (!['safe', 'all'].includes(mode)) {
-  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe 或 all');
+if (!['safe', 'daily', 'all', 'experiment'].includes(mode)) {
+  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all 或 experiment');
+}
+
+const experimentSpecs = {
+  membership: 'tests/zz-experiments/membership-banner.spec.ts'
+};
+
+if (mode === 'experiment' && !experimentSpecs[experimentKey]) {
+  throw new Error(`未配置实验 ${experimentKey || '(空)'}；可选实验：${Object.keys(experimentSpecs).join('、')}`);
 }
 
 if (process.argv.includes('--execution-record-preview') || process.argv.includes('--execution-record-test')) {
@@ -68,7 +77,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
     weekday: 'short'
   }).format(new Date());
 
-  if (['Sat', 'Sun'].includes(shanghaiWeekday)) {
+  const isScheduledEvent = process.env.GITHUB_EVENT_NAME === 'schedule';
+  if (isScheduledEvent && ['Sat', 'Sun'].includes(shanghaiWeekday)) {
     console.log(`[scheduler] 今天是${shanghaiWeekday === 'Sat' ? '周六' : '周日'}，跳过 UI 自动化。`);
     process.exit(0);
   }
@@ -78,12 +88,23 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
 
   const playwrightBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
   const playwrightArgs = ['test', '--project=chromium'];
+  if (mode === 'safe') {
+    playwrightArgs.push('tests/00-safe-cases.spec.ts');
+  } else if (mode === 'daily') {
+    playwrightArgs.push(
+      'tests/00-safe-cases.spec.ts',
+      'tests/full-flow-inventory.spec.ts',
+      'tests/generation.spec.ts'
+    );
+  } else if (mode === 'experiment') {
+    playwrightArgs.push(experimentSpecs[experimentKey]);
+  }
   if (process.argv.includes('--headed')) {
     playwrightArgs.push('--headed');
   }
   const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
-    ALLOW_PRODUCTION_GENERATION: mode === 'all' ? 'true' : 'false',
+    ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
     SCHEDULED_TRACKING_ENABLED: 'false',
     TRACKING_TEST_ENABLED: 'false',
     TRACKING_FAULT_INJECTION_ENABLED: 'false'
@@ -304,7 +325,7 @@ function findSafeAttachment(attachments, predicate) {
 function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
   const passed = testExitCode === 0;
   const stats = summary.stats;
-  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const modeLabel = executionScopeLabel();
   const durationMs = stats?.duration ?? finishedAt.getTime() - startedAt.getTime();
   const headline = summary.readError
     ? '❌ 结果报告缺失'
@@ -347,6 +368,13 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
   return lines.join('\n');
 }
 
+function executionScopeLabel() {
+  if (mode === 'all') return '全部用例（真实生成）';
+  if (mode === 'daily') return '日常回归 TC-01～TC-05（真实生成）';
+  if (mode === 'experiment') return `实验：${experimentKey || '未指定'}（Control + Treatment）`;
+  return '安全用例 TC-01、TC-02';
+}
+
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
   const passed = testExitCode === 0 && !summary.readError;
   const stats = summary.stats;
@@ -360,7 +388,7 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
   const status = summary.readError ? '结果报告缺失' : passed ? '执行通过' : '发现业务失败';
   const statusColor = passed ? 'green' : 'red';
   const headerTitle = `JuJuBit 自动化测试 · ${status}`;
-  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const modeLabel = executionScopeLabel();
   const runUrl = buildGitHubRunUrl();
   const artifactUrl = buildGitHubArtifactUrl();
   const moduleLine = buildModuleResultLine(summary, { expected, businessFailures, skipped, total, duration });
@@ -665,7 +693,7 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
   const skipped = stats?.skipped ?? 0;
   const total = expected + failed + flaky + skipped;
   const duration = formatDuration(finishedAt.getTime() - startedAt.getTime());
-  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const modeLabel = executionScopeLabel();
   const status = force ? '权限验证通过（用例结果未受影响）' : testExitCode === 0 ? '执行通过' : '发现业务失败';
   const reportUrl = buildGitHubRunUrl();
   const artifactUrl = buildGitHubArtifactUrl();
@@ -1013,7 +1041,7 @@ function buildExecutionRecord({ title, testExitCode, mode, startedAt, finishedAt
   const recommendations = buildFixSuggestions(summary, testExitCode);
   const recommendationItems = recommendations.map((item) => `<li>${escapeXml(item)}</li>`).join('');
   const knowledgeSection = buildKnowledgeSection(knowledgeResult);
-  const modeLabel = mode === 'all' ? '全部 5 条（真实生成）' : '安全用例 TC-01、TC-02';
+  const modeLabel = executionScopeLabel();
   const resultLabel = passed ? '成功' : '失败';
   const resultColor = passed ? 'green' : 'red';
   const total = stats

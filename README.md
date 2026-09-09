@@ -40,7 +40,7 @@ TEST_PROMPT=生成2个小狗
 | TC-06 | 会员实验 Treatment：校验 stable_id/分组 → 上传 → Generate → 会员入口 → 弹窗 → Join | 是，未等待生成完成 |
 | TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。只有显式传入 `true` 才会执行真实生成。实验注册表与 fixture 位于 `tests/experiments/`，可执行 spec 位于 `tests/zz-experiments/`，确保串行全量回归时实验最后运行。Control 与 Treatment 共用上传 → Generate 触发路径；点击后等待会员入口或生成结果出现，再校验实际 stable_id 和实验参数值，避免实验尚未触发时提前断言。TC-06 Treatment 默认使用 `jujubit-ui-e2e-membership-20260902`；Control 需要配置 `TEST_MEMBERSHIP_CONTROL_STABLE_ID`，未配置时明确跳过。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。工作日定时任务只执行 TC-01～TC-05；实验用例不混入日常回归，避免实验改版或分流变化影响每日稳定性。Control 与 Treatment 共用上传 → Generate 触发路径；点击后等待会员入口或生成结果出现，再校验实际 stable_id 和实验参数值，避免实验尚未触发时提前断言。TC-06 Treatment 默认使用 `jujubit-ui-e2e-membership-20260902`；Control 使用 `TEST_MEMBERSHIP_CONTROL_STABLE_ID`，未配置时明确跳过。
 
 ## 常用命令
 
@@ -53,11 +53,11 @@ npm run test:smoke
 # 每日安全回归：强制关闭真实生成
 npm run test:daily
 
-# 全量 6 条：真实生成、加购、Checkout；不发送飞书
+# 日常 5 条：TC-01～TC-05；不发送飞书
 PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
 ALLOW_PRODUCTION_GENERATION=true \
 SCHEDULED_TRACKING_ENABLED=false \
-npx playwright test --project=chromium
+npx playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --project=chromium
 
 # 只运行 TC-03
 ALLOW_PRODUCTION_GENERATION=true npm run test:core-smoke
@@ -67,6 +67,12 @@ ALLOW_PRODUCTION_GENERATION=true npm run test:experiments
 
 # 只运行会员 Control / Treatment 实验
 ALLOW_PRODUCTION_GENERATION=true npm run test:experiments:membership
+
+# 模拟远端按实验执行并发送结果通知
+SCHEDULED_TEST_MODE=experiment EXPERIMENT_KEY=membership npm run test:scheduled
+
+# 飞书 @机器人：会员实验（事件桥接进程，部署在云 VM/容器）
+npm run feishu:experiment-bot
 
 # 全量执行并发送飞书通知（无头 / 有头）
 npm run test:all
@@ -103,9 +109,11 @@ npm run record:test
 - cron: '47 10 * * 1-5'
 ```
 
-计划使用 GitHub 托管 Runner，以 `all` 模式执行完整 6 条用例。工作流有并发组保护，避免两个生产游客会话同时生成。也可在 Actions 页面通过 **Run workflow** 手动选择 `safe` 或 `all`。
+计划使用 GitHub 托管 Runner。工作日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
 
 GitHub 的原生 `schedule` 在高负载时可能延迟，甚至晚于计划时间数小时；错开整点只能降低概率，不能保证准点。若必须严格准点，需要使用独立云端定时器调用 `workflow_dispatch`。
+
+工作日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成，当前已注册 `membership`：只执行 TC-06 和 TC-EXP-01。
 
 远端工作流需要配置以下 GitHub Actions Secrets：
 
@@ -116,11 +124,13 @@ FEISHU_GROUP_CHAT_ID
 FEISHU_EXECUTION_RECORDS_PARENT
 ```
 
+点名实验的事件桥接服务另需配置 `GITHUB_TOKEN`（fine-grained，仅该仓库 `Actions: write`）、`GITHUB_REPOSITORY`、`GITHUB_WORKFLOW_FILE`、`GITHUB_REF`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET`；`GITHUB_TOKEN` 只放在桥接服务的密钥管理器中，不写入仓库或日志。
+
 可选 Actions Variable：`PRODUCT_URL`。每次运行都会上传 `playwright-report/` 与 `test-results/` Artifact，保留 14 天。失败时机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指向的 Wiki 节点下创建失败记录；机器人需要是该知识库成员，并具备创建子页面和编辑权限。
 
 ## 生产影响与安全边界
 
-全量模式共创建 5 次真实 AI 生成任务（TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各 1 次）；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录；TC-06 止于 Airwallex/登录入口；TC-EXP-01 等待生成结果后验证 Control 入口隐藏。全量模式不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
+`all` 模式会发现 7 条 UI 用例，其中 5 条会创建真实 AI 生成任务（TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各 1 次）；TC-03 加入 1 件商品并进入 Checkout；TC-05 删除本次创建的最新 History 记录；TC-06 止于 Airwallex/登录入口；TC-EXP-01 等待生成结果后验证 Control 入口隐藏。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行对应实验的 Control + Treatment。任何模式都不会付款，也不会提交订单。运行前请确认生成成本、购物车和 History 的影响。
 
 ## 实验自动化
 
@@ -129,6 +139,10 @@ FEISHU_EXECUTION_RECORDS_PARENT
 新增实验时：先为每个分组准备独立 stable_id，再登记 Control/Treatment 期望值，最后分别编写两组 UI 断言。一个 stable_id 不应复用于多个实验，避免组合分流污染。实验结束后将生命周期改为 `rolled_out` 或 `stopped`，并把最终行为迁移回基础回归。
 
 若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
+
+### 飞书点名执行实验
+
+将 `automation/feishu-experiment-bot.mjs` 部署到云 VM、容器或其他常驻服务，并配置 `lark-cli` 的 bot 身份、`GITHUB_TOKEN`（该仓库 Actions: write）及 `FEISHU_BOT_OPEN_ID`。机器人收到群聊中的 `@机器人：会员实验` 后，会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，现有通知卡片会发送回触发消息所在群。事件桥接进程只处理包含 mentions 的用户消息，并忽略机器人自身消息，避免循环触发。
 
 ## 埋点专项
 

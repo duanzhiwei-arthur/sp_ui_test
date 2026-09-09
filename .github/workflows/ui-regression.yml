@@ -8,13 +8,27 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run scope. all performs real generation, cart, and Checkout validation.'
+        description: 'Run scope. daily runs TC-01~TC-05; experiment runs a selected experiment.'
         required: true
-        default: all
+        default: daily
         type: choice
         options:
+          - daily
           - safe
           - all
+          - experiment
+      experiment:
+        description: 'Experiment key used when mode=experiment.'
+        required: false
+        default: membership
+        type: choice
+        options:
+          - membership
+      chat_id:
+        description: 'Feishu chat ID for command-triggered result notification.'
+        required: false
+        default: ''
+        type: string
       simulate_failure_record:
         description: 'Verification only: create a clearly marked Feishu failure-record document.'
         required: true
@@ -32,7 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SCHEDULED_TEST_MODE: ${{ inputs.mode || 'all' }}
+      SCHEDULED_TEST_MODE: ${{ inputs.mode || 'daily' }}
+      EXPERIMENT_KEY: ${{ inputs.experiment || '' }}
       BASE_URL: https://jujubit.ai
       PRODUCT_URL: ${{ vars.PRODUCT_URL }}
       TEST_IMAGE_SOLO: assets/two-dogs.jpeg
@@ -50,7 +65,7 @@ jobs:
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
       FEISHU_RECEIVE_ID_TYPE: chat_id
-      FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_GROUP_CHAT_ID }}
+      FEISHU_RECEIVE_ID: ${{ inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
 
