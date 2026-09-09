@@ -142,7 +142,9 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ### 飞书点名执行实验
 
-将 `automation/feishu-experiment-bot.mjs` 部署到云 VM、容器或其他常驻服务，并配置 `lark-cli` 的 bot 身份、`GITHUB_TOKEN`（该仓库 Actions: write）及 `FEISHU_BOT_OPEN_ID`。机器人收到群聊中的 `@机器人：会员实验` 后，会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，现有通知卡片会发送回触发消息所在群。事件桥接进程只处理包含 mentions 的用户消息，并忽略机器人自身消息，避免循环触发。
+飞书命令桥接服务已部署到妙搭云端应用 `JuJuBit 实验自动化机器人`（`app_17dsjs7c59z`），不依赖本地电脑。`sp-ui自动化机器人` 通过开发者服务器订阅 `im.message.receive_v1`；群内发送 `@sp-ui自动化机器人 会员实验` 后，云端服务会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，结果卡片发送回触发消息所在群。回调 URL 使用保存在妙搭在线环境中的随机路径密钥校验，GitHub Token 也只保存在妙搭在线环境中，不写入仓库。
+
+仓库中的 `automation/feishu-experiment-bot.mjs` 和 `automation/feishu-experiment-command.mjs` 保留为自建 VM/容器的备用实现；线上当前使用妙搭 Webhook 服务。
 
 ## 埋点专项
 

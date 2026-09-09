@@ -2,6 +2,7 @@ node_modules/
 playwright-report/
 playwright-tracking-report/
 test-results/
+tmp-feishu-experiment-bot/
 .env
 .DS_Store
 assets/*
