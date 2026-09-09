@@ -460,6 +460,7 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
             { tag: 'markdown', content: moduleLine, text_size: 'normal' }
           ]
         },
+        buildCaseDetails(summary),
         ...(!passed ? [buildFailureDetail(summary)] : []),
         {
           tag: 'column_set',
@@ -518,6 +519,41 @@ function buildModuleResultLine(summary, { expected, businessFailures, skipped, t
     return `<font color='red'>失败</font>｜${escapeCardText(failedTitles.join('、'))}<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
   }
   return `<font color='green'>通过</font>｜全部模块正常<br><font color='grey'>通过 ${expected}/${total} · 业务失败 ${businessFailures} · 跳过 ${skipped} · ${duration}</font>`;
+}
+
+function buildCaseDetails(summary) {
+  const cases = summary.caseResults ?? [];
+  const content = cases.length > 0
+    ? cases.map((item, index) => {
+      const status = caseStatusPresentation(item.status);
+      return `${index + 1}. <font color='${status.color}'>${status.label}</font>｜${escapeCardText(item.title)}`;
+    }).join('<br>')
+    : '<font color="grey">未读取到用例明细</font>';
+
+  return {
+    tag: 'interactive_container',
+    element_id: 'caseDetails',
+    has_border: true,
+    border_color: 'grey-100',
+    background_style: 'grey-50',
+    corner_radius: '8px',
+    padding: '12px',
+    vertical_spacing: '4px',
+    elements: [
+      { tag: 'markdown', content: '**用例明细**' },
+      { tag: 'markdown', content, text_size: 'normal' }
+    ]
+  };
+}
+
+function caseStatusPresentation(status) {
+  return {
+    passed: { label: '✅ 通过', color: 'green' },
+    failed: { label: '❌ 失败', color: 'red' },
+    flaky: { label: '⚠️ 不稳定', color: 'orange' },
+    skipped: { label: '⏭️ 跳过', color: 'yellow' },
+    unknown: { label: '❓ 未知', color: 'grey' }
+  }[status] ?? { label: '❓ 未知', color: 'grey' };
 }
 
 function buildFailureDetail(summary) {
