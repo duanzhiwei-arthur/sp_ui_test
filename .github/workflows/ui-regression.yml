@@ -21,9 +21,7 @@ on:
         description: 'Experiment key used when mode=experiment.'
         required: false
         default: membership
-        type: choice
-        options:
-          - membership
+        type: string
       chat_id:
         description: 'Feishu chat ID for command-triggered result notification.'
         required: false
@@ -51,7 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SCHEDULED_TEST_MODE: ${{ inputs.mode || 'daily' }}
+      # Scheduled runs are hard-locked to TC-01~TC-05 even if dispatch
+      # defaults or manual inputs change later.
+      SCHEDULED_TEST_MODE: ${{ github.event_name == 'schedule' && 'daily' || inputs.mode || 'daily' }}
       EXPERIMENT_KEY: ${{ inputs.experiment || '' }}
       BASE_URL: https://jujubit.ai
       PRODUCT_URL: ${{ vars.PRODUCT_URL }}
@@ -88,6 +88,7 @@ jobs:
           FEISHU_EVENT_ID: ${{ inputs.event_id || '' }}
         run: |
           SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
+          echo "safe_event_id=$SAFE_EVENT_ID" >> "$GITHUB_OUTPUT"
           if [ -z "$SAFE_EVENT_ID" ]; then
             echo "duplicate=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -135,18 +136,18 @@ jobs:
           retention-days: 14
 
       - name: Record processed Feishu event
-        if: always() && inputs.event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        if: always() && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate != 'true'
         env:
-          FEISHU_EVENT_ID: ${{ inputs.event_id }}
+          FEISHU_EVENT_ID: ${{ steps.dedupe.outputs.safe_event_id }}
         run: |
           SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
           mkdir -p .feishu-event-marker
           printf '%s\n' "$SAFE_EVENT_ID" > .feishu-event-marker/event-id.txt
 
       - name: Upload Feishu event marker
-        if: always() && inputs.event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        if: always() && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: feishu-event-${{ inputs.event_id }}
+          name: feishu-event-${{ steps.dedupe.outputs.safe_event_id }}
           path: .feishu-event-marker/event-id.txt
           retention-days: 14

@@ -134,15 +134,17 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 实验自动化
 
-实验配置统一维护在 `tests/experiments/experiment-registry.ts`，每个实验登记实验名、参数名、生命周期、环境、负责人、关联用例及各分组固定 stable_id。`experiment.fixture.ts` 负责导航前注入、Statsig storage key 计算、实际分组校验和报告注解；`tests/zz-experiments/` 下的业务 spec 只负责对应分组的 UI 行为，并在全量串行回归最后执行。
+实验配置统一维护在 `tests/experiments/experiment-registry.ts`，每个实验登记实验名、参数名、生命周期、环境、负责人、关联用例及各分组固定 stable_id。飞书命令与执行文件统一登记在 `automation/experiment-command-registry.json`，包含实验 key、中文命令别名、spec、用例编号和启用状态。`experiment.fixture.ts` 负责导航前注入、Statsig storage key 计算、实际分组校验和报告注解；`tests/zz-experiments/` 下的业务 spec 只负责对应分组的 UI 行为。
 
-新增实验时：先为每个分组准备独立 stable_id，再登记 Control/Treatment 期望值，最后分别编写两组 UI 断言。一个 stable_id 不应复用于多个实验，避免组合分流污染。实验结束后将生命周期改为 `rolled_out` 或 `stopped`，并把最终行为迁移回基础回归。
+新增实验时：先为每个分组准备独立 stable_id，在 TypeScript 注册表登记分组期望值并编写两组 UI 断言，再在 JSON 命令注册表增加一项。妙搭机器人运行时读取主仓库注册表，无需重新修改或发布机器人。一个 stable_id 不应复用于多个实验，避免组合分流污染。实验结束后将生命周期改为 `rolled_out` 或 `stopped`、将命令项设为 `enabled=false`，并把最终行为迁移回基础回归。
 
 若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
 
 ### 飞书点名执行实验
 
 飞书命令桥接服务已部署到妙搭云端应用 `JuJuBit 实验自动化机器人`（`app_17dsjs7c59z`），不依赖本地电脑。`sp-ui自动化机器人` 通过开发者服务器订阅 `im.message.receive_v1`；群内发送 `@sp-ui自动化机器人 会员实验` 后，云端服务会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，结果卡片发送回触发消息所在群。回调 URL 使用保存在妙搭在线环境中的随机路径密钥校验，GitHub Token 也只保存在妙搭在线环境中，不写入仓库。
+
+机器人只接受注册表中启用的精确命令别名；未知实验不会回退到 `all`。超过 10 分钟的消息重投会被忽略，GitHub 还会按飞书 `event_id` 保存 重复标记。云端 `schedule` 被工作流显式锁定为 `daily`，始终只执行 TC-01～TC-05。
 
 结果卡片除通过率、失败数、跳过数和耗时外，还会在“用例明细”中逐条展示用例序号、名称与状态；实验模式可直接看到 Control 与 Treatment 两条用例的独立结果。
 

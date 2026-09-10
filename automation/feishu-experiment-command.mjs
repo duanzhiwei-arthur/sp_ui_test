@@ -10,11 +10,13 @@
  */
 
 import 'dotenv/config';
+import { readFileSync } from 'node:fs';
 
 const repository = process.env.GITHUB_REPOSITORY?.trim() || 'duanzhiwei-arthur/sp_ui_test';
 const workflow = process.env.GITHUB_WORKFLOW_FILE?.trim() || 'ui-regression.yml';
 const ref = process.env.GITHUB_REF?.trim() || 'main';
 const githubToken = process.env.GITHUB_TOKEN?.trim();
+const registry = JSON.parse(readFileSync(new URL('./experiment-command-registry.json', import.meta.url), 'utf8'));
 
 const input = await readStdin();
 let event;
@@ -42,7 +44,8 @@ await dispatchWorkflow({
   ref,
   token: githubToken,
   experiment: command.key,
-  chatId: String(event.chat_id ?? '').trim()
+  chatId: String(event.chat_id ?? '').trim(),
+  eventId: String(event.event_id ?? '').trim()
 });
 
 const result = {
@@ -62,13 +65,21 @@ if (process.env.FEISHU_APP_ID && process.env.FEISHU_APP_SECRET && event.chat_id)
 console.log(JSON.stringify(result));
 
 function parseExperimentCommand(contentText) {
-  if (/会员实验/i.test(contentText)) {
-    return { key: 'membership', label: '会员实验' };
+  const normalized = contentText
+    .replace(/@_user_\d+/giu, ' ')
+    .replace(/[：:，,。.!！?？]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(?:请)?(?:执行|运行|触发)\s*/u, '');
+  for (const experiment of registry.experiments ?? []) {
+    if (experiment.enabled && experiment.aliases?.includes(normalized)) {
+      return experiment;
+    }
   }
   return null;
 }
 
-async function dispatchWorkflow({ repository: repo, workflow: workflowFile, ref: branch, token, experiment, chatId }) {
+async function dispatchWorkflow({ repository: repo, workflow: workflowFile, ref: branch, token, experiment, chatId, eventId }) {
   const response = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${encodeURIComponent(workflowFile)}/dispatches`, {
     method: 'POST',
     headers: {
@@ -77,7 +88,7 @@ async function dispatchWorkflow({ repository: repo, workflow: workflowFile, ref:
       'x-github-api-version': '2022-11-28',
       'content-type': 'application/json'
     },
-    body: JSON.stringify({ ref: branch, inputs: { mode: 'experiment', experiment, chat_id: chatId } })
+    body: JSON.stringify({ ref: branch, inputs: { mode: 'experiment', experiment, chat_id: chatId, event_id: eventId } })
   });
   if (!response.ok) {
     throw new Error(`GitHub workflow dispatch 失败（HTTP ${response.status}）：${(await response.text()).slice(0, 500)}`);

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "experiments": [
+    {
+      "key": "membership",
+      "label": "会员实验",
+      "aliases": ["会员实验", "会员权益实验"],
+      "spec": "tests/zz-experiments/membership-banner.spec.ts",
+      "caseIds": ["TC-EXP-01", "TC-06"],
+      "scopeLabel": "Control + Treatment",
+      "enabled": true
+    }
+  ]
+}

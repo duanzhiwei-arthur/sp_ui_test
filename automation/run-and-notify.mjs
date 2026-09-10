@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile, rm, stat } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import path from 'node:path';
@@ -22,17 +22,20 @@ const maxFileBytes = 30 * 1024 * 1024;
 const maxCommandOutputBytes = 2 * 1024 * 1024;
 const commandTimeoutMs = 60_000;
 const knowledgeFetchConcurrency = 4;
+const experimentCommandRegistry = loadExperimentCommandRegistry();
+const selectedExperiment = experimentCommandRegistry.experiments.find(
+  (experiment) => experiment.enabled && experiment.key === experimentKey
+);
 
 if (!['safe', 'daily', 'all', 'experiment'].includes(mode)) {
   throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all 或 experiment');
 }
 
-const experimentSpecs = {
-  membership: 'tests/zz-experiments/membership-banner.spec.ts'
-};
-
-if (mode === 'experiment' && !experimentSpecs[experimentKey]) {
-  throw new Error(`未配置实验 ${experimentKey || '(空)'}；可选实验：${Object.keys(experimentSpecs).join('、')}`);
+if (mode === 'experiment' && !selectedExperiment) {
+  const available = experimentCommandRegistry.experiments
+    .filter((experiment) => experiment.enabled)
+    .map((experiment) => experiment.key);
+  throw new Error(`未配置实验 ${experimentKey || '(空)'}；可选实验：${available.join('、')}`);
 }
 
 if (process.argv.includes('--execution-record-preview') || process.argv.includes('--execution-record-test')) {
@@ -97,7 +100,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       'tests/generation.spec.ts'
     );
   } else if (mode === 'experiment') {
-    playwrightArgs.push(experimentSpecs[experimentKey]);
+    playwrightArgs.push(selectedExperiment.spec);
   }
   if (process.argv.includes('--headed')) {
     playwrightArgs.push('--headed');
@@ -371,8 +374,37 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 function executionScopeLabel() {
   if (mode === 'all') return '全部用例（真实生成）';
   if (mode === 'daily') return '日常回归 TC-01～TC-05（真实生成）';
-  if (mode === 'experiment') return `实验：${experimentKey || '未指定'}（Control + Treatment）`;
+  if (mode === 'experiment') {
+    const label = selectedExperiment?.label ?? experimentKey ?? '未指定';
+    const scope = selectedExperiment?.scopeLabel ?? '实验用例';
+    return `实验：${label}（${scope}）`;
+  }
   return '安全用例 TC-01、TC-02';
+}
+
+function loadExperimentCommandRegistry() {
+  const registryPath = path.join(projectRoot, 'automation', 'experiment-command-registry.json');
+  const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+  if (registry?.version !== 1 || !Array.isArray(registry.experiments)) {
+    throw new Error('实验命令注册表格式无效：需要 version=1 和 experiments 数组');
+  }
+  const keys = new Set();
+  for (const experiment of registry.experiments) {
+    if (
+      !experiment || typeof experiment.key !== 'string' ||
+      typeof experiment.label !== 'string' || !Array.isArray(experiment.aliases) ||
+      typeof experiment.spec !== 'string' || !Array.isArray(experiment.caseIds) ||
+      typeof experiment.scopeLabel !== 'string' || typeof experiment.enabled !== 'boolean'
+    ) {
+      throw new Error('实验命令注册表存在字段缺失或类型错误');
+    }
+    if (keys.has(experiment.key)) throw new Error(`实验 key 重复：${experiment.key}`);
+    if (!experiment.spec.startsWith('tests/') || !experiment.spec.endsWith('.spec.ts') || experiment.spec.includes('..')) {
+      throw new Error(`实验 spec 路径不安全：${experiment.spec}`);
+    }
+    keys.add(experiment.key);
+  }
+  return registry;
 }
 
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
