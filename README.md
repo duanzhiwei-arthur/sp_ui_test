@@ -114,6 +114,8 @@ npm run record:test
 
 GitHub 的原生 `schedule` 在高负载时可能延迟，甚至晚于计划时间数小时；错开整点只能降低概率，不能保证准点。若必须严格准点，需要使用独立云端定时器调用 `workflow_dispatch`。
 
+结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:17 的计划任务若到 16:06 才获得调度，会在用例完成后的 16:29 左右发送卡片；这不代表 16:06 新增了一条定时配置。
+
 工作日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前注册 `membership`（TC-EXP-01 + TC-06）和 `canvas`（TC-02 + TC-EXP-02）。
 
 远端工作流需要配置以下 GitHub Actions Secrets：
@@ -146,6 +148,8 @@ FEISHU_EXECUTION_RECORDS_PARENT
 飞书命令桥接服务已部署到妙搭云端应用 `JuJuBit 实验自动化机器人`（`app_17dsjs7c59z`），不依赖本地电脑。`sp-ui自动化机器人` 通过开发者服务器订阅 `im.message.receive_v1`；群内发送 `@sp-ui自动化机器人 会员实验` 后，云端服务会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，结果卡片发送回触发消息所在群。回调 URL 使用保存在妙搭在线环境中的随机路径密钥校验，GitHub Token 也只保存在妙搭在线环境中，不写入仓库。
 
 群内发送 `@sp-ui自动化机器人 画板实验` 时，只执行 TC-02（Control，`canvas_template_display.group=control`）与 TC-EXP-02（Treatment，`group=test_2`）。Treatment 一次会真实创建 Free Style、TRPG、Soft Chibi 三条生成记录，不会加购、下单或付款。
+
+实验命令成功提交 GitHub 后，机器人会立即回复“已收到，正在执行中”；执行结束后再发送包含逐条用例名称和状态的最终结果卡片。即时回复失败只记录日志，不会让飞书事件重试或重复生成。
 
 机器人只接受注册表中启用的精确命令别名；未知实验不会回退到 `all`。超过 10 分钟的消息重投会被忽略，GitHub 还会按飞书 `event_id` 保存 重复标记。云端 `schedule` 被工作流显式锁定为 `daily`，始终只执行 TC-01～TC-05。
 
