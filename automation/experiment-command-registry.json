@@ -5,8 +5,20 @@
       "key": "membership",
       "label": "会员实验",
       "aliases": ["会员实验", "会员权益实验"],
-      "spec": "tests/zz-experiments/membership-banner.spec.ts",
+      "specs": ["tests/zz-experiments/membership-banner.spec.ts"],
       "caseIds": ["TC-EXP-01", "TC-06"],
+      "scopeLabel": "Control + Treatment",
+      "enabled": true
+    },
+    {
+      "key": "canvas",
+      "label": "画板实验",
+      "aliases": ["画板实验", "画板模版实验", "画板模板实验"],
+      "specs": [
+        "tests/00-safe-cases.spec.ts",
+        "tests/zz-experiments/canvas-template.spec.ts"
+      ],
+      "caseIds": ["TC-02", "TC-EXP-02"],
       "scopeLabel": "Control + Treatment",
       "enabled": true
     }

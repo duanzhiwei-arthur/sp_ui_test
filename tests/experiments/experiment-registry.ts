@@ -22,6 +22,25 @@ export const statsigClientKey = value('TEST_STATSIG_CLIENT_KEY') ??
   'client-2tnhqG57crRsKHR9oTHbP4UsCNu7zQjghyI8otQUMU4';
 
 export const experimentRegistry = {
+  canvasTemplateDisplay: {
+    key: 'canvasTemplateDisplay',
+    experimentName: 'canvas_template_display',
+    parameterName: 'group',
+    lifecycle: 'running',
+    owner: 'canvas',
+    environment: 'production',
+    linkedCases: ['TC-02', 'TC-EXP-02'],
+    variants: {
+      control: {
+        stableId: value('TEST_CANVAS_CONTROL_STABLE_ID') ?? '67c122d0-f050-45bf-8bdf-72caa7c9eb4b',
+        expectedValue: 'control'
+      },
+      treatment: {
+        stableId: value('TEST_CANVAS_TREATMENT_STABLE_ID') ?? '8a544137-e12b-4c50-8080-4942201de028',
+        expectedValue: 'test_2'
+      }
+    }
+  },
   membershipBanner: {
     key: 'membershipBanner',
     experimentName: 'show_vip_banner',

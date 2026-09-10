@@ -100,7 +100,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       'tests/generation.spec.ts'
     );
   } else if (mode === 'experiment') {
-    playwrightArgs.push(selectedExperiment.spec);
+    playwrightArgs.push(...selectedExperiment.specs, '--grep', selectedExperiment.caseIds.join('|'));
   }
   if (process.argv.includes('--headed')) {
     playwrightArgs.push('--headed');
@@ -393,14 +393,19 @@ function loadExperimentCommandRegistry() {
     if (
       !experiment || typeof experiment.key !== 'string' ||
       typeof experiment.label !== 'string' || !Array.isArray(experiment.aliases) ||
-      typeof experiment.spec !== 'string' || !Array.isArray(experiment.caseIds) ||
+      !Array.isArray(experiment.specs) || !Array.isArray(experiment.caseIds) ||
       typeof experiment.scopeLabel !== 'string' || typeof experiment.enabled !== 'boolean'
     ) {
       throw new Error('实验命令注册表存在字段缺失或类型错误');
     }
     if (keys.has(experiment.key)) throw new Error(`实验 key 重复：${experiment.key}`);
-    if (!experiment.spec.startsWith('tests/') || !experiment.spec.endsWith('.spec.ts') || experiment.spec.includes('..')) {
-      throw new Error(`实验 spec 路径不安全：${experiment.spec}`);
+    if (experiment.specs.length === 0 || experiment.caseIds.length === 0) {
+      throw new Error(`实验必须至少登记一个 spec 和一个 case：${experiment.key}`);
+    }
+    for (const spec of experiment.specs) {
+      if (typeof spec !== 'string' || !spec.startsWith('tests/') || !spec.endsWith('.spec.ts') || spec.includes('..')) {
+        throw new Error(`实验 spec 路径不安全：${String(spec)}`);
+      }
     }
     keys.add(experiment.key);
   }

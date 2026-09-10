@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { experimentRegistry, statsigStableIdStorageKey } from './experiments/experiment-registry.js';
 import { CreatePage } from './pages/create.page.js';
 
 test.describe('非生成顺序用例 @smoke', () => {
@@ -16,9 +17,33 @@ test.describe('非生成顺序用例 @smoke', () => {
 
   test('TC-02: 自定义器基础交互可以正常切换', async ({ page }) => {
     test.setTimeout(360_000);
+    const control = experimentRegistry.canvasTemplateDisplay.variants.control;
+    await page.addInitScript(({ stableId, storageKey }) => {
+      window.localStorage.setItem(storageKey, JSON.stringify(stableId));
+      window.localStorage.setItem('stable_id', stableId);
+      window.localStorage.setItem('stableId', stableId);
+    }, { stableId: control.stableId, storageKey: statsigStableIdStorageKey() });
     const create = new CreatePage(page);
     await create.gotoProductPage();
     await create.waitForCustomizer(300_000);
+
+    await expect.poll(
+      () => page.evaluate(async () => {
+        const target = window as Window & {
+          statsigReady?: Promise<void>;
+          statsigClient?: {
+            getContext(): { stableID?: string };
+            getExperiment(name: string): { get(key: string, fallback: unknown): unknown };
+          };
+        };
+        await target.statsigReady;
+        return {
+          stableId: target.statsigClient?.getContext().stableID,
+          group: target.statsigClient?.getExperiment('canvas_template_display').get('group', null)
+        };
+      }),
+      { message: 'TC-02 应固定命中画板实验 Control', timeout: 30_000 }
+    ).toEqual({ stableId: control.stableId, group: control.expectedValue });
 
     await test.step('Free Style 菜单可以选择 TRPG 并切回 Free Style', async () => {
       await create.click(create.styleButton);

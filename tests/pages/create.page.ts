@@ -12,6 +12,16 @@ export class CreatePage {
   readonly trpgStyleButton: Locator;
   readonly soloMode: Locator;
   readonly duoMode: Locator;
+  readonly oneSubjectButton: Locator;
+  readonly twoSubjectButton: Locator;
+  readonly canvasStyleSection: Locator;
+  readonly canvasStyleScroller: Locator;
+  readonly freeStyleTemplateButton: Locator;
+  readonly trpgTemplateButton: Locator;
+  readonly softChibiTemplateButton: Locator;
+  readonly trpgPreviewButton: Locator;
+  readonly stylePreviewDialog: Locator;
+  readonly stylePreviewCloseButton: Locator;
   readonly modeToggleButton: Locator;
   readonly proToolButtons: Locator;
   readonly upload: Locator;
@@ -27,6 +37,9 @@ export class CreatePage {
   readonly addToCartButton: Locator;
   readonly buyNowButton: Locator;
   readonly historyRecordDeleteButtons: Locator;
+  readonly historySection: Locator;
+  readonly historyRecordArticles: Locator;
+  readonly generatingHistoryRecordArticles: Locator;
   readonly deleteImageButton: Locator;
   readonly cancelPromptEditingButton: Locator;
   readonly confirmPromptEditingButton: Locator;
@@ -49,6 +62,17 @@ export class CreatePage {
     this.trpgStyleButton = page.getByRole('button', { name: 'TRPG', exact: true });
     this.soloMode = page.getByRole('button', { name: 'Solo', exact: true });
     this.duoMode = page.getByRole('button', { name: 'Duo', exact: true });
+    this.oneSubjectButton = createCanvas.getByRole('button', { name: 'One', exact: true });
+    this.twoSubjectButton = createCanvas.getByRole('button', { name: 'Two', exact: true });
+    this.canvasStyleSection = createCanvas.locator('[data-selection-limit="3"]');
+    this.canvasStyleScroller = this.canvasStyleSection.locator('div.overflow-x-auto').first();
+    this.freeStyleTemplateButton = createCanvas.getByRole('button', { name: 'Free Style', exact: true });
+    this.trpgTemplateButton = createCanvas.getByRole('button', { name: 'TRPG', exact: true });
+    this.softChibiTemplateButton = createCanvas.getByRole('button', { name: 'Soft Chibi', exact: true });
+    this.trpgPreviewButton = createCanvas.getByRole('button', { name: 'Preview TRPG', exact: true });
+    this.stylePreviewDialog = page.getByRole('dialog', { name: 'TRPG style preview', exact: true });
+    this.stylePreviewCloseButton = this.stylePreviewDialog.locator('xpath=parent::div')
+      .getByRole('button', { name: 'Close', exact: true });
     this.modeToggleButton = createCanvas.getByLabel('Upgrade', { exact: true });
     this.upload = createCanvas.locator('input[type="file"]');
     this.promptButton = page.getByRole('button', { name: 'Add Your Prompt', exact: true });
@@ -67,6 +91,11 @@ export class CreatePage {
     this.addToCartButton = page.getByRole('button', { name: 'Add to Cart', exact: true });
     this.buyNowButton = page.getByRole('button', { name: /Buy Now/ });
     this.historyRecordDeleteButtons = page.getByRole('button', { name: 'delete record', exact: true });
+    this.historySection = page.getByText(/^History\s*\(\d+\)$/, { exact: true })
+      .locator('xpath=ancestor::section[1]');
+    this.historyRecordArticles = this.historySection.locator('article');
+    this.generatingHistoryRecordArticles = this.historySection
+      .locator('article:has(button[aria-label="delete record"].hidden)');
     this.deleteImageButton = page.getByRole('button', { name: 'Delete image', exact: true });
     this.cancelPromptEditingButton = page.getByRole('button', { name: 'Cancel prompt editing', exact: true });
     this.confirmPromptEditingButton = page.getByRole('button', { name: 'Confirm prompt editing', exact: true });
@@ -188,6 +217,75 @@ export class CreatePage {
   async startGeneration(): Promise<void> {
     await expect(this.generateButton).toBeEnabled();
     await this.click(this.generateButton);
+  }
+
+  async selectCanvasTemplates(): Promise<void> {
+    for (const template of [
+      this.freeStyleTemplateButton,
+      this.trpgTemplateButton,
+      this.softChibiTemplateButton
+    ]) {
+      if (await template.getAttribute('aria-pressed') !== 'true') {
+        await this.click(template);
+      }
+      await expect(template).toHaveAttribute('aria-pressed', 'true');
+    }
+  }
+
+  async scrollCanvasStylesToEnd(): Promise<void> {
+    await expect(this.canvasStyleScroller).toBeVisible();
+    const box = await this.canvasStyleScroller.boundingBox();
+    if (!box) throw new Error('Choose Your Style 未获取到可拖动区域');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const y = box.y + box.height / 2;
+      await this.page.mouse.move(box.x + box.width * 0.85, y);
+      await this.page.mouse.down();
+      await this.page.waitForTimeout(250);
+      await this.page.mouse.move(box.x + box.width * 0.1, y, { steps: 12 });
+      await this.page.mouse.up();
+    }
+    await expect.poll(() => this.canvasStyleScroller.evaluate((element) => ({
+      atEnd: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1,
+      scrollable: element.scrollWidth > element.clientWidth
+    })), { message: 'Choose Your Style 应可横向滑动到末尾' })
+      .toEqual({ atEnd: true, scrollable: true });
+  }
+
+  async expectThreeNewGeneratingHistoryRecords(previousCount: number): Promise<void> {
+    await expect(this.historySection).toContainText(`History (${previousCount + 3})`, {
+      timeout: customizerTimeout
+    });
+    await expect(this.historyRecordArticles).not.toHaveCount(0, { timeout: customizerTimeout });
+    for (let index = 0; index < 3; index += 1) {
+      await expect(this.historyRecordArticles.nth(index)
+        .locator('button[aria-label="delete record"].hidden'))
+        .toHaveCount(1, { timeout: customizerTimeout });
+    }
+  }
+
+  async historyTotal(): Promise<number> {
+    const text = await this.historySection.locator('div').first().textContent();
+    const count = text?.match(/History\s*\((\d+)\)/)?.[1];
+    if (!count) throw new Error(`无法从 History 标题读取记录总数：${text ?? '空'}`);
+    return Number(count);
+  }
+
+  async waitForNewHistoryRecordsComplete(): Promise<void> {
+    for (let index = 0; index < 3; index += 1) {
+      await expect(this.historyRecordArticles.nth(index)
+        .getByRole('button', { name: 'delete record', exact: true }))
+        .toBeVisible({ timeout: generationTimeout });
+    }
+  }
+
+  async verifyNewHistoryRecordsThreeD(): Promise<void> {
+    for (let index = 0; index < 3; index += 1) {
+      const record = this.historyRecordArticles.nth(index);
+      await this.click(record.locator('button').first());
+      await expect(record).toHaveClass(/border-2/);
+      await this.waitForThreeDGeneration();
+      await expect(this.threeDView).toBeVisible();
+    }
   }
 
   async expectImageResourceLoaded(image: Locator, timeout = customizerTimeout): Promise<void> {
