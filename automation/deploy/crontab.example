@@ -1,0 +1,9 @@
+# 云端 VM 用 crontab 的等价格式（参考 systemd/timer 目录里的 systemd 版本更推荐）。
+# 注意 crontab 环境不自动读取仓库 .env，这里显式 source；GITHUB_TOKEN 请放在 .env。
+CRON_TZ=Asia/Shanghai
+
+# 11:17 那一档（am）
+17 11 * * 1-5  cd /opt/sp_ui_test && set -a && . ./.env && set +a && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot am >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log
+
+# 18:47 那一档（pm）
+47 18 * * 1-5  cd /opt/sp_ui_test && set -a && . ./.env && set +a && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot pm >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log

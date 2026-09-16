@@ -2,9 +2,12 @@ name: Scheduled UI regression
 
 on:
   schedule:
-    # GitHub Actions uses UTC. Offset from the top of the hour to reduce load-related delay.
-    - cron: '17 3 * * 1-5'   # 11:17 Asia/Shanghai
-    - cron: '47 10 * * 1-5'  # 18:47 Asia/Shanghai
+    # Fallback only. The precise on-time trigger is a cloud timer that dispatches
+    # workflow_dispatch (see automation/dispatch-scheduled-run.mjs). These crons run
+    # 30 minutes later and are deduplicated against the timer by dedupe_key, so they
+    # only kick in when the cloud timer did not fire.
+    - cron: '47 3 * * 1-5'   # 11:47 Asia/Shanghai (fallback for the 11:17 slot)
+    - cron: '17 11 * * 1-5'  # 19:17 Asia/Shanghai (fallback for the 18:47 slot)
   workflow_dispatch:
     inputs:
       mode:
@@ -29,6 +32,11 @@ on:
         type: string
       event_id:
         description: 'Feishu event ID used to suppress delivery retries.'
+        required: false
+        default: ''
+        type: string
+      dedupe_key:
+        description: 'Scheduled-slot dedupe key (daily-<yyyy-mm-dd>-<am|pm>). Set by the cloud timer; empty for manual runs.'
         required: false
         default: ''
         type: string
@@ -83,25 +91,66 @@ jobs:
       FEISHU_FAILURE_RECORD_VALIDATION: ${{ inputs.simulate_failure_record || 'false' }}
 
     steps:
-      - name: Ignore duplicate Feishu delivery
+      - name: Ignore duplicate run
         id: dedupe
         env:
           GH_TOKEN: ${{ github.token }}
           FEISHU_EVENT_ID: ${{ inputs.event_id || '' }}
+          DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_CRON: ${{ github.event.schedule }}
         run: |
+          duplicate=false
+
+          # Feishu command delivery dedupe.
           SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
           echo "safe_event_id=$SAFE_EVENT_ID" >> "$GITHUB_OUTPUT"
-          if [ -z "$SAFE_EVENT_ID" ]; then
-            echo "duplicate=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [ -n "$SAFE_EVENT_ID" ]; then
+            COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=feishu-event-$SAFE_EVENT_ID&per_page=1" --jq '.total_count')"
+            if [ "${COUNT:-0}" -gt 0 ]; then
+              duplicate=true
+              echo "Duplicate Feishu event ignored: $SAFE_EVENT_ID"
+            fi
           fi
-          COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=feishu-event-$SAFE_EVENT_ID&per_page=1" --jq '.total_count')"
-          if [ "$COUNT" -gt 0 ]; then
-            echo "duplicate=true" >> "$GITHUB_OUTPUT"
-            echo "Duplicate Feishu event ignored: $SAFE_EVENT_ID"
-          else
-            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+
+          # Scheduled-slot dedupe: one run per (day, am|pm). The cloud timer passes
+          # dedupe_key explicitly; the schedule fallback derives the same key from
+          # its cron hour so the two triggers never double-fire the same slot.
+          SLOT_KEY="$(printf '%s' "$DISPATCH_DEDUPE_KEY" | tr -cd 'A-Za-z0-9_-')"
+          if [ -z "$SLOT_KEY" ] && [ "$EVENT_NAME" = 'schedule' ]; then
+            UTC_HOUR="$(printf '%s' "$SCHEDULE_CRON" | awk '{print $2}')"
+            case "$UTC_HOUR" in
+              [0-6]) SLOT="am" ;;
+              *) SLOT="pm" ;;
+            esac
+            SLOT_KEY="daily-$(TZ=Asia/Shanghai date +%F)-$SLOT"
           fi
+          echo "slot_key=$SLOT_KEY" >> "$GITHUB_OUTPUT"
+          if [ -n "$SLOT_KEY" ]; then
+            COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=run-marker-$SLOT_KEY&per_page=1" --jq '.total_count')"
+            if [ "${COUNT:-0}" -gt 0 ]; then
+              duplicate=true
+              echo "Scheduled slot already handled: $SLOT_KEY"
+            fi
+          fi
+
+          echo "duplicate=$duplicate" >> "$GITHUB_OUTPUT"
+
+      - name: Reserve scheduled slot
+        if: steps.dedupe.outputs.duplicate != 'true' && steps.dedupe.outputs.slot_key != ''
+        env:
+          SLOT_KEY: ${{ steps.dedupe.outputs.slot_key }}
+        run: |
+          mkdir -p .run-marker
+          printf '%s\n' "$SLOT_KEY" > .run-marker/slot.txt
+
+      - name: Upload scheduled slot marker
+        if: steps.dedupe.outputs.duplicate != 'true' && steps.dedupe.outputs.slot_key != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-marker-${{ steps.dedupe.outputs.slot_key }}
+          path: .run-marker/slot.txt
+          retention-days: 14
 
       - name: Check out repository
         if: steps.dedupe.outputs.duplicate != 'true'

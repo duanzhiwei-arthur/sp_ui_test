@@ -1,0 +1,15 @@
+[Unit]
+Description=JuJuBit scheduled UI regression dispatcher
+# 依赖网络与 GitHub 连通性；失败后由 timer 的 Persistent 选项在下次开机补跑。
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# 指向仓库目录；systemd 账户需要能读取该目录与 .env（含 GITHUB_TOKEN）。
+WorkingDirectory=/opt/sp_ui_test
+EnvironmentFile=-/opt/sp_ui_test/.env
+ExecStart=/usr/bin/node /opt/sp_ui_test/automation/dispatch-scheduled-run.mjs
+
+[Install]
+WantedBy=multi-user.target
