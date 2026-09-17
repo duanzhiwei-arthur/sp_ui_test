@@ -6,8 +6,10 @@ Description=Trigger JuJuBit scheduled UI regression at 11:17 and 18:47 Asia/Shan
 # dedupe_key 保证即便兜底也触发同一档，两个触发源不会重复执行。
 OnCalendar=Mon..Fri *-*-* 11:17:00 Asia/Shanghai
 OnCalendar=Mon..Fri *-*-* 18:47:00 Asia/Shanghai
-# 若机器在触发时刻处于关机/休眠，开机后补跑一次。
-Persistent=true
+# 错过时刻不在开机后盲目补跑；dispatcher 另有 60 分钟有效窗口。
+Persistent=false
+AccuracySec=1s
+RandomizedDelaySec=0
 Unit=jujubit-scheduled-dispatch.service
 
 [Install]

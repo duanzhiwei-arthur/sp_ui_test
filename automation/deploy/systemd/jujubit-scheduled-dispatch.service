@@ -1,6 +1,6 @@
 [Unit]
 Description=JuJuBit scheduled UI regression dispatcher
-# 依赖网络与 GitHub 连通性；失败后由 timer 的 Persistent 选项在下次开机补跑。
+# 依赖网络与 GitHub 连通性；脚本有有限重试，Persistent 不是失败重试机制。
 After=network-online.target
 Wants=network-online.target
 

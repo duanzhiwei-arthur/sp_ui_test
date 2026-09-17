@@ -105,14 +105,14 @@ npm run record:test
 
 远端任务由 GitHub Actions 运行，不依赖本地电脑。工作日计划时间（北京时间）为 11:17 和 18:47。
 
-准点执行采用「云端定时器主触发 + `schedule` 兜底去重」双轨：
+计划采用「云端定时器主触发 + `schedule` 兜底去重」双轨。2026-09-17 审查时，妙搭线上 cron 列表为空，主定时器尚未部署；本地部署脚本不代表线上已经启用。
 
-- **主触发（准点）**：云端定时器到点调用 `automation/dispatch-scheduled-run.mjs`，通过
-  `workflow_dispatch` 立即入队，没有 `schedule` 的负载延迟。部署方式见
+- **主触发（需部署）**：云端定时器到点调用 `automation/dispatch-scheduled-run.mjs`，通过
+  `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
   `automation/deploy/README.md`（systemd timer / cron / 妙搭定时任务）。
 - **兜底（防漏跑）**：`.github/workflows/ui-regression.yml` 中的 `schedule` 仍保留，但改到
   +30 分钟（11:47 / 19:17）触发；两者用 `dedupe_key`（`daily-<日期>-<am|pm>`，以
-  `run-marker-*` artifact 落地）去重，同一档只跑一次，不会重复生成。
+  `run-marker-*` artifact 落地）在全局串行工作流内去重，具体限制见下文。
 
 ```yaml
 # ui-regression.yml 中的兜底 cron
@@ -122,7 +122,9 @@ npm run record:test
 
 计划使用 GitHub 托管 Runner。工作日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
 
-GitHub 的原生 `schedule` 在高负载时可能延迟，甚至晚于计划时间数小时；错开整点只能降低概率，不能保证准点。因此这里只用它作兜底，准点依赖云端定时器调用 `workflow_dispatch`。
+GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是事件触发延迟，不能保证 Runner 秒级开始。self-hosted runner 也需要在线、有空闲容量和可用网络；固定出口仅有助于处理共享 IP 限流，不能保证消除 429。
+
+调度代码仅在工作日 11:17～12:17、18:47～19:47（北京时间）允许开始，超过 60 分钟的补跑会跳过且不发送结果卡片，代价是该档可能漏跑。时段标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
 
 结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:17 的计划任务若到 11:20 才获得调度，卡片里的开始时间会是 11:20 左右；这不代表新增了一条定时配置。
 

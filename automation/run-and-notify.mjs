@@ -1,12 +1,13 @@
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { readFile, rm, stat } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
+import { scheduledSlot } from './schedule-policy.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
@@ -14,7 +15,8 @@ const resultsFile = process.env.PLAYWRIGHT_RESULTS_FILE
   ? path.resolve(process.env.PLAYWRIGHT_RESULTS_FILE)
   : path.join(projectRoot, 'test-results', 'results.json');
 const reportFile = path.join(projectRoot, 'playwright-report', 'index.html');
-const mode = (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
+const mode = process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY
+  ? 'daily' : (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
 const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
@@ -75,6 +77,20 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
     console.log(message);
   }
 } else {
+  // Recheck after dependency/browser installation and any runner queue delay.
+  if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY) {
+    const schedule = scheduledSlot({
+      key: process.env.DISPATCH_DEDUPE_KEY,
+      cron: process.env.GITHUB_EVENT_NAME === 'schedule' ? process.env.SCHEDULE_CRON : ''
+    });
+    if (schedule.skip) {
+      console.log(`[scheduler] ${schedule.reason}，本档跳过，不发送测试结果卡片。`);
+      if (process.env.GITHUB_STEP_SUMMARY) {
+        appendFileSync(process.env.GITHUB_STEP_SUMMARY, `执行前复核：${schedule.reason}；未运行用例。\n`);
+      }
+      process.exit(0);
+    }
+  }
   const shanghaiWeekday = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Shanghai',
     weekday: 'short'

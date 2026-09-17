@@ -1,5 +1,9 @@
 name: Scheduled UI regression
 
+permissions:
+  contents: read
+  actions: read
+
 on:
   schedule:
     # Fallback only. The precise on-time trigger is a cloud timer that dispatches
@@ -59,8 +63,10 @@ jobs:
     env:
       # Scheduled runs are hard-locked to TC-01~TC-05 even if dispatch
       # defaults or manual inputs change later.
-      SCHEDULED_TEST_MODE: ${{ github.event_name == 'schedule' && 'daily' || inputs.mode || 'daily' }}
+      SCHEDULED_TEST_MODE: ${{ (github.event_name == 'schedule' || inputs.dedupe_key != '') && 'daily' || inputs.mode || 'daily' }}
       EXPERIMENT_KEY: ${{ inputs.experiment || '' }}
+      DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
+      SCHEDULE_CRON: ${{ github.event.schedule || '' }}
       BASE_URL: https://jujubit.ai
       PRODUCT_URL: ${{ vars.PRODUCT_URL }}
       TEST_IMAGE_SOLO: assets/two-dogs.jpeg
@@ -91,7 +97,10 @@ jobs:
       FEISHU_FAILURE_RECORD_VALIDATION: ${{ inputs.simulate_failure_record || 'false' }}
 
     steps:
-      - name: Ignore duplicate run
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Ignore duplicate or late run
         id: dedupe
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,45 +108,26 @@ jobs:
           DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
           EVENT_NAME: ${{ github.event_name }}
           SCHEDULE_CRON: ${{ github.event.schedule }}
-        run: |
-          duplicate=false
+        run: node automation/check-run-trigger.mjs
 
-          # Feishu command delivery dedupe.
-          SAFE_EVENT_ID="$(printf '%s' "$FEISHU_EVENT_ID" | tr -cd 'A-Za-z0-9_-')"
-          echo "safe_event_id=$SAFE_EVENT_ID" >> "$GITHUB_OUTPUT"
-          if [ -n "$SAFE_EVENT_ID" ]; then
-            COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=feishu-event-$SAFE_EVENT_ID&per_page=1" --jq '.total_count')"
-            if [ "${COUNT:-0}" -gt 0 ]; then
-              duplicate=true
-              echo "Duplicate Feishu event ignored: $SAFE_EVENT_ID"
-            fi
-          fi
+      - name: Set up Node.js
+        if: steps.dedupe.outputs.duplicate == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-          # Scheduled-slot dedupe: one run per (day, am|pm). The cloud timer passes
-          # dedupe_key explicitly; the schedule fallback derives the same key from
-          # its cron hour so the two triggers never double-fire the same slot.
-          SLOT_KEY="$(printf '%s' "$DISPATCH_DEDUPE_KEY" | tr -cd 'A-Za-z0-9_-')"
-          if [ -z "$SLOT_KEY" ] && [ "$EVENT_NAME" = 'schedule' ]; then
-            UTC_HOUR="$(printf '%s' "$SCHEDULE_CRON" | awk '{print $2}')"
-            case "$UTC_HOUR" in
-              [0-6]) SLOT="am" ;;
-              *) SLOT="pm" ;;
-            esac
-            SLOT_KEY="daily-$(TZ=Asia/Shanghai date +%F)-$SLOT"
-          fi
-          echo "slot_key=$SLOT_KEY" >> "$GITHUB_OUTPUT"
-          if [ -n "$SLOT_KEY" ]; then
-            COUNT="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=run-marker-$SLOT_KEY&per_page=1" --jq '.total_count')"
-            if [ "${COUNT:-0}" -gt 0 ]; then
-              duplicate=true
-              echo "Scheduled slot already handled: $SLOT_KEY"
-            fi
-          fi
+      - name: Install dependencies
+        if: steps.dedupe.outputs.duplicate == 'false'
+        run: npm ci
 
-          echo "duplicate=$duplicate" >> "$GITHUB_OUTPUT"
+      - name: Install Chromium and Linux dependencies
+        if: steps.dedupe.outputs.duplicate == 'false'
+        run: npx playwright install --with-deps chromium
 
+      # Reserve only after setup succeeds, but before any production generation.
       - name: Reserve scheduled slot
-        if: steps.dedupe.outputs.duplicate != 'true' && steps.dedupe.outputs.slot_key != ''
+        if: steps.dedupe.outputs.duplicate == 'false' && steps.dedupe.outputs.slot_key != ''
         env:
           SLOT_KEY: ${{ steps.dedupe.outputs.slot_key }}
         run: |
@@ -145,38 +135,21 @@ jobs:
           printf '%s\n' "$SLOT_KEY" > .run-marker/slot.txt
 
       - name: Upload scheduled slot marker
-        if: steps.dedupe.outputs.duplicate != 'true' && steps.dedupe.outputs.slot_key != ''
+        if: steps.dedupe.outputs.duplicate == 'false' && steps.dedupe.outputs.slot_key != ''
         uses: actions/upload-artifact@v4
         with:
           name: run-marker-${{ steps.dedupe.outputs.slot_key }}
           path: .run-marker/slot.txt
           retention-days: 14
-
-      - name: Check out repository
-        if: steps.dedupe.outputs.duplicate != 'true'
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        if: steps.dedupe.outputs.duplicate != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        if: steps.dedupe.outputs.duplicate != 'true'
-        run: npm ci
-
-      - name: Install Chromium and Linux dependencies
-        if: steps.dedupe.outputs.duplicate != 'true'
-        run: npx playwright install --with-deps chromium
+          if-no-files-found: error
 
       - name: Run dispatched regression and notify Feishu
-        if: steps.dedupe.outputs.duplicate != 'true'
+        id: regression
+        if: steps.dedupe.outputs.duplicate == 'false'
         run: npm run test:scheduled
 
       - name: Upload Playwright report and failure evidence
-        if: always() && steps.dedupe.outputs.duplicate != 'true'
+        if: always() && steps.dedupe.outputs.duplicate == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: ui-regression-${{ github.run_id }}
@@ -187,7 +160,7 @@ jobs:
           retention-days: 14
 
       - name: Record processed Feishu event
-        if: always() && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        if: always() && steps.regression.outcome != 'skipped' && steps.regression.outcome != '' && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate == 'false'
         env:
           FEISHU_EVENT_ID: ${{ steps.dedupe.outputs.safe_event_id }}
         run: |
@@ -196,7 +169,7 @@ jobs:
           printf '%s\n' "$SAFE_EVENT_ID" > .feishu-event-marker/event-id.txt
 
       - name: Upload Feishu event marker
-        if: always() && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate != 'true'
+        if: always() && steps.regression.outcome != 'skipped' && steps.regression.outcome != '' && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: feishu-event-${{ steps.dedupe.outputs.safe_event_id }}
