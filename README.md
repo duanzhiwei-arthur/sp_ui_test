@@ -105,11 +105,11 @@ npm run record:test
 
 远端任务由 GitHub Actions 运行，不依赖本地电脑。工作日计划时间（北京时间）为 11:17 和 18:47。
 
-计划采用「云端定时器主触发 + `schedule` 兜底去重」双轨。2026-09-17 审查时，妙搭线上 cron 列表为空，主定时器尚未部署；本地部署脚本不代表线上已经启用。
+已采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。2026-09-17 发布 `7686333847781035188`（代码 `58a4b39`）完成，`dailyRegressionMorning`、`dailyRegressionEvening` 均已回读确认 enabled，时区 Asia/Shanghai。首次到点执行效果仍需以实际运行日志核验。
 
-- **主触发（需部署）**：云端定时器到点调用 `automation/dispatch-scheduled-run.mjs`，通过
+- **主触发（已启用）**：妙搭 `ExperimentBotAutomation` 到点通过后端 HTTP 调用 GitHub API，以
   `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
-  `automation/deploy/README.md`（systemd timer / cron / 妙搭定时任务）。
+  `automation/deploy/README.md` 为部署记录；`dispatch-scheduled-run.mjs` 仅作为 VM 备用方案，不同时启用。
 - **兜底（防漏跑）**：`.github/workflows/ui-regression.yml` 中的 `schedule` 仍保留，但改到
   +30 分钟（11:47 / 19:17）触发；两者用 `dedupe_key`（`daily-<日期>-<am|pm>`，以
   `run-marker-*` artifact 落地）在全局串行工作流内去重，具体限制见下文。

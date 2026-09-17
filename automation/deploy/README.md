@@ -1,6 +1,6 @@
 # 云端定时器部署指南
 
-当前只有部署模板。2026-09-17 核对妙搭应用 app_17dsjs7c59z 的线上 cron 列表为空，已有飞书 Webhook 服务不代表定时器已运行。
+2026-09-17 已在妙搭应用 app_17dsjs7c59z 发布定时服务（release 7686333847781035188，代码 58a4b39），两条 cron 已启用并回读确认：dailyRegressionMorning（17 11 * * 1-5）、dailyRegressionEvening（47 18 * * 1-5），均为 Asia/Shanghai。首次到点执行需以实际日志核验。VM 模板仅作备用，不要与妙搭重复启用。
 
 计划在工作日北京时间 11:17 / 18:47 提交 workflow_dispatch，固定 mode=daily。GitHub 11:47 / 19:17 cron 是同一档的兜底；两者使用 daily-YYYY-MM-DD-am|pm 去重键。先发布配套 workflow，再启用外部定时器。
 
@@ -16,7 +16,9 @@ node automation/dispatch-scheduled-run.mjs --slot am --dry-run 只校验计划�
 
 ## 妙搭
 
-不能在妙搭运行时代码中调用 lark-cli 或直接运行本仓库 shell 脚本。需要在应用中实现 @Automation / @BindTrigger 服务、注册 Module 并发布；再配置、启用对应 cron 并验证日志。服务通过后端 HTTP 客户端调用 GitHub，传入当日北京日期的 dedupe_key 和固定 daily 模式。
+线上已使用 @Automation / @BindTrigger 实现，注册在 ExperimentBotModule 中。服务通过 @nestjs/axios 调用 GitHub，传入当日北京日期的 dedupe_key 和固定 daily 模式；不在运行时代码中调用 lark-cli 或本地 shell。需要排查时查询两条 trigger 状态、妙搭 Scheduled regression 日志及 GitHub 调度摘要。
+
+本次验证：时区、过期窗口、重复标记、API 失败分支已在本地测试；GitHub 运行 35176537665 使用过期日期验证跳过，测试和通知步骤均未执行，没有新增生成任务。发布完成和 enabled 状态不代表已观测到首次真实定时触发。
 
 ## 限制
 
