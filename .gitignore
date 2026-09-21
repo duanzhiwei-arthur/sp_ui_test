@@ -12,3 +12,6 @@ automation/logs/*
 !automation/logs/.gitkeep
 github-actions-failed.log
 /actions-runner/
+cart-elements.json
+checkout-elements.json
+generation-elements.json

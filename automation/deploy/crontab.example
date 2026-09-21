@@ -2,8 +2,8 @@
 # dispatcher 使用 dotenv 读取仓库 .env；不把环境文件当 shell 执行。
 CRON_TZ=Asia/Shanghai
 
-# 11:17 那一档（am）
-17 11 * * 1-5  cd /opt/sp_ui_test && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot am >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log
+# 11:00 那一档（am），每天执行
+0 11 * * *  cd /opt/sp_ui_test && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot am >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log
 
-# 18:47 那一档（pm）
-47 18 * * 1-5  cd /opt/sp_ui_test && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot pm >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log
+# 18:30 那一档（pm），每天执行
+30 18 * * *  cd /opt/sp_ui_test && /usr/bin/node automation/dispatch-scheduled-run.mjs --slot pm >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log

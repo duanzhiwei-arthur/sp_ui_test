@@ -91,17 +91,6 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       process.exit(0);
     }
   }
-  const shanghaiWeekday = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Shanghai',
-    weekday: 'short'
-  }).format(new Date());
-
-  const isScheduledEvent = process.env.GITHUB_EVENT_NAME === 'schedule';
-  if (isScheduledEvent && ['Sat', 'Sun'].includes(shanghaiWeekday)) {
-    console.log(`[scheduler] 今天是${shanghaiWeekday === 'Sat' ? '周六' : '周日'}，跳过 UI 自动化。`);
-    process.exit(0);
-  }
-
   const startedAt = new Date();
   await rm(resultsFile, { force: true });
 
@@ -124,7 +113,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
     ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
-    SCHEDULED_TRACKING_ENABLED: 'false',
+    CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
     TRACKING_TEST_ENABLED: 'false',
     TRACKING_FAULT_INJECTION_ENABLED: 'false'
   });

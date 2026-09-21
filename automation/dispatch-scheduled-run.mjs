@@ -8,8 +8,8 @@
  * 绕过 GitHub 原生 schedule 事件的负载延迟。
  *
  * 用法：
- *   node automation/dispatch-scheduled-run.mjs --slot am     # 11:17 那一档
- *   node automation/dispatch-scheduled-run.mjs --slot pm     # 18:47 那一档
+ *   node automation/dispatch-scheduled-run.mjs --slot am     # 11:00 那一档
+ *   node automation/dispatch-scheduled-run.mjs --slot pm     # 18:30 那一档
  *   node automation/dispatch-scheduled-run.mjs --dry-run     # 只打印，不触发
  *
  * 需要环境变量（见 .env.example）：

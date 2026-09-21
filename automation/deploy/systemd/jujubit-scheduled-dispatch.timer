@@ -1,11 +1,11 @@
 [Unit]
-Description=Trigger JuJuBit scheduled UI regression at 11:17 and 18:47 Asia/Shanghai
+Description=Trigger JuJuBit scheduled UI regression at 11:00 and 18:30 Asia/Shanghai
 
 [Timer]
 # 精确触发时刻（北京时间）。与 workflow 内 schedule 兜底错开 30 分钟，
 # dedupe_key 保证即便兜底也触发同一档，两个触发源不会重复执行。
-OnCalendar=Mon..Fri *-*-* 11:17:00 Asia/Shanghai
-OnCalendar=Mon..Fri *-*-* 18:47:00 Asia/Shanghai
+OnCalendar=*-*-* 11:00:00 Asia/Shanghai
+OnCalendar=*-*-* 18:30:00 Asia/Shanghai
 # 错过时刻不在开机后盲目补跑；dispatcher 另有 60 分钟有效窗口。
 Persistent=false
 AccuracySec=1s

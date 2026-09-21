@@ -3,10 +3,12 @@ import 'dotenv/config';
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: process.env.SCHEDULED_TRACKING_ENABLED === 'false' ? '**/tracking/**' : [],
+  testIgnore: process.env.TRACKING_TEST_ENABLED === 'true' ? [] : '**/tracking/**',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // Production generation is not retried: a failed attempt may already have
+  // created a billable task. Safe checks may still retry in CI.
+  retries: process.env.CI && process.env.ALLOW_PRODUCTION_GENERATION !== 'true' ? 1 : 0,
   workers: 1,
   timeout: 300_000,
   expect: { timeout: 120_000 },

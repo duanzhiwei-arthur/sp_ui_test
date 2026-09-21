@@ -1,22 +1,44 @@
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const auditPath = path.resolve(process.env.TRACKING_AUDIT_OUTPUT ?? 'test-results/tracking-catalog-audit.json');
+const recordExisting = process.argv.includes('--record-existing');
+const configuredAuditPath = process.env.TRACKING_AUDIT_OUTPUT;
+const isCatalogRun = process.env.TRACKING_PLAYWRIGHT_ARGS?.includes('catalog-audit') ?? false;
+const isExceptionRun = process.env.TRACKING_PLAYWRIGHT_ARGS?.includes('exception-audit') ?? false;
+const writesAudit = isCatalogRun || isExceptionRun;
+const auditPath = path.resolve(configuredAuditPath ?? (
+  isExceptionRun ? 'test-results/tracking-exception-audit.json' : 'test-results/tracking-catalog-audit.json'
+));
 const parentToken = parseWikiNodeToken(process.env.FEISHU_TRACKING_RECORDS_PARENT?.trim());
 const label = process.env.TRACKING_RECORD_LABEL?.trim() || '埋点自动化';
 const feishuApiBase = 'https://open.feishu.cn';
 const startedAt = new Date();
 const playwrightArgs = ['test', '--config=playwright.tracking.config.ts', ...splitArgs(process.env.TRACKING_PLAYWRIGHT_ARGS)];
-const recordExisting = process.argv.includes('--record-existing');
-const testExitCode = recordExisting ? 0 : await run('npx', ['playwright', ...playwrightArgs]);
+if (!recordExisting && writesAudit) await rm(auditPath, { force: true });
+const childEnv = {
+  ...process.env,
+  ...(isExceptionRun
+    ? { TRACKING_EXCEPTION_OUTPUT: auditPath }
+    : isCatalogRun ? { TRACKING_AUDIT_OUTPUT: auditPath } : {})
+};
+const testExitCode = recordExisting ? 0 : await run('npx', ['playwright', ...playwrightArgs], childEnv);
 const finishedAt = new Date();
 
 let report;
-try {
+if (!recordExisting && !writesAudit) {
+  report = {
+    total: 0,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    results: [],
+    readError: '本次运行未生成埋点目录审计报告。'
+  };
+} else try {
   report = JSON.parse(await readFile(auditPath, 'utf8'));
 } catch (error) {
   report = {
@@ -38,11 +60,12 @@ try {
 } catch (error) {
   console.error(`[feishu-tracking-doc] 埋点执行记录创建失败：${error instanceof Error ? error.message : String(error)}`);
 }
-process.exitCode = recordExisting ? 0 : testExitCode;
+const auditFailure = writesAudit && !report.readError && Number(report.failed ?? 0) > 0;
+process.exitCode = recordExisting ? 0 : (testExitCode !== 0 || auditFailure ? 1 : 0);
 
-function run(command, args) {
+function run(command, args, env) {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd: projectRoot, env: process.env, stdio: 'inherit' });
+    const child = spawn(command, args, { cwd: projectRoot, env, stdio: 'inherit' });
     child.once('error', () => resolve(1));
     child.once('exit', (code) => resolve(code ?? 1));
   });

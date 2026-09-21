@@ -41,7 +41,7 @@ TEST_PROMPT=生成2个小狗
 | TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
 | TC-EXP-02 | 画板实验 Treatment：One/Two/One → 三模板多选 → TRPG 预览 → 样式横滑 → 3 条并行生成 → 逐条验证 3D | 是，创建 3 条记录 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01、TC-EXP-02 会跳过。工作日定时任务只执行 TC-01～TC-05；实验用例不混入日常回归，避免实验改版或分流变化影响每日稳定性。会员 Control/Treatment 共用上传 → Generate 触发路径；画板 Control 复用 TC-02，Treatment 使用独立的三模板生成链路。所有实验用例都会校验实际 stable_id 和实验参数值。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01、TC-EXP-02 会跳过。每日定时任务只执行 TC-01～TC-05；实验用例不混入日常回归，避免实验改版或分流变化影响每日稳定性。会员 Control/Treatment 共用上传 → Generate 触发路径；画板 Control 复用 TC-02，Treatment 使用独立的三模板生成链路。所有实验用例都会校验实际 stable_id 和实验参数值。
 
 ## 常用命令
 
@@ -51,23 +51,25 @@ TEST_PROMPT=生成2个小狗
 # 安全冒烟：TC-01、TC-02
 npm run test:smoke
 
-# 每日安全回归：强制关闭真实生成
+# 本地日常五条：只选择 TC-01～TC-05；默认不允许真实生成
 npm run test:daily
+
+# 明确确认后执行真实日常五条（会产生生成/加购影响）
+npm run test:daily:confirmed
 
 # 日常 5 条：TC-01～TC-05；不发送飞书
 PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
-ALLOW_PRODUCTION_GENERATION=true \
-SCHEDULED_TRACKING_ENABLED=false \
+ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES \
 npx playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --project=chromium
 
 # 只运行 TC-03
-ALLOW_PRODUCTION_GENERATION=true npm run test:core-smoke
+ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:core-smoke
 
-# 运行全部活跃实验；会员 Treatment 会真实生成一次
-ALLOW_PRODUCTION_GENERATION=true npm run test:experiments
+# 运行注册表中全部启用实验（Control + Treatment）；会真实生成
+ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:experiments
 
 # 只运行会员 Control / Treatment 实验
-ALLOW_PRODUCTION_GENERATION=true npm run test:experiments:membership
+ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:experiments:membership
 
 # 模拟远端按实验执行并发送结果通知
 SCHEDULED_TEST_MODE=experiment EXPERIMENT_KEY=membership npm run test:scheduled
@@ -79,8 +81,10 @@ npm run feishu:experiment-bot
 npm run test:all
 npm run test:all:headed
 
-# 类型检查、用例发现、打开最近一次报告
+# 提交前门禁：类型检查 → automation/*.mjs 语法检查 → 调度策略单元测试 → 用例发现
 npm run validate
+
+# 打开最近一次报告
 npm run report
 ```
 
@@ -103,7 +107,7 @@ npm run record:test
 
 ## 远端定时执行
 
-远端任务由 GitHub Actions 运行，不依赖本地电脑。工作日计划时间（北京时间）为 11:17 和 18:47。
+远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天北京时间 11:00 和 18:30 执行，周末也执行。
 
 已采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。2026-09-17 发布 `7686333847781035188`（代码 `58a4b39`）完成，`dailyRegressionMorning`、`dailyRegressionEvening` 均已回读确认 enabled，时区 Asia/Shanghai。首次到点执行效果仍需以实际运行日志核验。
 
@@ -111,24 +115,24 @@ npm run record:test
   `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
   `automation/deploy/README.md` 为部署记录；`dispatch-scheduled-run.mjs` 仅作为 VM 备用方案，不同时启用。
 - **兜底（防漏跑）**：`.github/workflows/ui-regression.yml` 中的 `schedule` 仍保留，但改到
-  +30 分钟（11:47 / 19:17）触发；两者用 `dedupe_key`（`daily-<日期>-<am|pm>`，以
+  +30 分钟（11:30 / 19:00）触发；两者用 `dedupe_key`（`daily-<日期>-<am|pm>`，以
   `run-marker-*` artifact 落地）在全局串行工作流内去重，具体限制见下文。
 
 ```yaml
 # ui-regression.yml 中的兜底 cron
-- cron: '47 3 * * 1-5'   # 11:47 Asia/Shanghai（11:17 档的兜底）
-- cron: '17 11 * * 1-5'  # 19:17 Asia/Shanghai（18:47 档的兜底）
+- cron: '30 3 * * *'     # 11:30 Asia/Shanghai（11:00 档的兜底）
+- cron: '0 11 * * *'     # 19:00 Asia/Shanghai（18:30 档的兜底）
 ```
 
-计划使用 GitHub 托管 Runner。工作日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
+计划使用 GitHub 托管 Runner。每日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
 
 GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是事件触发延迟，不能保证 Runner 秒级开始。self-hosted runner 也需要在线、有空闲容量和可用网络；固定出口仅有助于处理共享 IP 限流，不能保证消除 429。
 
-调度代码仅在工作日 11:17～12:17、18:47～19:47（北京时间）允许开始，超过 60 分钟的补跑会跳过且不发送结果卡片，代价是该档可能漏跑。时段标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
+调度代码仅在每天 11:00～12:00、18:30～19:30（北京时间）允许开始，超过 60 分钟的补跑会跳过且不发送结果卡片，代价是该档可能漏跑。时段标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
 
-结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:17 的计划任务若到 11:20 才获得调度，卡片里的开始时间会是 11:20 左右；这不代表新增了一条定时配置。
+结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的计划任务若到 11:03 才获得调度，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
 
-工作日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前注册 `membership`（TC-EXP-01 + TC-06）和 `canvas`（TC-02 + TC-EXP-02）。
+每日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前注册 `membership`（TC-EXP-01 + TC-06）和 `canvas`（TC-02 + TC-EXP-02）。
 
 远端工作流需要配置以下 GitHub Actions Secrets：
 
@@ -141,7 +145,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 点名实验的事件桥接服务另需配置 `GITHUB_TOKEN`（fine-grained，仅该仓库 `Actions: write`）、`GITHUB_REPOSITORY`、`GITHUB_WORKFLOW_FILE`、`GITHUB_REF`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET`；`GITHUB_TOKEN` 只放在桥接服务的密钥管理器中，不写入仓库或日志。
 
-可选 Actions Variable：`PRODUCT_URL`。每次运行都会上传 `playwright-report/` 与 `test-results/` Artifact，保留 14 天。失败时机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指向的 Wiki 节点下创建失败记录；机器人需要是该知识库成员，并具备创建子页面和编辑权限。
+可选 Actions Variable：`PRODUCT_URL`。每次实际进入 Playwright 的运行都会上传 `playwright-report/` 与 `test-results/` Artifact，保留 14 天；去重或超时跳过的任务不会生成测试报告。失败时机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指向的 Wiki 节点下创建失败记录；机器人需要是该知识库成员，并具备创建子页面和编辑权限。
 
 ## 生产影响与安全边界
 
@@ -173,6 +177,8 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 埋点测试与 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认仅允许非生产环境；生产验证必须显式设置 `ALLOW_PRODUCTION_TRACKING=true`。
 
+`tests/tracking/` 默认不进入 UI 回归：`playwright.config.ts` 仅在显式设置 `TRACKING_TEST_ENABLED=true` 时才纳入这些用例，因此 `npm test` 只发现 8 条 UI 用例，不再混入自我跳过的埋点用例。埋点始终通过下列 `npm run test:tracking*` 命令运行。
+
 ```bash
 # 完整埋点审计：analytics + 有效目录审计
 TRACKING_BASE_URL=https://test.example.com npm run test:tracking
@@ -192,7 +198,7 @@ npm run report:tracking -- test-results/tracking-catalog-audit.json test-results
 
 完整有效目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。有效目录会排除源文档中划线删除项和“异常”类型项；毕业季埋点、漏斗指标、AB 实验组映射表不纳入本目录。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
 
-采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后至少上报一次、请求已发起且无敏感字段。参数按本次实际发送值记录；缺少目录中列出的参数不单独判失败。重复上报也不会单独判失败，但会在 JSON 与飞书执行文档的“上报次数与参数明细”表格中如实统计。表格列为“序号、标识、动作、参数、上报平台、上报次数”；全部有效目录项均进入同一张表，skipped 行标红并展示跳过原因，已执行但所有目标平台均上报 0 次的行标黄。多平台事件在“上报次数”单元格内换行展示，例如 `GA4上报2次`、`Statsig上报1次`。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
+采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后至少上报一次、请求已发起且无敏感字段。参数按本次实际发送值记录；缺少目录中列出的参数不单独判失败。重复上报也不会单独判失败，但会在 JSON 与飞书执行文档的“上报次数与参数明细”表格中如实统计。目录审计发现未上报时，脚本返回非零退出码；`--record-existing` 仅用于补写既有报告，不改变原测试状态。表格列为“序号、标识、动作、参数、上报平台、上报次数”；全部有效目录项均进入同一张表，skipped 行标红并展示跳过原因，已执行但任一目标平台上报 0 次的行标黄。多平台事件在“上报次数”单元格内换行展示，例如 `GA4上报2次`、`Statsig上报1次`。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
 
 埋点运行完成后会在 `FEISHU_TRACKING_RECORDS_PARENT` 下创建执行记录；机器人需要被添加到对应 Wiki 并具备编辑权限。
 
@@ -205,7 +211,7 @@ npm run report:tracking -- test-results/tracking-catalog-audit.json test-results
 | 失败截图、视频、trace、错误上下文 | `test-results/` |
 | 埋点 HTML 报告 | `playwright-tracking-report/` |
 | 埋点有效目录审计 JSON | `test-results/tracking-catalog-audit.json` |
-| TC-03 页面元素快照 | `generation-elements.json`、`cart-elements.json`、`checkout-elements.json` |
+| TC-03 页面元素快照 | `test-results/element-inventory/`（同时附加到 HTML 报告，随 Artifact 上传） |
 
 普通交互最多等待 2 分钟；2D 与 3D 生成各最多 5 分钟。2D 验证图片资源实际加载；3D 等待进度层消失、Add to Cart 可用，并验证横向拖动后画面变化。Checkout 仅校验订单摘要、地址表单、折扣入口和 `Pay now` 可见。
 
