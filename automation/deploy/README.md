@@ -1,6 +1,6 @@
 # 云端定时器部署指南
 
-妙搭应用 `app_17dsjs7c59z` 的目标定时为每天 11:00、18:30（Asia/Shanghai），周末也执行。更新触发器前应先发布包含新时间窗口判断的代码，再回读两个触发器状态；VM 模板仅作备用，不要与妙搭重复启用。
+2026-09-21 已向妙搭应用 `app_17dsjs7c59z` 发布 release `7687844142827752427`（代码 `4b1c472`）。`dailyRegressionMorning`（`0 11 * * *`）和 `dailyRegressionEvening`（`30 18 * * *`）均已回读确认 enabled，时区 Asia/Shanghai；即每天 11:00、18:30 执行，周末不跳过。VM 模板仅作备用，不要与妙搭重复启用。
 
 计划每天北京时间 11:00 / 18:30 提交 workflow_dispatch，固定 mode=daily。GitHub 11:30 / 19:00 cron 是同一档的兜底；两者使用 daily-YYYY-MM-DD-am|pm 去重键。先发布配套 workflow，再启用外部定时器。
 
