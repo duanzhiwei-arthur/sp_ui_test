@@ -26,7 +26,7 @@ export const experimentRegistry = {
     key: 'canvasTemplateDisplay',
     experimentName: 'canvas_template_display',
     parameterName: 'group',
-    lifecycle: 'running',
+    lifecycle: 'stopped',
     owner: 'canvas',
     environment: 'production',
     linkedCases: ['TC-02', 'TC-EXP-02'],

@@ -8,7 +8,7 @@
     "test:core-smoke": "playwright test tests/full-flow-inventory.spec.ts --grep @core-smoke",
     "test:experiments": "node automation/run-experiment-suite.mjs",
     "test:experiments:membership": "playwright test tests/zz-experiments/membership-banner.spec.ts",
-    "test:experiments:canvas": "playwright test tests/00-safe-cases.spec.ts tests/zz-experiments/canvas-template.spec.ts --grep 'TC-02|TC-EXP-02'",
+    "test:experiments:canvas": "node -e \"console.error('canvas_template_display 已下线，画板实验命令已停用'); process.exit(1)\"",
     "test:daily": "playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --grep 'TC-01|TC-02|TC-03|TC-04|TC-05' --project=chromium",
     "test:daily:confirmed": "ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:daily",
     "test:tracking": "TRACKING_TEST_ENABLED=true TRACKING_RECORD_LABEL='完整埋点自动化' TRACKING_PLAYWRIGHT_ARGS='tests/tracking/analytics.spec.ts tests/tracking/catalog-audit.spec.ts' node automation/run-tracking-and-record.mjs",

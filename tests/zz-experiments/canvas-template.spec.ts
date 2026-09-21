@@ -8,6 +8,7 @@ test.describe(`画板实验：${experimentRegistry.canvasTemplateDisplay.experim
   test.use({ experimentSelection: { experiment: 'canvasTemplateDisplay', variant: 'treatment' } });
 
   test('TC-EXP-02: Treatment 支持多模板并行生成并切换 3D 资产', async ({ page, experiment }) => {
+    test.skip(true, 'canvas_template_display 实验已下线；保留历史用例，不再执行生产分组验证。');
     test.setTimeout(1_200_000);
     test.skip(
       !canRunGeneration() || !existsSync(assetPath(testData.soloImage)),

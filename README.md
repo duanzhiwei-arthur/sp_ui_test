@@ -39,9 +39,9 @@ TEST_PROMPT=生成2个小狗
 | TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
 | TC-06 | 会员实验 Treatment：校验 stable_id/分组 → 上传 → Generate → 会员入口 → 弹窗 → Join | 是，未等待生成完成 |
 | TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
-| TC-EXP-02 | 画板实验 Treatment：One/Two/One → 三模板多选 → TRPG 预览 → 样式横滑 → 3 条并行生成 → 逐条验证 3D | 是，创建 3 条记录 |
+| TC-EXP-02 | 已退役：历史画板实验 Treatment 用例，保留代码追溯 | 否，固定跳过 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01、TC-EXP-02 会跳过。每日定时任务只执行 TC-01～TC-05；实验用例不混入日常回归，避免实验改版或分流变化影响每日稳定性。会员 Control/Treatment 共用上传 → Generate 触发路径；画板 Control 复用 TC-02，Treatment 使用独立的三模板生成链路。所有实验用例都会校验实际 stable_id 和实验参数值。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。每日定时任务只执行 TC-01～TC-05；TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
 
 ## 常用命令
 
@@ -132,7 +132,7 @@ GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是�
 
 结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的计划任务若到 11:03 才获得调度，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
 
-每日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前注册 `membership`（TC-EXP-01 + TC-06）和 `canvas`（TC-02 + TC-EXP-02）。
+每日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前仅启用 `membership`（TC-EXP-01 + TC-06）。`canvas` 已因实验下线设为 disabled。
 
 远端工作流需要配置以下 GitHub Actions Secrets：
 
@@ -149,7 +149,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-`all` 模式会发现 8 条 UI 用例，其中 TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务，TC-EXP-02 创建 3 条；TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员和画板实验均不付款、不提交订单。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行对应实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
+`all` 模式会发现 8 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
 
 ## 实验自动化
 
@@ -163,7 +163,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 飞书命令桥接服务已部署到妙搭云端应用 `JuJuBit 实验自动化机器人`（`app_17dsjs7c59z`），不依赖本地电脑。`sp-ui自动化机器人` 通过开发者服务器订阅 `im.message.receive_v1`；群内发送 `@sp-ui自动化机器人 会员实验` 后，云端服务会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，结果卡片发送回触发消息所在群。回调 URL 使用保存在妙搭在线环境中的随机路径密钥校验，GitHub Token 也只保存在妙搭在线环境中，不写入仓库。
 
-群内发送 `@sp-ui自动化机器人 画板实验` 时，只执行 TC-02（Control，`canvas_template_display.group=control`）与 TC-EXP-02（Treatment，`group=test_2`）。Treatment 一次会真实创建 Free Style、TRPG、Soft Chibi 三条生成记录，不会加购、下单或付款。
+`canvas_template_display` 已确认下线，注册表中的 `canvas` 命令已设为 `enabled=false`。群内发送“画板实验”不会再触发 GitHub Actions，也不会创建三条生成记录；TC-02 继续作为每日基础交互回归执行。
 
 实验命令成功提交 GitHub 后，机器人会立即回复“已收到，正在执行中”；执行结束后再发送包含逐条用例名称和状态的最终结果卡片。即时回复失败只记录日志，不会让飞书事件重试或重复生成。
 

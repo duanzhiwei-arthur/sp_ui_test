@@ -20,7 +20,7 @@
       ],
       "caseIds": ["TC-02", "TC-EXP-02"],
       "scopeLabel": "Control + Treatment",
-      "enabled": true
+      "enabled": false
     }
   ]
 }
