@@ -158,6 +158,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload failure videos for Feishu bot
+        if: failure() && steps.dedupe.outputs.duplicate == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-failure-videos-${{ github.run_id }}
+          path: test-results/**/video.webm
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
       - name: Record processed Feishu event
         if: always() && steps.regression.outcome != 'skipped' && steps.regression.outcome != '' && steps.dedupe.outputs.safe_event_id != '' && steps.dedupe.outputs.duplicate == 'false'
         env:
