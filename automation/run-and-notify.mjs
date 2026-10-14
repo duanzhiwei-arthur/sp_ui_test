@@ -72,7 +72,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const card = buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary });
 
   if (process.argv.includes('--notification-test')) {
-    await sendFeishuNotification(message, summary.failureArtifacts, card);
+    await sendFeishuNotification(message, summary.failureArtifacts, card, testExitCode !== 0);
   } else {
     console.log(message);
   }
@@ -132,7 +132,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const card = buildResultCard({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
   try {
-    await sendFeishuNotification(message, summary.failureArtifacts, card);
+    await sendFeishuNotification(message, summary.failureArtifacts, card, messageExitCode !== 0);
   } catch (error) {
     console.error(`[feishu] 结果通知失败：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -1221,14 +1221,14 @@ function formatRecordTime(date) {
   }).format(date).replaceAll('/', '-').replaceAll(':', '-').replace(/\s+/g, ' ');
 }
 
-async function sendFeishuNotification(text, failureArtifacts, card) {
+async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOnFailure = false) {
   const appConfig = readAppConfig();
   if (appConfig) {
-    await sendAppNotification(appConfig, text, failureArtifacts, card);
+    await sendAppNotification(appConfig, text, failureArtifacts, card, mentionAllOnFailure);
     return;
   }
 
-  await sendWebhookMessage(text);
+  await sendWebhookMessage(text, mentionAllOnFailure);
 }
 
 function readAppConfig() {
@@ -1251,7 +1251,7 @@ function readAppConfig() {
   return values;
 }
 
-async function sendAppNotification(config, text, failureArtifacts, card) {
+async function sendAppNotification(config, text, failureArtifacts, card, mentionAllOnFailure) {
   const token = await getTenantAccessToken(config);
   const preparedArtifacts = [];
 
@@ -1261,6 +1261,12 @@ async function sendAppNotification(config, text, failureArtifacts, card) {
       imageKey = await sendArtifactSafely('截图上传', () => uploadImage(token, artifact.screenshot));
     }
     preparedArtifacts.push({ ...artifact, imageKey });
+  }
+
+  if (shouldMentionAll(config, mentionAllOnFailure)) {
+    await sendArtifactSafely('失败 @所有人提醒', () => sendAppMessage(config, token, 'text', {
+      text: '<at user_id="all"></at> JuJuBit UI 自动化发现失败，请及时查看下方结果卡片。'
+    }));
   }
 
   await sendAppMessage(config, token, 'interactive', card ?? buildLegacyCard(text));
@@ -1297,6 +1303,11 @@ async function sendArtifactSafely(label, action) {
     console.warn(`[feishu] ${label}发送失败：${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
+}
+
+function shouldMentionAll(config, failed) {
+  return failed && config.receiveIdType === 'chat_id' &&
+    process.env.FEISHU_MENTION_ALL_ON_FAILURE !== 'false';
 }
 
 function buildLegacyCard(text) {
@@ -1449,7 +1460,7 @@ function appHeaders(token) {
   };
 }
 
-async function sendWebhookMessage(text) {
+async function sendWebhookMessage(text, mentionAllOnFailure = false) {
   const webhook = process.env.FEISHU_WEBHOOK_URL?.trim();
   if (!webhook) {
     console.warn('[feishu] 未配置企业应用机器人或 FEISHU_WEBHOOK_URL，本次仅完成测试，不发送消息。');
@@ -1463,7 +1474,11 @@ async function sendWebhookMessage(text) {
 
   const payload = {
     msg_type: 'text',
-    content: { text }
+    content: {
+      text: mentionAllOnFailure && process.env.FEISHU_MENTION_ALL_ON_FAILURE !== 'false'
+        ? `<at user_id="all"></at>\n${text}`
+        : text
+    }
   };
   const secret = process.env.FEISHU_WEBHOOK_SECRET?.trim();
   if (secret) {

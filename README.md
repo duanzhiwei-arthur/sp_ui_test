@@ -103,7 +103,7 @@ npm run record:preview
 npm run record:test
 ```
 
-通知失败不会覆盖原始 Playwright 退出码。失败截图上限 10 MB、视频上限 30 MB；视频无法转为 MP4 时会降级为 WebM 附件。
+用例失败或重试后通过（flaky）时，企业应用机器人会先在目标群单独发送一条 `@所有人` 提醒，再发送原结果卡片；全部通过、仅跳过或去重跳过不会 @。仅 `FEISHU_RECEIVE_ID_TYPE=chat_id` 时生效，可用 `FEISHU_MENTION_ALL_ON_FAILURE=false` 关闭；群聊必须允许机器人 @所有人。提醒发送失败不会阻断结果卡片，也不会覆盖原始 Playwright 退出码。失败截图上限 10 MB、视频上限 30 MB；视频无法转为 MP4 时会降级为 WebM 附件。
 
 ## 远端定时执行
 

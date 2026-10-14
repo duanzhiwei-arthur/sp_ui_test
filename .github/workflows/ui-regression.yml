@@ -85,6 +85,7 @@ jobs:
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
       FEISHU_RECEIVE_ID_TYPE: chat_id
       FEISHU_RECEIVE_ID: ${{ inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
+      FEISHU_MENTION_ALL_ON_FAILURE: 'true'
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
 
