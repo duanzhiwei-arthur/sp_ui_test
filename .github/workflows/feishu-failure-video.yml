@@ -1,0 +1,52 @@
+name: Send failure videos to Feishu
+
+permissions:
+  actions: read
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Failed UI regression run ID.'
+        required: true
+        type: string
+      chat_id:
+        description: 'Feishu chat ID that requested the video.'
+        required: true
+        type: string
+
+jobs:
+  send-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download lightweight failure-video artifact
+        id: lightweight
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "ui-failure-videos-$SOURCE_RUN_ID" --dir failure-evidence
+
+      - name: Download full evidence for historical runs
+        if: steps.lightweight.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "ui-regression-$SOURCE_RUN_ID" --dir failure-evidence
+
+      - name: Send WebM videos directly to Feishu
+        env:
+          FAILURE_VIDEO_DIR: failure-evidence
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          FEISHU_CHAT_ID: ${{ inputs.chat_id }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+        run: node automation/send-failure-videos.mjs
