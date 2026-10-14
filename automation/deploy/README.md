@@ -1,8 +1,8 @@
 # 云端定时器部署指南
 
-2026-09-21 已向妙搭应用 `app_17dsjs7c59z` 发布 release `7687844142827752427`（代码 `4b1c472`）。`dailyRegressionMorning`（`0 11 * * *`）和 `dailyRegressionEvening`（`30 18 * * *`）均已回读确认 enabled，时区 Asia/Shanghai；即每天 11:00、18:30 执行，周末不跳过。VM 模板仅作备用，不要与妙搭重复启用。
+目标配置为：妙搭应用 `app_17dsjs7c59z` 保留一个启用触发器，每小时整点（`0 * * * *`，Asia/Shanghai）提交回归；第二个旧触发器停用，防止同一小时重复运行。VM 模板仅作备用，不要与妙搭重复启用。
 
-计划每天北京时间 11:00 / 18:30 提交 workflow_dispatch，固定 mode=daily。GitHub 11:30 / 19:00 cron 是同一档的兜底；两者使用 daily-YYYY-MM-DD-am|pm 去重键。先发布配套 workflow，再启用外部定时器。
+计划每小时整点提交 `workflow_dispatch`，固定 `mode=daily`。GitHub 每小时第 30 分钟是同一小时档的兜底；两者使用 `hourly-YYYY-MM-DD-HH` 去重键。先发布配套 workflow，再启用外部定时器。
 
 调度器和 workflow 均拒绝超过计划时间 60 分钟的补跑，代价是延迟过大时该档不执行。手动调试单独 workflow_dispatch，不填 dedupe_key；定时器禁止 all 和 --no-dedupe。
 
@@ -12,7 +12,7 @@
 
 提供 systemd/jujubit-scheduled-dispatch.service、.timer 和 crontab.example。安装前调整仓库路径、Node 路径和服务账号。systemd 使用 Asia/Shanghai、AccuracySec=1s、Persistent=false；这些设置不构成秒级启动 SLA。CRON_TZ 需宿主 cron 支持。
 
-node automation/dispatch-scheduled-run.mjs --slot am --dry-run 只校验计划，不创建任务；窗口外明确跳过。
+`node automation/dispatch-scheduled-run.mjs --dry-run` 只校验当前小时档，不创建任务。
 
 ## 妙搭
 

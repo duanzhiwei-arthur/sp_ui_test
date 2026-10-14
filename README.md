@@ -107,30 +107,29 @@ npm run record:test
 
 ## 远端定时执行
 
-远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天北京时间 11:00 和 18:30 执行，周末也执行。
+远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天每小时整点执行一次，周末也执行；不再保留 11:00 和 18:30 两个固定时刻。
 
-已采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。2026-09-21 发布 `7687844142827752427`（代码 `4b1c472`）完成，`dailyRegressionMorning`（`0 11 * * *`）和 `dailyRegressionEvening`（`30 18 * * *`）均已回读确认 enabled，时区 Asia/Shanghai。首次按新时间到点执行的效果仍需以实际运行日志核验。
+采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。妙搭使用一个启用的整点触发器（`0 * * * *`，Asia/Shanghai），旧的第二个触发器停用；GitHub 在每小时第 30 分钟兜底。首次按小时级配置到点执行的效果仍需以实际运行日志核验。
 
 - **主触发（已启用）**：妙搭 `ExperimentBotAutomation` 到点通过后端 HTTP 调用 GitHub API，以
   `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
   `automation/deploy/README.md` 为部署记录；`dispatch-scheduled-run.mjs` 仅作为 VM 备用方案，不同时启用。
 - **兜底（防漏跑）**：`.github/workflows/ui-regression.yml` 中的 `schedule` 仍保留，但改到
-  +30 分钟（11:30 / 19:00）触发；两者用 `dedupe_key`（`daily-<日期>-<am|pm>`，以
+  每小时第 30 分钟触发；两者用 `dedupe_key`（`hourly-<日期>-<小时>`，以
   `run-marker-*` artifact 落地）在全局串行工作流内去重，具体限制见下文。
 
 ```yaml
 # ui-regression.yml 中的兜底 cron
-- cron: '30 3 * * *'     # 11:30 Asia/Shanghai（11:00 档的兜底）
-- cron: '0 11 * * *'     # 19:00 Asia/Shanghai（18:30 档的兜底）
+- cron: '30 * * * *'     # 每小时第 30 分钟，兜底整点主触发
 ```
 
 计划使用 GitHub 托管 Runner。每日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
 
 GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是事件触发延迟，不能保证 Runner 秒级开始。self-hosted runner 也需要在线、有空闲容量和可用网络；固定出口仅有助于处理共享 IP 限流，不能保证消除 429。
 
-调度代码仅在每天 11:00～12:00、18:30～19:30（北京时间）允许开始，超过 60 分钟的补跑会跳过且不发送结果卡片，代价是该档可能漏跑。时段标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
+每个北京时间自然小时是一档；任务跨到下一小时才开始时会作为过期档跳过，避免与下一档重复生成。小时标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
 
-结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的计划任务若到 11:03 才获得调度，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
+结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的小时档若到 11:03 才获得 Runner，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
 
 每日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前仅启用 `membership`（TC-EXP-01 + TC-06）。`canvas` 已因实验下线设为 disabled。
 

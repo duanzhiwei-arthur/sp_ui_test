@@ -1,7 +1,6 @@
-// Shared by the external timer and the workflow fallback. No network or writes.
-export const slots = { am: 11 * 60, pm: 18 * 60 + 30 };
-export const fallbackSlots = { '30 3 * * *': 'am', '0 11 * * *': 'pm' };
-export const maxDelayMinutes = 60;
+// Shared by the external timer and the GitHub Actions fallback. No network or writes.
+export const fallbackCron = '30 * * * *';
+export const maxDelayMinutes = 59;
 
 export function beijingClock(now = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
@@ -10,32 +9,23 @@ export function beijingClock(now = new Date()) {
   }).formatToParts(now).map(({ type, value }) => [type, value]));
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
-    minute: Number(parts.hour) * 60 + Number(parts.minute)
+    hour: Number(parts.hour),
+    minute: Number(parts.minute)
   };
 }
 
-export function scheduledSlot({ now = new Date(), slot, key = '', cron = '' } = {}) {
+export function scheduledSlot({ now = new Date(), key = '', cron = '' } = {}) {
   const clock = beijingClock(now);
-  if (cron) {
-    slot = fallbackSlots[cron];
-    if (!slot) throw new Error(`未知兜底 cron：${cron}`);
-  }
+  if (cron && cron !== fallbackCron) throw new Error(`未知兜底 cron：${cron}`);
+
+  const currentKey = `hourly-${clock.date}-${String(clock.hour).padStart(2, '0')}`;
   if (key) {
-    const match = /^daily-(\d{4}-\d{2}-\d{2})-(am|pm)$/.exec(key);
-    if (!match) throw new Error('dedupe_key 格式无效');
-    slot = match[2];
-    if (match[1] !== clock.date) return { skip: true, reason: '过期的计划日期', key };
+    const match = /^hourly-(\d{4}-\d{2}-\d{2})-(\d{2})$/.exec(key);
+    if (!match || Number(match[2]) > 23) throw new Error('dedupe_key 格式无效');
+    if (key !== currentKey) return { skip: true, reason: '过期的小时档', key };
+  } else {
+    key = currentKey;
   }
-  if (!slot) {
-    slot = Object.keys(slots).find(name => clock.minute >= slots[name] &&
-      clock.minute <= slots[name] + maxDelayMinutes);
-    if (!slot) return { skip: true, reason: '不在定时执行窗口', key: '' };
-  }
-  if (!Object.hasOwn(slots, slot)) throw new Error('slot 仅支持 am 或 pm');
-  key ||= `daily-${clock.date}-${slot}`;
-  const delay = clock.minute - slots[slot];
-  if (delay < 0 || delay > maxDelayMinutes) {
-    return { skip: true, reason: '超过计划时间 60 分钟', key };
-  }
-  return { skip: false, key, slot, reason: '在执行窗口内' };
+  if (clock.minute > maxDelayMinutes) return { skip: true, reason: '超过计划时间 59 分钟', key };
+  return { skip: false, key, hour: clock.hour, reason: '在本小时执行窗口内' };
 }

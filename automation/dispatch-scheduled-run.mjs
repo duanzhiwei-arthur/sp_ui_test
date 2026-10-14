@@ -8,15 +8,14 @@
  * 绕过 GitHub 原生 schedule 事件的负载延迟。
  *
  * 用法：
- *   node automation/dispatch-scheduled-run.mjs --slot am     # 11:00 那一档
- *   node automation/dispatch-scheduled-run.mjs --slot pm     # 18:30 那一档
+ *   node automation/dispatch-scheduled-run.mjs               # 当前小时档
  *   node automation/dispatch-scheduled-run.mjs --dry-run     # 只打印，不触发
  *
  * 需要环境变量（见 .env.example）：
  *   GITHUB_TOKEN（必须，至少 actions:write）
  *   GITHUB_REPOSITORY / GITHUB_WORKFLOW_FILE / GITHUB_REF（可选，有默认值）
  *
- * 幂等：每个 (date, slot) 只触发一次。本脚本写出的 dedupe_key 与 workflow 内的
+ * 幂等：每个（北京时间日期, 小时）只触发一次。本脚本写出的 dedupe_key 与 workflow 内的
  * run-marker artifact 在全局串行 workflow 下防止重复执行；标记保留 14 天。
  */
 
@@ -30,7 +29,7 @@ const mode = 'daily';
 const token = process.env.GITHUB_TOKEN?.trim();
 
 const args = parseArgs(process.argv.slice(2));
-const schedule = scheduledSlot({ slot: args.slot });
+const schedule = scheduledSlot();
 const dedupeKey = schedule.key;
 
 if (process.env.SCHEDULED_DISPATCH_MODE && process.env.SCHEDULED_DISPATCH_MODE !== 'daily') {
@@ -75,7 +74,6 @@ function parseArgs(raw) {
   for (let i = 0; i < raw.length; i++) {
     const value = raw[i];
     if (value === '--dry-run') result.dryRun = true;
-    else if (value === '--slot' && raw[i + 1]) result.slot = raw[++i];
     else throw new Error(`未知参数：${value}`);
   }
   return result;

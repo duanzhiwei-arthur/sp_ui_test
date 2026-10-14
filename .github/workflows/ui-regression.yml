@@ -10,8 +10,7 @@ on:
     # workflow_dispatch (see automation/dispatch-scheduled-run.mjs). These crons run
     # 30 minutes later and are deduplicated against the timer by dedupe_key, so they
     # only kick in when the cloud timer did not fire.
-    - cron: '30 3 * * *'     # 11:30 Asia/Shanghai (fallback for the 11:00 slot)
-    - cron: '0 11 * * *'     # 19:00 Asia/Shanghai (fallback for the 18:30 slot)
+    - cron: '30 * * * *'     # Every hour at :30, fallback for the Miaoda :00 trigger
   workflow_dispatch:
     inputs:
       mode:
@@ -40,7 +39,7 @@ on:
         default: ''
         type: string
       dedupe_key:
-        description: 'Scheduled-slot dedupe key (daily-<yyyy-mm-dd>-<am|pm>). Set by the cloud timer; empty for manual runs.'
+        description: 'Hourly dedupe key (hourly-<yyyy-mm-dd>-<hh>). Set by the cloud timer; empty for manual runs.'
         required: false
         default: ''
         type: string
