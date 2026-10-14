@@ -109,7 +109,7 @@ npm run record:test
 
 远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天每小时整点执行一次，周末也执行；不再保留 11:00 和 18:30 两个固定时刻。
 
-采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。妙搭使用一个启用的整点触发器（`0 * * * *`，Asia/Shanghai），旧的第二个触发器停用；GitHub 在每小时第 30 分钟兜底。首次按小时级配置到点执行的效果仍需以实际运行日志核验。
+采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。2026-10-14 已发布妙搭 release `7696359274570714397`（代码 `1520e75`）：一个启用的整点触发器（`0 * * * *`，Asia/Shanghai），旧的第二个触发器已停用；GitHub 在每小时第 30 分钟兜底。首次按小时级配置到点执行的效果仍需以实际运行日志核验。
 
 - **主触发（已启用）**：妙搭 `ExperimentBotAutomation` 到点通过后端 HTTP 调用 GitHub API，以
   `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
