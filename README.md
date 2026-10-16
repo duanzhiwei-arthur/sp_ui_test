@@ -9,7 +9,7 @@ npm install
 npx playwright install chromium
 cp .env.example .env
 
-# 安全冒烟：只跑 TC-01、TC-02，不创建线上生成任务
+# 安全冒烟：只跑 TC-00、TC-01、TC-02，不创建线上生成任务
 npm run test:smoke
 ```
 
@@ -32,6 +32,7 @@ TEST_PROMPT=生成2个小狗
 
 | 用例 | 覆盖范围 | 真实生成 |
 | --- | --- | --- |
+| TC-00 | 首页 HTTP 可访问；顶部促销条、Logo、主要导航、Hero Banner、Pick Your Style、How It Works、Categories、Trending Products、Real Figurines、Customer Reviews、Community、FAQs、页脚正常展示 | 否 |
 | TC-01 | 首页进入 Create；自定义器加载完成；Gallery 可见 | 否 |
 | TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
@@ -41,15 +42,35 @@ TEST_PROMPT=生成2个小狗
 | TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
 | TC-EXP-02 | 已退役：历史画板实验 Treatment 用例，保留代码追溯 | 否，固定跳过 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。每日定时任务只执行 TC-01～TC-05；TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。TC-00～TC-02 属于无生成安全冒烟；每日定时任务仍只执行 TC-01～TC-05，不会因为新增 TC-00 自动扩大定时回归范围。TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
+
+### TC-00：首页健康检查步骤
+
+TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证首页的可访问性和主要展示模块：
+
+1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面标题包含 `JuJuBit`，并确认 `MainContent` 可见。
+2. 关闭首页营销/订阅弹窗（如果出现），避免遮罩影响后续检查。
+3. 检查顶部促销条、JuJuBit Logo 和桌面导航；导航至少确认 `Create`、`Templates`、`Categories`、`How It Works`、`About Us` 可见且存在有效链接。
+4. 滚动并检查 Hero Banner，确认“Create a Custom Figurine From Your Photo”标题和模块尺寸正常。
+5. 检查 `Pick Your Style` 模块，确认标题和模块尺寸正常。
+6. 检查 `How It Works` 模块，确认标题和模块尺寸正常。
+7. 检查 `Categories` 模块，确认标题和模块尺寸正常。
+8. 检查 `Trending Products` 模块，确认标题和模块尺寸正常。
+9. 检查 `Real Figurines. Real People.`、`Customer Reviews`、`Follow Our Community` 和 `FAQs` 模块，确认标题和模块尺寸正常。
+10. 滚动到页脚，确认 `Company`、`Policies`、`Support` 三个主要栏目可见。
+
+TC-00 的定位优先使用稳定的语义标题和模块 class，不绑定“万圣节”等易变运营文案；活动图片或促销文字变化不会导致首页健康检查误报。
 
 ## 常用命令
 
 ### UI 回归
 
 ```bash
-# 安全冒烟：TC-01、TC-02
+# 安全冒烟：TC-00、TC-01、TC-02
 npm run test:smoke
+
+# 只运行 TC-00：首页健康检查
+npx playwright test tests/00-safe-cases.spec.ts --grep 'TC-00' --project=chromium
 
 # 本地日常五条：只选择 TC-01～TC-05；默认不允许真实生成
 npm run test:daily
@@ -109,6 +130,8 @@ npm run record:test
 
 机器人采用“确定性工具 + 受限模型”的混合架构：`运行用例`、实验执行、去重、视频发送、定时和生产生成始终由代码规则处理，模型没有执行权限；自然语言问题和失败解释才调用妙搭官方文本模型。模型输入只包含程序从 GitHub/Playwright 提取并脱敏后的结构化事实，过滤 URL、Token、Cookie、Secret、邮箱和手机号；模型输出禁止链接和执行声明。模型超时、限流或异常时自动降级为结构化失败卡片，不影响自动化运行与结果通知。当前模型实例为 `ui-automation-answer`，单次回答最长约 350 字、超时上限 20 秒。
 
+可选接入外部 OpenAI 兼容大模型（如代理商中转）：在妙搭在线环境配置 `LLM_API_KEY`、`LLM_BASE_URL`（填到 `/v1`，代码自动补 `/chat/completions`）和 `LLM_MODEL` 三个环境变量后，模型问答优先走外部接口，失败时自动回退妙搭官方模型，再失败降级为结构化卡片。密钥只保存在妙搭在线环境，不写入仓库或日志。代码不主动设置外部模型的 `max_tokens`，由代理商/模型服务端决定输出上限；外部调用超时 25 秒。
+
 ## 远端定时执行
 
 远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天每小时整点执行一次，周末也执行；不再保留 11:00 和 18:30 两个固定时刻。
@@ -152,7 +175,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-`all` 模式会发现 8 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
+`all` 模式会发现 9 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务，TC-00～TC-02 不创建生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
 
 ## 实验自动化
 
@@ -180,7 +203,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 埋点测试与 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认仅允许非生产环境；生产验证必须显式设置 `ALLOW_PRODUCTION_TRACKING=true`。
 
-`tests/tracking/` 默认不进入 UI 回归：`playwright.config.ts` 仅在显式设置 `TRACKING_TEST_ENABLED=true` 时才纳入这些用例，因此 `npm test` 只发现 8 条 UI 用例，不再混入自我跳过的埋点用例。埋点始终通过下列 `npm run test:tracking*` 命令运行。
+`tests/tracking/` 默认不进入 UI 回归：`playwright.config.ts` 仅在显式设置 `TRACKING_TEST_ENABLED=true` 时才纳入这些用例，因此 `npm test` 当前发现 9 条 UI 用例，不再混入自我跳过的埋点用例。埋点始终通过下列 `npm run test:tracking*` 命令运行。
 
 ```bash
 # 完整埋点审计：analytics + 有效目录审计
