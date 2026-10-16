@@ -15,18 +15,18 @@ test.describe('非生成顺序用例 @smoke', () => {
     });
 
     for (const module of [
-      { section: home.hero, label: 'Hero Banner' },
-      { section: home.templateEntry, label: 'Pick Your Style' },
-      { section: home.howItWorks, label: 'How It Works' },
-      { section: home.categories, label: 'Categories' },
-      { section: home.trendingProducts, label: 'Trending Products' },
-      { section: home.showcase, label: 'Real Figurines' },
+      { section: home.hero, label: 'Hero Banner', requiresVisualAsset: true },
+      { section: home.templateEntry, label: 'Pick Your Style', requiresVisualAsset: true },
+      { section: home.howItWorks, label: 'How It Works', requiresVisualAsset: true },
+      { section: home.categories, label: 'Categories', requiresVisualAsset: true },
+      { section: home.trendingProducts, label: 'Trending Products', requiresVisualAsset: true },
+      { section: home.showcase, label: 'Real Figurines', requiresVisualAsset: true },
       { section: home.customerReviews, label: 'Customer Reviews' },
-      { section: home.socialMedia, label: 'Follow Our Community' },
+      { section: home.socialMedia, label: 'Follow Our Community', requiresVisualAsset: true },
       { section: home.faq, label: 'FAQs' }
     ]) {
       await test.step(`${module.label} 模块正常展示`, async () => {
-        await home.expectModuleHealthy(module.section, module.label);
+        await home.expectModuleHealthy(module.section, module.label, module.requiresVisualAsset);
       });
     }
 

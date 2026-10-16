@@ -96,7 +96,7 @@ export class HomePage {
     await this.createEntry.click();
   }
 
-  async expectModuleHealthy(section: Locator, label: string): Promise<void> {
+  async expectModuleHealthy(section: Locator, label: string, requiresVisualAsset = false): Promise<void> {
     await section.scrollIntoViewIfNeeded();
     await expect(section, `${label} 模块应展示`).toBeVisible();
     const visibleContent = section.locator('h1:visible, h2:visible, h3:visible, p:visible, a:visible, img:visible').first();
@@ -107,7 +107,7 @@ export class HomePage {
     }));
     expect(size.width, `${label} 模块宽度应大于 0`).toBeGreaterThan(0);
     expect(size.height, `${label} 模块高度应大于 0`).toBeGreaterThan(0);
-    await this.expectVisualContentHealthy(section, label);
+    await this.expectVisualContentHealthy(section, label, requiresVisualAsset);
   }
 
   /**
@@ -115,7 +115,7 @@ export class HomePage {
    * image, video, canvas, or CSS background failed to load. Check the actual
    * rendered media in addition to the section's dimensions and heading.
    */
-  async expectVisualContentHealthy(section: Locator, label: string): Promise<void> {
+  async expectVisualContentHealthy(section: Locator, label: string, requiresVisualAsset: boolean): Promise<void> {
     await expect.poll(async () => section.evaluate((element) => {
       const inViewport = (node: Element): boolean => {
         const rect = node.getBoundingClientRect();
@@ -186,6 +186,7 @@ export class HomePage {
         }
       }
       const backgroundErrors: string[] = [];
+      let visibleVisualAssets = images.length + videos.length + canvases.length;
       const backgrounds = [element, ...element.querySelectorAll('*')].filter(visible);
       for (const node of backgrounds) {
         const backgroundImage = getComputedStyle(node).backgroundImage;
@@ -195,12 +196,16 @@ export class HomePage {
             if (!url || url.startsWith('data:')) continue;
             const image = new Image();
             image.src = url;
+            visibleVisualAssets += 1;
             if (image.complete && image.naturalWidth <= 0) backgroundErrors.push(`background:${url}`);
           }
         }
       }
-      return { images: images.length, videos: videos.length, canvases: canvases.length, mediaErrors, blankCanvases, backgroundErrors };
+      return { images: images.length, videos: videos.length, canvases: canvases.length, visibleVisualAssets, mediaErrors, blankCanvases, backgroundErrors };
     });
+    if (requiresVisualAsset) {
+      expect(result.visibleVisualAssets, `${label} 不应退化为纯色/纯文本背景，应至少存在一个视觉资源`).toBeGreaterThan(0);
+    }
     expect(result.mediaErrors, `${label} 存在图片/视频资源加载失败`).toEqual([]);
     expect(result.blankCanvases, `${label} 存在透明或纯黑 Canvas，疑似黑屏`).toEqual([]);
     expect(result.backgroundErrors, `${label} 存在背景图加载失败`).toEqual([]);
