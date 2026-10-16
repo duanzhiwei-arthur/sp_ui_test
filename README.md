@@ -32,8 +32,8 @@ TEST_PROMPT=生成2个小狗
 
 | 用例 | 覆盖范围 | 真实生成 |
 | --- | --- | --- |
-| TC-00 | 首页 HTTP 可访问；主要配置模块与媒体资源正常展示；实际点击 Create 并验证自定义器、Create/Gallery/Generate 基础区域正常加载 | 否 |
-| TC-01 | 首页进入 Create；自定义器加载完成；Gallery 可见 | 否 |
+| TC-00 | 首页 HTTP 可访问；生产店铺身份、主要配置模块和媒体资源正常展示；不点击 Create | 否 |
+| TC-01 | 首页进入 Create；自定义器加载完成；Create/Gallery 基础区域可见 | 否 |
 | TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
 | TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
