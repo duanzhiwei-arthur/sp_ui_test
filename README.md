@@ -48,18 +48,15 @@ TEST_PROMPT=生成2个小狗
 
 TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证首页的可访问性和主要展示模块：
 
-1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面标题包含 `JuJuBit`，并确认 `MainContent` 可见。
+1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面主内容区域可见；页面标题仅作为基本可用性信息读取，不把具体营销文案作为断言。
 2. 关闭首页营销/订阅弹窗（如果出现），避免遮罩影响后续检查。
-3. 检查顶部促销条、JuJuBit Logo 和桌面导航；导航至少确认 `Create`、`Templates`、`Categories`、`How It Works`、`About Us` 可见且存在有效链接。
-4. 滚动并检查 Hero Banner，确认“Create a Custom Figurine From Your Photo”标题和模块尺寸正常。
-5. 检查 `Pick Your Style` 模块，确认标题和模块尺寸正常。
-6. 检查 `How It Works` 模块，确认标题和模块尺寸正常。
-7. 检查 `Categories` 模块，确认标题和模块尺寸正常。
-8. 检查 `Trending Products` 模块，确认标题和模块尺寸正常。
-9. 检查 `Real Figurines. Real People.`、`Customer Reviews`、`Follow Our Community` 和 `FAQs` 模块，确认标题和模块尺寸正常。
-10. 滚动到页脚，确认 `Company`、`Policies`、`Support` 三个主要栏目可见。
+3. 检查顶部促销条、JuJuBit Logo 和桌面导航；导航至少有 5 个可见链接，链接地址非空，不固定具体导航文案或菜单数量。
+4. 依次滚动检查 Hero Banner、Pick Your Style、How It Works、Categories、Trending Products、Real Figurines、Customer Reviews、Follow Our Community 和 FAQs；每个模块只要求可见、有可见内容、宽高大于 0。
+5. 对当前视口内的图片、视频和 Canvas 做渲染健康检查：图片必须完成加载且自然宽高大于 0；视频不能处于无数据状态；Canvas 不能是空尺寸、全透明或纯黑。视口外的懒加载资源不判失败，滚动到对应模块后再检查。
+6. 检查 CSS 背景图资源是否出现已完成但自然宽度为 0 的加载失败情况。
+7. 滚动到页脚，确认至少有 3 个可用链接，不固定 `Company`、`Policies`、`Support` 等运营文案。
 
-TC-00 的定位优先使用稳定的语义标题和模块 class，不绑定“万圣节”等易变运营文案；活动图片或促销文字变化不会导致首页健康检查误报。
+TC-00 的定位使用稳定模块 class 和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑等典型黑屏问题；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
 
 ## 常用命令
 

@@ -13,18 +13,18 @@ test.describe('非生成顺序用例 @smoke', () => {
     });
 
     for (const module of [
-      { section: home.hero, heading: /Create a Custom Figurine From Your Photo/i, label: 'Hero Banner' },
-      { section: home.templateEntry, heading: /Pick Your Style/i, label: 'Pick Your Style' },
-      { section: home.howItWorks, heading: /How It Works/i, label: 'How It Works' },
-      { section: home.categories, heading: /Categories/i, label: 'Categories' },
-      { section: home.trendingProducts, heading: /Trending Products/i, label: 'Trending Products' },
-      { section: home.showcase, heading: /Real Figurines\. Real People\./i, label: 'Real Figurines' },
-      { section: home.customerReviews, heading: /Customer Reviews/i, label: 'Customer Reviews' },
-      { section: home.socialMedia, heading: /Follow Our Community/i, label: 'Follow Our Community' },
-      { section: home.faq, heading: /FAQs/i, label: 'FAQs' }
+      { section: home.hero, label: 'Hero Banner' },
+      { section: home.templateEntry, label: 'Pick Your Style' },
+      { section: home.howItWorks, label: 'How It Works' },
+      { section: home.categories, label: 'Categories' },
+      { section: home.trendingProducts, label: 'Trending Products' },
+      { section: home.showcase, label: 'Real Figurines' },
+      { section: home.customerReviews, label: 'Customer Reviews' },
+      { section: home.socialMedia, label: 'Follow Our Community' },
+      { section: home.faq, label: 'FAQs' }
     ]) {
       await test.step(`${module.label} 模块正常展示`, async () => {
-        await home.expectModuleHealthy(module.section, module.heading, module.label);
+        await home.expectModuleHealthy(module.section, module.label);
       });
     }
 
