@@ -5,7 +5,6 @@ import { HomePage } from './pages/home.page.js';
 test.describe('非生成顺序用例 @smoke', () => {
   test('TC-00: 首页可以正常打开且主要模块展示正常', async ({ page }) => {
     const home = new HomePage(page);
-    const create = new CreatePage(page);
 
     await test.step('首页与顶部导航正常展示', async () => {
       await home.goto();
@@ -34,14 +33,6 @@ test.describe('非生成顺序用例 @smoke', () => {
       await home.expectFooterHealthy();
     });
 
-    await test.step('首页 Create 入口可以打开自定义器', async () => {
-      await home.openCreate();
-      await expect(page).toHaveURL(/\/products\/customize-your-own/);
-      await create.waitForCustomizer();
-      await expect(create.createTab).toBeVisible();
-      await expect(create.galleryTab).toBeVisible();
-      await expect(create.generateButton).toBeVisible();
-    });
   });
 
   test('TC-01: 首页 Create 可以进入创作页面', async ({ page }) => {

@@ -2,7 +2,7 @@
 
 2026-10-14 已发布妙搭 release `7696359274570714397`（代码 `1520e75`）。应用 `app_17dsjs7c59z` 的 `dailyRegressionMorning` 已改为每小时整点（`0 * * * *`，Asia/Shanghai）并保持 enabled；`dailyRegressionEvening` 已 disabled，防止同一小时重复运行。VM 模板仅作备用，不要与妙搭重复启用。
 
-计划每小时整点提交 `workflow_dispatch`，固定 `mode=daily`。GitHub 每小时第 30 分钟是同一小时档的兜底；两者使用 `hourly-YYYY-MM-DD-HH` 去重键。先发布配套 workflow，再启用外部定时器。
+计划每小时整点提交 `workflow_dispatch`，固定 `mode=daily`，执行 TC-00～TC-05。GitHub 每小时第 30 分钟是同一小时档的兜底；两者使用 `hourly-YYYY-MM-DD-HH` 去重键。先发布配套 workflow，再启用外部定时器。
 
 调度器和 workflow 均拒绝跨到下一小时的旧档补跑，代价是延迟过大时该小时档不执行。手动调试单独使用 `workflow_dispatch`，不填 `dedupe_key`；定时器固定使用 daily 模式。
 

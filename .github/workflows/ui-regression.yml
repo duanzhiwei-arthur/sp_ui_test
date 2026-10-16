@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run scope. daily runs TC-01~TC-05; experiment runs a selected experiment.'
+        description: 'Run scope. daily runs TC-00~TC-05; experiment runs a selected experiment.'
         required: true
         default: daily
         type: choice
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      # Scheduled runs are hard-locked to TC-01~TC-05 even if dispatch
+      # Scheduled runs are hard-locked to TC-00~TC-05 even if dispatch
       # defaults or manual inputs change later.
       SCHEDULED_TEST_MODE: ${{ (github.event_name == 'schedule' || inputs.dedupe_key != '') && 'daily' || inputs.mode || 'daily' }}
       EXPERIMENT_KEY: ${{ inputs.experiment || '' }}

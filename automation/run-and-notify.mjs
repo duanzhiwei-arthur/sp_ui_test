@@ -378,7 +378,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 
 function executionScopeLabel() {
   if (mode === 'all') return '全部用例（真实生成）';
-  if (mode === 'daily') return '日常回归 TC-01～TC-05（真实生成）';
+  if (mode === 'daily') return '日常回归 TC-00～TC-05（真实生成用例含 TC-03～TC-05）';
   if (mode === 'experiment') {
     const label = selectedExperiment?.label ?? experimentKey ?? '未指定';
     const scope = selectedExperiment?.scopeLabel ?? '实验用例';

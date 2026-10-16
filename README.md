@@ -42,7 +42,7 @@ TEST_PROMPT=生成2个小狗
 | TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
 | TC-EXP-02 | 已退役：历史画板实验 Treatment 用例，保留代码追溯 | 否，固定跳过 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。TC-00～TC-02 属于无生成安全冒烟；每日定时任务仍只执行 TC-01～TC-05，不会因为新增 TC-00 自动扩大定时回归范围。TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
+默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。TC-00～TC-02 属于无生成安全冒烟；每日定时任务执行 TC-00～TC-05，其中 TC-00 只做首页健康检查，TC-01 负责 Create/自定义器入口，避免重复操作。TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
 
 ### TC-00：首页健康检查步骤
 
@@ -55,9 +55,7 @@ TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证�
 5. 对当前视口内的图片、视频和 Canvas 做渲染健康检查：图片必须完成加载且自然宽高大于 0；视频不能处于无数据状态；Canvas 不能是空尺寸、全透明或纯黑。视口外的懒加载资源不判失败，滚动到对应模块后再检查。
 6. 检查 CSS 背景图资源是否出现已完成但自然宽度为 0 的加载失败情况。
 7. 滚动到页脚，确认至少有 3 个可用链接，不固定 `Company`、`Policies`、`Support` 等运营文案。
-8. 使用 `/products/customize-your-own` 路径定位首页 Create 入口，不依赖按钮文案；实际点击后确认 URL 正确、自定义器完成加载，并确认 Create、Gallery、Generate 基础区域可见。此步骤不上传图片、不点击 Generate。
-
-TC-00 的定位使用稳定模块 class、链接路径和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别生产店铺身份错误、首页配置导致的主要模块缺失、视觉模块退化为纯色/纯文本空壳、资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑，以及 Create 入口跳转报错或自定义器无法完成加载等问题；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
+TC-00 的定位使用稳定模块 class、链接路径和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别生产店铺身份错误、首页配置导致的主要模块缺失、视觉模块退化为纯色/纯文本空壳、资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑等问题。Create 跳转和自定义器加载由 TC-01 覆盖；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
 
 ## 常用命令
 
@@ -70,13 +68,13 @@ npm run test:smoke
 # 只运行 TC-00：首页健康检查
 npx playwright test tests/00-safe-cases.spec.ts --grep 'TC-00' --project=chromium
 
-# 本地日常五条：只选择 TC-01～TC-05；默认不允许真实生成
+# 本地日常六条：选择 TC-00～TC-05；默认不允许真实生成
 npm run test:daily
 
-# 明确确认后执行真实日常五条（会产生生成/加购影响）
+# 明确确认后执行真实日常六条（TC-00/TC-01/TC-02 无生成；TC-03～TC-05 会产生生成/加购影响）
 npm run test:daily:confirmed
 
-# 日常 5 条：TC-01～TC-05；不发送飞书
+# 日常 6 条：TC-00～TC-05；不发送飞书
 PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
 ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES \
 npx playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --project=chromium
@@ -148,7 +146,7 @@ npm run record:test
 - cron: '30 * * * *'     # 每小时第 30 分钟，兜底整点主触发
 ```
 
-计划使用 GitHub 托管 Runner。每日计划任务使用 `daily` 模式执行 TC-01～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
+计划使用 GitHub 托管 Runner。每日计划任务使用 `daily` 模式执行 TC-00～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
 
 GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是事件触发延迟，不能保证 Runner 秒级开始。self-hosted runner 也需要在线、有空闲容量和可用网络；固定出口仅有助于处理共享 IP 限流，不能保证消除 429。
 
@@ -156,7 +154,7 @@ GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是�
 
 结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的小时档若到 11:03 才获得 Runner，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
 
-每日 `schedule` 使用 `daily` 模式，只执行 TC-01～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前仅启用 `membership`（TC-EXP-01 + TC-06）。`canvas` 已因实验下线设为 disabled。
+每日 `schedule` 使用 `daily` 模式，执行 TC-00～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前仅启用 `membership`（TC-EXP-01 + TC-06）。`canvas` 已因实验下线设为 disabled。
 
 远端工作流需要配置以下 GitHub Actions Secrets：
 
@@ -173,7 +171,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 ## 生产影响与安全边界
 
-`all` 模式会发现 9 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务，TC-00～TC-02 不创建生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式只执行 TC-01～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
+`all` 模式会发现 9 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务，TC-00～TC-02 不创建生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式执行 TC-00～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
 
 ## 实验自动化
 
@@ -191,7 +189,7 @@ FEISHU_EXECUTION_RECORDS_PARENT
 
 实验命令成功提交 GitHub 后，机器人会立即回复“已收到，正在执行中”；执行结束后再发送包含逐条用例名称和状态的最终结果卡片。即时回复失败只记录日志，不会让飞书事件重试或重复生成。
 
-机器人只接受注册表中启用的精确命令别名；未知实验不会回退到 `all`。超过 10 分钟的消息重投会被忽略，GitHub 还会按飞书 `event_id` 保存 重复标记。云端 `schedule` 被工作流显式锁定为 `daily`，始终只执行 TC-01～TC-05。
+机器人只接受注册表中启用的精确命令别名；未知实验不会回退到 `all`。超过 10 分钟的消息重投会被忽略，GitHub 还会按飞书 `event_id` 保存 重复标记。云端 `schedule` 被工作流显式锁定为 `daily`，始终执行 TC-00～TC-05。
 
 结果卡片除通过率、失败数、跳过数和耗时外，还会在“用例明细”中逐条展示用例序号、名称与状态；实验模式可直接看到 Control 与 Treatment 两条用例的独立结果。
 
