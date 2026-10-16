@@ -363,7 +363,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 
   if (summary.caseResults.length > 0) {
     lines.push('全部用例：');
-    for (const item of summary.caseResults) {
+    for (const item of sortCaseResults(summary.caseResults)) {
       lines.push(`- [${formatCaseStatus(item.status)}] ${item.title}`);
       if (['failed', 'flaky'].includes(item.status)) {
         const detail = summary.failureDetails.find((failure) => failure.title === item.title);
@@ -553,7 +553,7 @@ function actionColumn(label, url, type) {
 }
 
 function buildModuleResultLine(summary, { expected, businessFailures, skipped, total, duration }) {
-  const failedTitles = (summary.caseResults ?? [])
+  const failedTitles = sortCaseResults(summary.caseResults ?? [])
     .filter((item) => ['failed', 'flaky'].includes(item.status))
     .map((item) => item.title)
     .slice(0, 2);
@@ -564,7 +564,7 @@ function buildModuleResultLine(summary, { expected, businessFailures, skipped, t
 }
 
 function buildCaseDetails(summary) {
-  const cases = summary.caseResults ?? [];
+  const cases = sortCaseResults(summary.caseResults ?? []);
   const content = cases.length > 0
     ? cases.map((item, index) => {
       const status = caseStatusPresentation(item.status);
@@ -596,6 +596,21 @@ function caseStatusPresentation(status) {
     skipped: { label: '⏭️ 跳过', color: 'yellow' },
     unknown: { label: '❓ 未知', color: 'grey' }
   }[status] ?? { label: '❓ 未知', color: 'grey' };
+}
+
+function sortCaseResults(caseResults) {
+  return [...caseResults].sort((left, right) => {
+    const leftKey = caseSortKey(left.title);
+    const rightKey = caseSortKey(right.title);
+    return leftKey.localeCompare(rightKey, 'en', { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function caseSortKey(title) {
+  const match = String(title ?? '').match(/\bTC-(?:(EXP|TRACK)-)?(\d+)\b/i);
+  if (!match) return `9-${String(title ?? '')}`;
+  const group = match[1]?.toUpperCase() === 'EXP' ? '2' : match[1]?.toUpperCase() === 'TRACK' ? '3' : '1';
+  return `${group}-${String(Number(match[2])).padStart(6, '0')}-${String(title ?? '')}`;
 }
 
 function buildFailureDetail(summary) {
@@ -788,7 +803,7 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
     headingBlock('模块结果', 2)
   ];
 
-  for (const item of summary.caseResults ?? []) {
+  for (const item of sortCaseResults(summary.caseResults ?? [])) {
     const detail = summary.failureDetails?.find((failure) => failure.title === item.title);
     const description = ['failed', 'flaky'].includes(item.status)
       ? `${item.status === 'flaky' ? '不稳定' : '失败'}｜${item.title}｜${formatFailureReasonForMessage(detail?.analysis ?? detail?.reason)}`
