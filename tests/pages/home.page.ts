@@ -5,6 +5,7 @@ export class HomePage {
   readonly header: Locator;
   readonly logo: Locator;
   readonly desktopNavigation: Locator;
+  readonly createEntry: Locator;
   readonly hero: Locator;
   readonly templateEntry: Locator;
   readonly howItWorks: Locator;
@@ -21,6 +22,7 @@ export class HomePage {
     this.header = page.locator('header.site-header.jjb-header__shell');
     this.logo = this.header.locator('.jjb-header__logo');
     this.desktopNavigation = this.header.locator('.jjb-header__menu');
+    this.createEntry = this.header.locator('a[href*="/products/customize-your-own"]:visible').first();
     this.hero = page.locator('main > .jjb-banner-section');
     this.templateEntry = page.locator('main > .jjb-template-entry-section');
     this.howItWorks = page.locator('main .jjb-how-it-works').first();
@@ -41,6 +43,23 @@ export class HomePage {
     await expect(this.page.locator('main#MainContent')).toBeVisible();
   }
 
+  async expectProductionStoreIdentity(): Promise<void> {
+    const expectedShop = process.env.EXPECTED_SHOPIFY_SHOP?.trim() || 'exn11x-id.myshopify.com';
+    const expectedShopId = process.env.EXPECTED_SHOPIFY_SHOP_ID?.trim() || '95408849267';
+    const actual = await this.page.evaluate(() => ({
+      shop: String((window as unknown as { Shopify?: { shop?: string } }).Shopify?.shop ?? ''),
+      shopId: (() => {
+        try {
+          return String(JSON.parse(document.querySelector('#shopify-features')?.textContent ?? '{}').shopId ?? '');
+        } catch {
+          return '';
+        }
+      })()
+    }));
+    expect(actual.shop, '线上页面 Shopify 店铺域名必须匹配生产店铺').toBe(expectedShop);
+    expect(String(actual.shopId), '线上页面 Shopify Shop ID 必须匹配生产店铺').toBe(expectedShopId);
+  }
+
   async dismissBlockingPopup(): Promise<void> {
     const popup = this.page.locator('div[id$="__newsletter-popup"]').first();
     const closeButton = popup.getByRole('button', { name: 'Close', exact: true });
@@ -48,6 +67,12 @@ export class HomePage {
       await closeButton.click();
       await expect(popup).toBeHidden();
     }
+    const overlay = this.page.locator('.newsletter-popup-v2__overlay').first();
+    if (await overlay.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await expect(closeButton, '营销弹窗遮罩出现时应存在可用关闭按钮').toBeVisible();
+      await closeButton.click();
+    }
+    await expect(overlay, '首页营销弹窗遮罩不应拦截页面操作').toBeHidden({ timeout: 10_000 });
   }
 
   async expectHeaderHealthy(): Promise<void> {
@@ -55,11 +80,20 @@ export class HomePage {
     await expect(this.header).toBeVisible();
     await expect(this.logo).toBeVisible();
     await expect(this.desktopNavigation).toBeVisible();
+    await expect(this.createEntry, '首页应展示可用的 Create 入口').toBeVisible();
+    await expect(this.createEntry).toHaveAttribute('href', /\/products\/customize-your-own/u);
     const visibleLinks = this.desktopNavigation.locator('a:visible');
     expect(await visibleLinks.count(), '顶部导航应至少展示 5 个可用链接').toBeGreaterThanOrEqual(5);
     for (let index = 0; index < Math.min(await visibleLinks.count(), 8); index += 1) {
       await expect(visibleLinks.nth(index)).toHaveAttribute('href', /\S+/u);
     }
+  }
+
+  async openCreate(): Promise<void> {
+    await this.dismissBlockingPopup();
+    await this.createEntry.scrollIntoViewIfNeeded();
+    await expect(this.createEntry).toBeVisible();
+    await this.createEntry.click();
   }
 
   async expectModuleHealthy(section: Locator, label: string): Promise<void> {

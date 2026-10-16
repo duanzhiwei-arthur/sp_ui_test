@@ -32,7 +32,7 @@ TEST_PROMPT=生成2个小狗
 
 | 用例 | 覆盖范围 | 真实生成 |
 | --- | --- | --- |
-| TC-00 | 首页 HTTP 可访问；顶部促销条、Logo、主要导航、Hero Banner、Pick Your Style、How It Works、Categories、Trending Products、Real Figurines、Customer Reviews、Community、FAQs、页脚正常展示 | 否 |
+| TC-00 | 首页 HTTP 可访问；主要配置模块与媒体资源正常展示；实际点击 Create 并验证自定义器、Create/Gallery/Generate 基础区域正常加载 | 否 |
 | TC-01 | 首页进入 Create；自定义器加载完成；Gallery 可见 | 否 |
 | TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
@@ -48,15 +48,16 @@ TEST_PROMPT=生成2个小狗
 
 TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证首页的可访问性和主要展示模块：
 
-1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面主内容区域可见；页面标题仅作为基本可用性信息读取，不把具体营销文案作为断言。
+1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面主内容区域可见；在生产默认校验 Shopify 店铺域名 `exn11x-id.myshopify.com` 和 Shop ID `95408849267`，防止测试店铺配置误发到线上。其他环境可通过 `EXPECTED_SHOPIFY_SHOP`、`EXPECTED_SHOPIFY_SHOP_ID` 覆盖；页面标题仅作为基本可用性信息读取，不把具体营销文案作为断言。
 2. 关闭首页营销/订阅弹窗（如果出现），避免遮罩影响后续检查。
 3. 检查顶部促销条、JuJuBit Logo 和桌面导航；导航至少有 5 个可见链接，链接地址非空，不固定具体导航文案或菜单数量。
 4. 依次滚动检查 Hero Banner、Pick Your Style、How It Works、Categories、Trending Products、Real Figurines、Customer Reviews、Follow Our Community 和 FAQs；每个模块只要求可见、有可见内容、宽高大于 0。
 5. 对当前视口内的图片、视频和 Canvas 做渲染健康检查：图片必须完成加载且自然宽高大于 0；视频不能处于无数据状态；Canvas 不能是空尺寸、全透明或纯黑。视口外的懒加载资源不判失败，滚动到对应模块后再检查。
 6. 检查 CSS 背景图资源是否出现已完成但自然宽度为 0 的加载失败情况。
 7. 滚动到页脚，确认至少有 3 个可用链接，不固定 `Company`、`Policies`、`Support` 等运营文案。
+8. 使用 `/products/customize-your-own` 路径定位首页 Create 入口，不依赖按钮文案；实际点击后确认 URL 正确、自定义器完成加载，并确认 Create、Gallery、Generate 基础区域可见。此步骤不上传图片、不点击 Generate。
 
-TC-00 的定位使用稳定模块 class 和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑等典型黑屏问题；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
+TC-00 的定位使用稳定模块 class、链接路径和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别生产店铺身份错误、首页配置导致的主要模块缺失、资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑，以及 Create 入口跳转报错或自定义器无法完成加载等问题；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
 
 ## 常用命令
 
