@@ -1,7 +1,38 @@
 import { expect, test } from '@playwright/test';
 import { CreatePage } from './pages/create.page.js';
+import { HomePage } from './pages/home.page.js';
 
 test.describe('非生成顺序用例 @smoke', () => {
+  test('TC-00: 首页可以正常打开且主要模块展示正常', async ({ page }) => {
+    const home = new HomePage(page);
+
+    await test.step('首页与顶部导航正常展示', async () => {
+      await home.goto();
+      await home.dismissBlockingPopup();
+      await home.expectHeaderHealthy();
+    });
+
+    for (const module of [
+      { section: home.hero, heading: /Create a Custom Figurine From Your Photo/i, label: 'Hero Banner' },
+      { section: home.templateEntry, heading: /Pick Your Style/i, label: 'Pick Your Style' },
+      { section: home.howItWorks, heading: /How It Works/i, label: 'How It Works' },
+      { section: home.categories, heading: /Categories/i, label: 'Categories' },
+      { section: home.trendingProducts, heading: /Trending Products/i, label: 'Trending Products' },
+      { section: home.showcase, heading: /Real Figurines\. Real People\./i, label: 'Real Figurines' },
+      { section: home.customerReviews, heading: /Customer Reviews/i, label: 'Customer Reviews' },
+      { section: home.socialMedia, heading: /Follow Our Community/i, label: 'Follow Our Community' },
+      { section: home.faq, heading: /FAQs/i, label: 'FAQs' }
+    ]) {
+      await test.step(`${module.label} 模块正常展示`, async () => {
+        await home.expectModuleHealthy(module.section, module.heading, module.label);
+      });
+    }
+
+    await test.step('页脚主要栏目正常展示', async () => {
+      await home.expectFooterHealthy();
+    });
+  });
+
   test('TC-01: 首页 Create 可以进入创作页面', async ({ page }) => {
     const create = new CreatePage(page);
     await create.gotoHomePage();

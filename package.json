@@ -31,6 +31,7 @@
     "record:test": "node automation/run-and-notify.mjs --execution-record-test",
     "typecheck": "tsc --noEmit",
     "test:unit": "node --test automation/*.test.mjs",
+    "capture:homepage": "node automation/capture-homepage-source.mjs",
     "syntaxcheck": "for f in automation/*.mjs; do node --check \"$f\" || exit 1; done",
     "validate": "npm run typecheck && npm run syntaxcheck && npm run test:unit && playwright test --list --reporter=list",
     "report": "playwright show-report"
