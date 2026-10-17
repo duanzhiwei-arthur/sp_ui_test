@@ -61,18 +61,16 @@ export class HomePage {
   }
 
   async dismissBlockingPopup(): Promise<void> {
-    const popup = this.page.locator('div[id$="__newsletter-popup"]').first();
-    const closeButton = popup.getByRole('button', { name: 'Close', exact: true });
-    if (await closeButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await closeButton.click();
-      await expect(popup).toBeHidden();
-    }
-    const overlay = this.page.locator('.newsletter-popup-v2__overlay').first();
-    if (await overlay.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const popup = this.page.locator('div[id$="__newsletter-popup"]:visible').first();
+      if (!await popup.isVisible({ timeout: attempt === 0 ? 3_000 : 500 }).catch(() => false)) break;
+      const closeButton = popup.getByRole('button', { name: 'Close', exact: true });
       await expect(closeButton, '营销弹窗遮罩出现时应存在可用关闭按钮').toBeVisible();
       await closeButton.click();
+      await expect(popup).toBeHidden({ timeout: 10_000 });
     }
-    await expect(overlay, '首页营销弹窗遮罩不应拦截页面操作').toBeHidden({ timeout: 10_000 });
+    await expect(this.page.locator('.newsletter-popup-v2__overlay:visible'), '首页营销弹窗遮罩不应拦截页面操作')
+      .toHaveCount(0, { timeout: 10_000 });
   }
 
   async expectHeaderHealthy(): Promise<void> {

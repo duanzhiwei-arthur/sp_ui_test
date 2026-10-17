@@ -33,6 +33,7 @@ TEST_PROMPT=生成2个小狗
 | 用例 | 覆盖范围 | 真实生成 |
 | --- | --- | --- |
 | TC-00 | 首页 HTTP 可访问；生产店铺身份、主要配置模块和媒体资源正常展示；不点击 Create | 否 |
+| TC-001 | 首页唯一且安全的按钮逐个点击；监听页面 JS 错误和站内 HTTP 5xx；跳过订阅、Checkout 等有副作用操作 | 否 |
 | TC-01 | 首页进入 Create；自定义器加载完成；Create/Gallery 基础区域可见 | 否 |
 | TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
 | TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
@@ -57,6 +58,24 @@ TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证�
 7. 滚动到页脚，确认至少有 3 个可用链接，不固定 `Company`、`Policies`、`Support` 等运营文案。
 TC-00 的定位使用稳定模块 class、链接路径和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别生产店铺身份错误、首页配置导致的主要模块缺失、视觉模块退化为纯色/纯文本空壳、资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑等问题。Create 跳转和自定义器加载由 TC-01 覆盖；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
 
+### TC-001：首页安全点击巡检步骤
+
+TC-001 是独立的首页交互巡检，不创建生成任务、不上传图片、不提交订阅、不进入 Checkout，也暂不加入每日 TC-00～TC-05 定时回归：
+
+1. 打开首页并校验生产 Shopify 店铺身份；关闭可能出现的营销弹窗和遮罩。
+2. 点击促销条上一页/下一页、Hero 分页、Pick Your Style 分页和 How It Works 步骤。
+3. 点击 Real Figurines/Art Toy Tab、当前视口内可见且去重后的 Community 内容卡片、FAQ 分类 Tab。
+4. 在独立页面打开登录入口，校验登录页 HTTP 状态小于 400，不污染首页点击流程。
+5. 打开币种选择器并恢复页面状态；打开购物车作为最后一个操作，验证入口可用。Checkout、Newsletter Subscribe、移动端隐藏控件和视口外/轮播克隆按钮跳过，并在 `TC-001-click-audit.json` 附件中记录原因。
+6. 全程监听 JavaScript `pageerror` 和 JuJuBit 域名 HTTP 5xx；首页加载阶段已存在的基线错误单独记录，只有点击后新增的错误才判定 TC-001 失败。
+7. 每个点击控件使用短超时，动态弹窗、视口外克隆和抽屉布局异常会快速失败并指明控件，不会长时间无结果。
+
+TC-001 不是“无差别点击所有 DOM 节点”：商品卡片、社交媒体克隆节点、订阅提交、Checkout 和支付相关控件具有副作用或重复，不会强行点击。运行命令：
+
+```bash
+npx playwright test tests/home-clickable.spec.ts --grep 'TC-001' --project=chromium
+```
+
 ## 常用命令
 
 ### UI 回归
@@ -67,6 +86,9 @@ npm run test:smoke
 
 # 只运行 TC-00：首页健康检查
 npx playwright test tests/00-safe-cases.spec.ts --grep 'TC-00' --project=chromium
+
+# 只运行 TC-001：首页安全点击巡检
+npx playwright test tests/home-clickable.spec.ts --grep 'TC-001' --project=chromium
 
 # 本地日常六条：选择 TC-00～TC-05；默认不允许真实生成
 npm run test:daily
