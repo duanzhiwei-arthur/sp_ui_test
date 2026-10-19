@@ -29,8 +29,8 @@ const selectedExperiment = experimentCommandRegistry.experiments.find(
   (experiment) => experiment.enabled && experiment.key === experimentKey
 );
 
-if (!['safe', 'daily', 'all', 'experiment'].includes(mode)) {
-  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all 或 experiment');
+if (!['safe', 'daily', 'all', 'experiment', 'homepage-clickable'].includes(mode)) {
+  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all、experiment 或 homepage-clickable');
 }
 
 if (mode === 'experiment' && !selectedExperiment) {
@@ -98,6 +98,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const playwrightArgs = ['test', '--project=chromium'];
   if (mode === 'safe') {
     playwrightArgs.push('tests/00-safe-cases.spec.ts');
+  } else if (mode === 'homepage-clickable') {
+    playwrightArgs.push('tests/home-clickable.spec.ts', '--grep', 'TC-001');
   } else if (mode === 'daily') {
     playwrightArgs.push(
       'tests/00-safe-cases.spec.ts',
@@ -379,6 +381,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 function executionScopeLabel() {
   if (mode === 'all') return '全部用例（真实生成）';
   if (mode === 'daily') return '日常回归 TC-00～TC-05（真实生成用例含 TC-03～TC-05）';
+  if (mode === 'homepage-clickable') return '首页按钮巡检 TC-001（无生成）';
   if (mode === 'experiment') {
     const label = selectedExperiment?.label ?? experimentKey ?? '未指定';
     const scope = selectedExperiment?.scopeLabel ?? '实验用例';

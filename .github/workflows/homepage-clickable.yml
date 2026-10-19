@@ -1,0 +1,116 @@
+name: Daily homepage clickable audit
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  schedule:
+    # GitHub cron uses UTC. 10:30 UTC = 18:30 Asia/Shanghai, serving only as
+    # the fallback for the Miaoda 18:00 primary trigger.
+    - cron: '30 10 * * *'
+  workflow_dispatch:
+    inputs:
+      dedupe_key:
+        description: 'Daily key: homepage-clickable-YYYY-MM-DD. Miaoda sets it; empty for manual validation.'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: homepage-clickable-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: TC-001 homepage clickable audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SCHEDULED_TEST_MODE: homepage-clickable
+      DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
+      BASE_URL: https://jujubit.ai
+      EXPECTED_SHOPIFY_SHOP: exn11x-id.myshopify.com
+      EXPECTED_SHOPIFY_SHOP_ID: '95408849267'
+      TRACKING_TEST_ENABLED: 'false'
+      TRACKING_FAULT_INJECTION_ENABLED: 'false'
+      FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+      FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      FEISHU_RECEIVE_ID_TYPE: chat_id
+      FEISHU_RECEIVE_ID: ${{ secrets.FEISHU_GROUP_CHAT_ID }}
+      FEISHU_MENTION_ALL_ON_FAILURE: 'true'
+      FEISHU_WEBHOOK_URL: ''
+      FEISHU_WEBHOOK_SECRET: ''
+      FEISHU_EXECUTION_RECORDS_PARENT: ${{ secrets.FEISHU_EXECUTION_RECORDS_PARENT }}
+      FEISHU_SOLUTION_LIBRARY_ROOT: ''
+      FEISHU_FAILURE_RECORD_VALIDATION: 'false'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check daily duplicate
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
+        run: node automation/check-homepage-clickable-trigger.mjs
+
+      - name: Set up Node.js
+        if: steps.dedupe.outputs.duplicate == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.dedupe.outputs.duplicate == 'false'
+        run: npm ci
+
+      - name: Install Chromium and Linux dependencies
+        if: steps.dedupe.outputs.duplicate == 'false'
+        run: npx playwright install --with-deps chromium
+
+      - name: Reserve daily TC-001 slot
+        if: steps.dedupe.outputs.duplicate == 'false' && steps.dedupe.outputs.slot_key != ''
+        env:
+          SLOT_KEY: ${{ steps.dedupe.outputs.slot_key }}
+        run: |
+          mkdir -p .run-marker
+          printf '%s\n' "$SLOT_KEY" > .run-marker/slot.txt
+
+      - name: Upload daily TC-001 marker
+        if: steps.dedupe.outputs.duplicate == 'false' && steps.dedupe.outputs.slot_key != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-marker-${{ steps.dedupe.outputs.slot_key }}
+          path: .run-marker/slot.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Run TC-001 and notify Feishu
+        if: steps.dedupe.outputs.duplicate == 'false'
+        run: npm run test:homepage-clickable:scheduled
+
+      - name: Upload Playwright report and evidence
+        if: always() && steps.dedupe.outputs.duplicate == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: homepage-clickable-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload TC-001 failure videos
+        if: failure() && steps.dedupe.outputs.duplicate == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-failure-videos-${{ github.run_id }}
+          path: test-results/**/video.webm
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
