@@ -15,8 +15,12 @@ const resultsFile = process.env.PLAYWRIGHT_RESULTS_FILE
   ? path.resolve(process.env.PLAYWRIGHT_RESULTS_FILE)
   : path.join(projectRoot, 'test-results', 'results.json');
 const reportFile = path.join(projectRoot, 'playwright-report', 'index.html');
-const mode = process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY
-  ? 'daily' : (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
+const requestedMode = (process.env.SCHEDULED_TEST_MODE ?? 'safe').trim().toLowerCase();
+const mode = requestedMode === 'homepage-clickable'
+  ? requestedMode
+  : process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY
+    ? 'daily'
+    : requestedMode;
 const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
