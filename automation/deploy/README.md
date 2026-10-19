@@ -4,6 +4,8 @@
 
 计划每小时整点提交 `workflow_dispatch`，固定 `mode=daily`，执行 TC-00～TC-05。GitHub 每小时第 30 分钟是同一小时档的兜底；两者使用 `hourly-YYYY-MM-DD-HH` 去重键。先发布配套 workflow，再启用外部定时器。
 
+TC-001 使用独立 `homepageClickableEvening` 触发器，每天北京时间 18:00 dispatch `homepage-clickable.yml`；GitHub 在 18:30 兜底。两边使用 `homepage-clickable-YYYY-MM-DD` Artifact 去重，手动 Run workflow 不占用当天定时档。结果通过企业应用机器人发送到同一飞书群，失败时 @所有人并上传证据。
+
 调度器和 workflow 均拒绝跨到下一小时的旧档补跑，代价是延迟过大时该小时档不执行。手动调试单独使用 `workflow_dispatch`，不填 `dedupe_key`；定时器固定使用 daily 模式。
 
 ## Linux VM

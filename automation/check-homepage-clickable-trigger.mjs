@@ -19,8 +19,13 @@ if (slotKey) {
     summary(`过期日期档 ${slotKey}，当前为 ${currentKey}；不执行。`);
     process.exit(0);
   }
-} else {
+} else if (env.EVENT_NAME === 'schedule') {
   slotKey = currentKey;
+} else {
+  output('slot_key', '');
+  output('duplicate', 'false');
+  summary('手动验证不占用当天 18:00 定时档。');
+  process.exit(0);
 }
 
 // Miaoda runs at 18:00. GitHub schedule is the 18:30 fallback. Reject a
