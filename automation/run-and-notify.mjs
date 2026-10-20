@@ -82,7 +82,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
 } else {
   // Recheck after dependency/browser installation and any runner queue delay.
-  if (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY) {
+  if (mode !== 'homepage-clickable' && (process.env.GITHUB_EVENT_NAME === 'schedule' || process.env.DISPATCH_DEDUPE_KEY)) {
     const schedule = scheduledSlot({
       key: process.env.DISPATCH_DEDUPE_KEY,
       cron: process.env.GITHUB_EVENT_NAME === 'schedule' ? process.env.SCHEDULE_CRON : ''
