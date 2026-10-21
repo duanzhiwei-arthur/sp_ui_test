@@ -1,0 +1,66 @@
+import { readFile, mkdir, writeFile, realpath } from 'node:fs/promises';
+import path from 'node:path';
+
+// Text-only evidence for the read-only bot. Videos stay in separate artifacts.
+export function redact(text) {
+  return String(text ?? '').replace(/\u001b\[[0-9;]*m/gu, '')
+    .replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')
+    .replace(/(authorization|cookie|token|secret|password|api[_-]?key)["']?\s*[:=]\s*(?:"[^"\n]*"|'[^'\n]*'|(?:Bearer\s+)?[^\s,;]+)/giu, '$1=[REDACTED]')
+    .replace(/\bBearer\s+[\w.+/=-]+/giu, 'Bearer [SECRET]')
+    .replace(/https?:\/\/[^\s"'<>]+/gu, '[URL]')
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/gu, '[EMAIL]')
+    .replace(/\b\+?\d[\d ()-]{8,}\d\b/gu, '[NUMBER]');
+}
+
+export function collectCases(suites = []) {
+  return suites.flatMap(suite => [
+    ...(suite.specs ?? []).map(spec => ({
+      title: spec.title, file: spec.file ?? suite.file, line: spec.line,
+      status: spec.tests?.map(test => test.status).join(',') ?? 'unknown',
+      results: spec.tests?.flatMap(test => test.results ?? []) ?? []
+    })), ...collectCases(suite.suites)
+  ]);
+}
+
+export async function buildBundle(root = process.cwd(), env = process.env) {
+  const resultsRoot = path.join(root, 'test-results');
+  const output = path.join(root, 'diagnostic-evidence');
+  await mkdir(output, { recursive: true });
+  let report;
+  try { report = JSON.parse(await readFile(path.join(resultsRoot, 'results.json'), 'utf8')); }
+  catch { report = { errors: [{ message: 'Playwright JSON missing or invalid; consult workflow jobs/logs. Test may not have started.' }] }; }
+  const cases = [];
+  for (const item of collectCases(report.suites).slice(0, 50)) {
+    const result = item.results.findLast(r => ['failed', 'timedOut', 'interrupted'].includes(r.status));
+    let context = '';
+    if (result) {
+      // Derive the sibling error-context from a reported artifact, never accept
+      // arbitrary report paths or symlinks escaping the results directory.
+      for (const attachment of result.attachments ?? []) {
+        if (!attachment.path) continue;
+        const file = path.resolve(root, attachment.path);
+        if (!file.startsWith(resultsRoot + path.sep)) continue;
+        const candidate = path.join(path.dirname(file), 'error-context.md');
+        try {
+          if (!(await realpath(candidate)).startsWith((await realpath(resultsRoot)) + path.sep)) continue;
+          context = redact(await readFile(candidate, 'utf8')).slice(0, 20000);
+          break;
+        } catch { /* Not every attachment has context. Explicit empty below. */ }
+      }
+    }
+    cases.push({ title: redact(item.title), file: item.file, line: item.line, status: item.status,
+      error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
+      failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
+      context, contextAvailable: Boolean(context) });
+  }
+  const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,
+    runAttempt: env.GITHUB_RUN_ATTEMPT, stats: report.stats,
+    errors: (report.errors ?? []).map(e => redact(e.message).slice(0, 4000)), cases };
+  await writeFile(path.join(output, 'diagnostic.json'), JSON.stringify(bundle, null, 2));
+  return bundle;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
+  const bundle = await buildBundle();
+  console.log(`[diagnostic] Prepared ${bundle.cases.length} cases; no screenshots/video or credentials included.`);
+}
