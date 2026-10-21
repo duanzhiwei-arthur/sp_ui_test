@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildBundle, collectCases, redact } from './build-diagnostic-bundle.mjs';
+import { buildBundle, collectCases, normalizeTestFile, redact } from './build-diagnostic-bundle.mjs';
+
+test('Playwright relative and absolute file names resolve to repository test source', () => {
+  assert.equal(normalizeTestFile('full-flow-inventory.spec.ts'), 'tests/full-flow-inventory.spec.ts');
+  assert.equal(normalizeTestFile('tests/full-flow-inventory.spec.ts'), 'tests/full-flow-inventory.spec.ts');
+  assert.equal(normalizeTestFile('/repo/tests/a.spec.ts', '/repo'), 'tests/a.spec.ts');
+  assert.equal(normalizeTestFile('../private.ts'), undefined);
+});
 
 test('nested suites retain all case statuses', () => {
   const rows = collectCases([{ suites: [{ specs: [{ title: 'TC-03', tests: [{ status: 'unexpected' }] }] }] }]);

@@ -22,6 +22,15 @@ export function collectCases(suites = []) {
   ]);
 }
 
+export function normalizeTestFile(file, root = process.cwd()) {
+  if (typeof file !== 'string') return undefined;
+  // Playwright's JSON paths are normally relative to testDir, not repo root.
+  const relative = path.isAbsolute(file) ? path.relative(root, file) : file;
+  const normalized = relative.replaceAll('\\', '/');
+  if (!/^[\w./-]+\.ts$/u.test(normalized) || normalized.split('/').includes('..')) return undefined;
+  return normalized.startsWith('tests/') ? normalized : `tests/${normalized}`;
+}
+
 export async function buildBundle(root = process.cwd(), env = process.env) {
   const resultsRoot = path.join(root, 'test-results');
   const output = path.join(root, 'diagnostic-evidence');
@@ -48,7 +57,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
         } catch { /* Not every attachment has context. Explicit empty below. */ }
       }
     }
-    cases.push({ title: redact(item.title), file: item.file, line: item.line, status: item.status,
+    cases.push({ title: redact(item.title), file: normalizeTestFile(item.file, root), line: item.line, status: item.status,
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
       context, contextAvailable: Boolean(context) });
