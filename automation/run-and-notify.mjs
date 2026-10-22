@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence } from './generation-evidence.mjs';
+import { buildCompactSuccessCard } from './compact-success-card.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
@@ -67,7 +68,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       knowledgeResult: { status: 'preview', matches: [], documentCount: 0 }
     }));
   }
-} else if (process.argv.includes('--notification-preview') || process.argv.includes('--notification-test')) {
+} else if (process.argv.includes('--notification-preview') || process.argv.includes('--notification-card-preview') || process.argv.includes('--notification-test')) {
   const finishedAt = new Date();
   const summary = await loadSummary();
   const durationMs = summary.stats?.duration ?? 0;
@@ -76,7 +77,10 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const message = buildMessage({ testExitCode, mode, startedAt, finishedAt, summary });
   const card = buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary });
 
-  if (process.argv.includes('--notification-test')) {
+  if (process.argv.includes('--notification-card-preview')) {
+    // Local-only render: no message sending and no test execution.
+    console.log(JSON.stringify(card, null, 2));
+  } else if (process.argv.includes('--notification-test')) {
     await sendFeishuNotification(message, summary.failureArtifacts, card, testExitCode !== 0);
   } else {
     console.log(message);
@@ -201,6 +205,7 @@ async function readSummary(file) {
 
   return {
     stats: report.stats ?? null,
+    reportErrors: report.errors ?? [],
     failures: [...new Set(failures)],
     failureArtifacts,
     failureDetails,
@@ -428,6 +433,12 @@ function loadExperimentCommandRegistry() {
 }
 
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
+  const compactCard = buildCompactSuccessCard({
+    testExitCode, summary, finishedAt,
+    scope: mode === 'daily' ? '日常回归 · TC-00～TC-05' : executionScopeLabel(),
+    runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl()
+  });
+  if (compactCard) return compactCard;
   const passed = testExitCode === 0 && !summary.readError;
   const stats = summary.stats;
   const expected = stats?.expected ?? 0;
