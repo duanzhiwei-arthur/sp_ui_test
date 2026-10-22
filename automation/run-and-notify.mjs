@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { scheduledSlot } from './schedule-policy.mjs';
+import { collectGenerationEvidence, formatGenerationEvidence } from './generation-evidence.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
@@ -195,7 +196,7 @@ async function readSummary(file) {
   const caseResults = [];
 
   for (const suite of report.suites ?? []) {
-    collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults);
+    await collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults);
   }
 
   return {
@@ -219,7 +220,7 @@ async function loadSummary() {
   }));
 }
 
-function collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults) {
+async function collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults) {
   for (const spec of suite.specs ?? []) {
     const caseStatus = resolveCaseStatus(spec);
     caseResults.push({ title: spec.title, status: caseStatus });
@@ -240,12 +241,13 @@ function collectFailures(suite, failures, failureArtifacts, failureDetails, case
       failureDetails.push({
         title: spec.title,
         reason,
+        generationEvidence: await collectGenerationEvidence(failedResults.at(-1), projectRoot),
         analysis: analyzeFailureReason(spec.title, reason)
       });
     }
   }
   for (const child of suite.suites ?? []) {
-    collectFailures(child, failures, failureArtifacts, failureDetails, caseResults);
+    await collectFailures(child, failures, failureArtifacts, failureDetails, caseResults);
   }
 }
 
@@ -374,6 +376,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
       if (['failed', 'flaky'].includes(item.status)) {
         const detail = summary.failureDetails.find((failure) => failure.title === item.title);
         lines.push(`  失败原因：${formatFailureReasonForMessage(detail?.analysis)}`);
+        if (detail?.generationEvidence) lines.push(formatGenerationEvidence(detail.generationEvidence));
       }
     }
   }
@@ -637,6 +640,9 @@ function buildFailureDetail(summary) {
     elements: [
       { tag: 'markdown', content: "**<font color='red'>失败原因</font>**" },
       { tag: 'markdown', content: `**${escapeCardText(title)}**<br>${escapeCardText(analysis)}`, text_size: 'normal' },
+      ...(summary.failureDetails ?? []).filter(item => item.generationEvidence).map(item => ({
+        tag: 'markdown', content: `${escapeCardText(item.title)}\n${escapeCardText(formatGenerationEvidence(item.generationEvidence))}`, text_size: 'normal'
+      })),
       { tag: 'markdown', content: `<font color='grey'>建议：${escapeCardText(suggestion)}</font>`, text_size: 'notation' }
     ]
   };
@@ -823,6 +829,7 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
     blocks.push(textBlock(`失败用例：${detail.title}`));
     blocks.push(textBlock(`自动分析：${detail.analysis || '当前证据不足，请查看报告。'}`));
     blocks.push(textBlock(`原始错误：${detail.reason || '无'}`));
+    if (detail.generationEvidence) blocks.push(textBlock(formatGenerationEvidence(detail.generationEvidence)));
   }
   for (const suggestion of buildFixSuggestions(summary, testExitCode)) {
     blocks.push(textBlock(`建议：${suggestion}`));
@@ -1134,7 +1141,7 @@ function buildExecutionRecord({ title, testExitCode, mode, startedAt, finishedAt
   const stats = summary.stats;
   const details = summary.failureDetails ?? [];
   const failureRows = details.length > 0
-    ? details.map((item) => `<tr><td>${escapeXml(item.title)}</td><td>${escapeXml(item.analysis)}</td><td>${escapeXml(item.reason)}</td></tr>`).join('')
+    ? details.map((item) => `<tr><td>${escapeXml(item.title)}</td><td>${escapeXml(item.analysis)}<br/>${escapeXml(formatGenerationEvidence(item.generationEvidence)).replaceAll('\n', '<br/>')}</td><td>${escapeXml(item.reason)}</td></tr>`).join('')
     : passed
       ? '<tr><td colspan="3">无失败用例</td></tr>'
       : `<tr><td>测试执行或报告生成</td><td>当前证据不足以生成自动分析。</td><td>${escapeXml(summary.readError ?? '测试进程返回失败，但 JSON 报告中没有失败详情，请查看本机日志和 HTML 报告。')}</td></tr>`;

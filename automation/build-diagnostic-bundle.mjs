@@ -1,5 +1,6 @@
 import { readFile, mkdir, writeFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
+import { collectGenerationEvidence } from './generation-evidence.mjs';
 
 // Text-only evidence for the read-only bot. Videos stay in separate artifacts.
 export function redact(text) {
@@ -60,6 +61,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     cases.push({ title: redact(item.title), file: normalizeTestFile(item.file, root), line: item.line, status: item.status,
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
+      generationEvidence: await collectGenerationEvidence(result, root),
       context, contextAvailable: Boolean(context) });
   }
   const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,
