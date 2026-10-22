@@ -4,7 +4,19 @@ import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { collectGenerationEvidence, formatGenerationEvidence, isGenerationFailure, parseGenerationEvents } from './generation-evidence.mjs';
+import { collectGenerationEvidence, formatGenerationEvidence, isGenerationFailure, parseGenerationEvents, summarizeGenerationStream } from './generation-evidence.mjs';
+
+test('stream summary keeps timing and terminal observations without inventing backend failure', () => {
+  const summary = summarizeGenerationStream('event: asset_3d_start\ndata: {}\n\nevent: ping\ndata: {}\n\n', {
+    startedDateTime: '2026-10-21T22:24:50.751Z', time: 180093.956, response: { status: 200 }
+  });
+  assert.equal(summary.durationMs, 180093.956);
+  assert.equal(summary.recordedEndAt, '2026-10-21T22:27:50.844Z');
+  assert.equal(summary.threeDCompletionObserved, false);
+  assert.equal(summary.taskTerminalObserved, false);
+  assert.equal(summary.eventCounts.ping, 1);
+  assert.match(summary.caveat, /不能单独证明后台失败/);
+});
 
 const sse = 'event: task_start\ndata: {"taskId":"3815068"}\n\nevent: asset_start\ndata: {"assetId":"3830283"}\n\nevent: asset_3d_start\ndata: {"assetId":"3830283","extra":{"traceId":"3502f5e1037f39ca8867ef4726ff758f","imageUrl":"https://private.invalid","token":"secret"}}\n\n';
 const result = () => ({ startTime: '2026-10-21T22:24:11.911Z', duration: 362772,

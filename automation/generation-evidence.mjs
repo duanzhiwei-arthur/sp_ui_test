@@ -48,12 +48,32 @@ async function zipText(zip, entry, maxBuffer) {
   return stdout;
 }
 
+export function summarizeGenerationStream(text, response) {
+  const allowed = /^(?:task_start|asset_start|asset_2d_done|asset_3d_start|asset_3d_done|asset_done|task_done|task_error|asset_error|ping)$/;
+  const counts = {};
+  const sequence = [];
+  for (const block of text.replaceAll('\r\n', '\n').split(/\n\s*\n/)) {
+    const event = block.match(/^event:\s*(\w+)/m)?.[1];
+    if (!allowed.test(event ?? '')) continue;
+    counts[event] = (counts[event] ?? 0) + 1;
+    if (event !== 'ping' && sequence.length < 40) sequence.push(event);
+  }
+  const startedAt = iso(response.startedDateTime);
+  const durationMs = Number.isFinite(response.time) && response.time >= 0 ? response.time : null;
+  return { startedAt, recordedEndAt: startedAt && durationMs !== null ? new Date(Date.parse(startedAt) + durationMs).toISOString() : null,
+    durationMs, httpStatus: Number.isInteger(response.response?.status) ? response.response.status : null,
+    events: sequence, eventCounts: counts,
+    threeDCompletionObserved: Boolean(counts.asset_3d_done),
+    taskTerminalObserved: Boolean(counts.task_done || counts.task_error),
+    caveat: '仅表示该次 Trace 响应中观测到的事件；无完成事件不能单独证明后台失败，HTTP 200 不等于生成成功。' };
+}
+
 export async function collectGenerationEvidence(result, root = process.cwd()) {
   if (!isGenerationFailure(result)) return null;
   const startedAt = iso(result?.startTime);
   const endMs = startedAt && Number.isFinite(result.duration) && result.duration >= 0
     ? Date.parse(startedAt) + result.duration : NaN;
-  const evidence = { source: '该失败尝试的 Playwright Trace / 生成 SSE', records: [],
+  const evidence = { source: '该失败尝试的 Playwright Trace / 生成 SSE', records: [], streams: [],
     startedAt, endedAt: Number.isFinite(endMs) ? new Date(endMs).toISOString() : null,
     timeBasis: '用例开始至失败（未取得生成请求时间）', gap: '' };
   const attachment = result.attachments?.find(item => item.name === 'trace' && item.path);
@@ -82,6 +102,7 @@ export async function collectGenerationEvidence(result, root = process.cwd()) {
         const sha = response.response.content._sha1;
         if (!/^[a-f0-9]{40}\.[a-z0-9]+$/.test(sha ?? '')) continue;
         const text = await zipText(zip, `resources/${sha}`, 1024 * 1024);
+        evidence.streams.push(summarizeGenerationStream(text, response));
         for (const record of parseGenerationEvents(text)) evidence.records.push({ ...record, startedAt: start });
       }
     }
