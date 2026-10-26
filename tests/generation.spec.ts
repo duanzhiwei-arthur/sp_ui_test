@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-diagnostics.js';
 import { existsSync } from 'node:fs';
 import { assetPath, canRunGeneration, testData } from './fixtures/test-data.js';
 import { CreatePage } from './pages/create.page.js';

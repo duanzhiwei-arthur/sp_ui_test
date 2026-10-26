@@ -1,4 +1,4 @@
-import { readFile, mkdir, writeFile, realpath } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { collectGenerationEvidence } from './generation-evidence.mjs';
 
@@ -43,7 +43,25 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
   for (const item of collectCases(report.suites).slice(0, 50)) {
     const result = item.results.findLast(r => ['failed', 'timedOut', 'interrupted'].includes(r.status));
     let context = '';
+    const runtimeDiagnostics = [];
     if (result) {
+      for (const attachment of (result.attachments ?? []).filter(a => ['runtime-diagnostics', 'navigation-diagnostics'].includes(a.name)).slice(0, 4)) {
+        try {
+          // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
+          // Support both reporter forms rather than silently dropping that evidence.
+          if (typeof attachment.body === 'string') {
+            if (attachment.body.length > 350_000) continue;
+            const text = Buffer.from(attachment.body, 'base64').toString('utf8');
+            if (Buffer.byteLength(text) > 256 * 1024) continue;
+            JSON.parse(text);
+            runtimeDiagnostics.push({ name: attachment.name, text: redact(text).slice(0, 20000) });
+            continue;
+          }
+          const file = await realpath(path.resolve(root, attachment.path));
+          if (!file.startsWith((await realpath(resultsRoot)) + path.sep) || (await stat(file)).size > 256 * 1024) continue;
+          runtimeDiagnostics.push({ name: attachment.name, text: redact(await readFile(file, 'utf8')).slice(0, 20000) });
+        } catch { runtimeDiagnostics.push({ name: attachment.name, gap: '运行时诊断附件不可读' }); }
+      }
       // Derive the sibling error-context from a reported artifact, never accept
       // arbitrary report paths or symlinks escaping the results directory.
       for (const attachment of result.attachments ?? []) {
@@ -62,6 +80,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
       generationEvidence: await collectGenerationEvidence(result, root),
+      runtimeDiagnostics,
       context, contextAvailable: Boolean(context) });
   }
   const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,

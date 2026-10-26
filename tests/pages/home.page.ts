@@ -1,4 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { gotoWithDiagnostics } from './navigation.js';
 
 export class HomePage {
   readonly announcementBar: Locator;
@@ -36,7 +37,7 @@ export class HomePage {
   }
 
   async goto(): Promise<void> {
-    const response = await this.page.goto('/', { waitUntil: 'domcontentloaded' });
+    const response = await gotoWithDiagnostics(this.page, '/');
     expect(response, '首页导航应返回 HTTP 响应').not.toBeNull();
     expect(response?.status() ?? 500, '首页 HTTP 状态应小于 400').toBeLessThan(400);
     await expect(this.page).toHaveTitle(/JuJuBit/i);

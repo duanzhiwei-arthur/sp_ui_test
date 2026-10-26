@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-diagnostics.js';
 import { CreatePage } from './pages/create.page.js';
 import { HomePage } from './pages/home.page.js';
 

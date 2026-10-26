@@ -51,3 +51,24 @@ test('includes local context but rejects symlink outside test-results', async ()
     assert.equal(protectedBundle.cases[0].contextAvailable, false);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('bounded runtime attachments reach bot evidence, sensitive content and escaping paths do not', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'qa-runtime-test-'));
+  try {
+    const resultsRoot = path.join(root, 'test-results');
+    await mkdir(resultsRoot);
+    const file = path.join(resultsRoot, 'runtime.json');
+    await writeFile(file, JSON.stringify({ phase: 'domcontentloaded', state: { readyState: 'interactive' }, token: 'secret123', url: 'https://private.invalid/?key=x' }));
+    const outside = path.join(root, 'private.json'); await writeFile(outside, 'DO NOT INCLUDE');
+    const escape = path.join(resultsRoot, 'escaped.json'); await symlink(outside, escape);
+    const report = { suites: [{ specs: [{ title: 'TC-00', tests: [{ status: 'unexpected', results: [{ status: 'failed',
+      attachments: [{ name: 'runtime-diagnostics', path: file }, { name: 'navigation-diagnostics', path: escape },
+        { name: 'navigation-diagnostics', body: Buffer.from('{"phase":"renderer","token":"privateInline"}').toString('base64') }] }] }] }] }] };
+    await writeFile(path.join(resultsRoot, 'results.json'), JSON.stringify(report));
+    const bundle = await buildBundle(root, {});
+    assert.equal(bundle.cases[0].runtimeDiagnostics.length, 2);
+    assert.match(bundle.cases[0].runtimeDiagnostics[0].text, /readyState/);
+    assert.match(bundle.cases[0].runtimeDiagnostics[1].text, /renderer/);
+    assert.doesNotMatch(JSON.stringify(bundle), /secret123|privateInline|private.invalid|DO NOT INCLUDE/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

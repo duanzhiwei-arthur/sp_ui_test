@@ -2,14 +2,15 @@ import 'dotenv/config';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
-import { readFile, rm, stat } from 'node:fs/promises';
-import { hostname } from 'node:os';
+import { readFile, rm, stat, mkdtemp } from 'node:fs/promises';
+import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
+import { deliverFailureVideo } from './failure-video-delivery.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
@@ -286,6 +287,11 @@ function normalizeFailureReason(message) {
 }
 
 function analyzeFailureReason(title, reason) {
+  if (/\[NAV_HTTP\]/u.test(reason)) return '页面主文档返回异常 HTTP 状态，尚未开始业务断言。查看 navigation-diagnostics 中的状态码与请求记录。';
+  if (/\[NAV_RESPONSE\]/u.test(reason)) return '页面主文档未在导航提交期限内完成提交。查看 navigation-diagnostics，区分网络/TLS/重定向与服务器响应异常。';
+  if (/\[NAV_DOM_READY\]/u.test(reason)) return '主文档已返回，但 DOMContentLoaded 未在就绪期限内完成；页面可能仍有模块加载或脚本执行阻塞。查看 navigation-diagnostics，不能仅凭首屏有画面判定正常。';
+  if (/\[NAV_RENDERER\]/u.test(reason)) return '文档就绪后主页面事件循环未及时响应，优先排查脚本长任务、渲染线程或浏览器异常。';
+  if (/toBeHidden/u.test(reason) && /data-view-name=.3d|threeDProcessingOverlay/u.test(reason)) return '3D 生成遮罩在等待期限内未消失（实际仍可见），尚不能证明生成服务根因。结合任务标识、事件流和页面快照排查。';
   if (/newsletter-popup[\s\S]*intercepts pointer events|intercepts pointer events[\s\S]*newsletter-popup/i.test(reason)) {
     return '首页营销弹窗延迟出现并覆盖 Create，遮罩持续拦截点击直至超时。属于弹窗处理时序问题，不是 Create 链接不可用。';
   }
@@ -1316,21 +1322,20 @@ async function sendAppNotification(config, text, failureArtifacts, card, mention
       continue;
     }
     await sendArtifactSafely('录屏', async () => {
-      if (!artifact.imageKey) {
-        throw new Error('缺少视频封面，无法发送可播放视频');
-      }
-      try {
-        const mp4Path = await convertVideoToMp4(artifact.video);
-        const fileKey = await uploadFile(token, mp4Path, 'mp4');
-        await sendAppMessage(config, token, 'media', {
-          file_key: fileKey,
-          image_key: artifact.imageKey
-        });
-      } catch (error) {
-        console.warn(`[feishu] 无法生成可播放 MP4，降级发送 WebM 文件：${error instanceof Error ? error.message : String(error)}`);
-        const fileKey = await uploadFile(token, artifact.video);
-        await sendAppMessage(config, token, 'file', { file_key: fileKey });
-      }
+      await deliverFailureVideo(artifact, {
+        cover: async (video) => {
+          const directory = await mkdtemp(path.join(tmpdir(), 'jujubit-video-cover-'));
+          const output = path.join(directory, 'cover.jpg');
+          try {
+            await runProcess(await resolveFfmpeg(), ['-n', '-i', video, '-frames:v', '1', '-q:v', '3', output], 30_000);
+            return await uploadImage(token, output);
+          } finally { await rm(output, { force: true }); await rm(directory, { recursive: true, force: true }); }
+        },
+        convert: convertVideoToMp4,
+        upload: (file, type) => uploadFile(token, file, type),
+        send: (type, content) => sendAppMessage(config, token, type, content),
+        warn: (message) => console.warn(`[feishu] ${message}`)
+      });
     });
   }
   console.log('[feishu] 企业应用机器人测试结果已发送。');
@@ -1452,15 +1457,20 @@ async function resolveFfmpeg() {
   return bundled || 'ffmpeg';
 }
 
-function runProcess(command, args) {
+function runProcess(command, args, timeoutMs = 120_000) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd: projectRoot, stdio: ['ignore', 'ignore', 'pipe'] });
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(new Error(`视频处理超过 ${timeoutMs}ms，已中止并降级`));
+    }, timeoutMs);
     let stderr = '';
     child.stderr?.on('data', (chunk) => {
       stderr = `${stderr}${chunk}`.slice(-4_000);
     });
-    child.once('error', reject);
+    child.once('error', (error) => { clearTimeout(timer); reject(error); });
     child.once('exit', (code) => {
+      clearTimeout(timer);
       if (code === 0) {
         resolve();
       } else {

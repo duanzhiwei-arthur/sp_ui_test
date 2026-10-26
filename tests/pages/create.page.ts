@@ -1,4 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { gotoWithDiagnostics } from './navigation.js';
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
@@ -132,7 +133,7 @@ export class CreatePage {
   }
 
   async navigate(path: string): Promise<void> {
-    const response = await this.page.goto(path, { waitUntil: 'domcontentloaded' });
+    const response = await gotoWithDiagnostics(this.page, path);
     await this.assertSiteAvailable(response?.status());
     await this.acceptCookieConsent();
   }

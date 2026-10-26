@@ -1,4 +1,5 @@
-import { test, type Page, type TestInfo } from '@playwright/test';
+import { type Page, type TestInfo } from '@playwright/test';
+import { test } from './fixtures/runtime-diagnostics.js';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assetPath, canRunGeneration, testData } from './fixtures/test-data.js';

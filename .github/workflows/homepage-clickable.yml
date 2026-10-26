@@ -73,6 +73,17 @@ jobs:
         if: steps.dedupe.outputs.duplicate == 'false'
         run: npx playwright install --with-deps chromium
 
+      - name: Prepare failure-video encoder (file fallback if unavailable)
+        if: steps.dedupe.outputs.duplicate == 'false'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version
+
       - name: Reserve daily TC-001 slot
         if: steps.dedupe.outputs.duplicate == 'false' && steps.dedupe.outputs.slot_key != ''
         env:
