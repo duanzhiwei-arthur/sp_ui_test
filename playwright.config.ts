@@ -15,7 +15,7 @@ export default defineConfig({
   reporter: [
     ['html', { open: 'never' }],
     ['list'],
-    ['json', { outputFile: 'test-results/results.json' }]
+    ['json', { outputFile: process.env.PLAYWRIGHT_RESULTS_FILE ?? 'test-results/results.json' }]
   ],
   use: {
     baseURL: process.env.BASE_URL ?? 'https://jujubit.ai',

@@ -51,6 +51,14 @@ test('server error cannot pass with visible text', async ({ page }) => {
   await expect(gotoWithDiagnostics(page, origin + '/error')).rejects.toThrow(/NAV_HTTP.*503/);
 });
 
+test('short renderer probe is a warning but downstream business assertion still runs', async ({ page }, testInfo) => {
+  const response = await gotoWithDiagnostics(page, origin + '/healthy', { probeTimeout: 1 });
+  expect(response.status()).toBe(200);
+  expect(testInfo.annotations.some(item => item.type === 'navigation-warning')).toBe(true);
+  await expect(page.locator('main')).toBeVisible();
+  await expect(expect(page.locator('#missing-business-element')).toBeVisible({ timeout: 100 })).rejects.toThrow();
+});
+
 test('uncommitted document is timed out independently', async ({ page }) => {
   const start = Date.now();
   await expect(gotoWithDiagnostics(page, origin + '/never-document', { commitTimeout: 200, probeTimeout: 200 })).rejects.toThrow(/NAV_RESPONSE/);

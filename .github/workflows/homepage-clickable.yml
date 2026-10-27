@@ -25,7 +25,8 @@ jobs:
   audit:
     name: TC-001 homepage clickable audit
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Leave room for one complete TC-001 recheck and result delivery.
+    timeout-minutes: 40
     env:
       SCHEDULED_TEST_MODE: homepage-clickable
       DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}

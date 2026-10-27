@@ -2,15 +2,17 @@ import 'dotenv/config';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
-import { readFile, rm, stat, mkdtemp } from 'node:fs/promises';
+import { readFile, writeFile, rm, stat, mkdtemp } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
+import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
+import { finalSummary, finalExitCode, mergeRecheckResult, recheckArgs, recheckMessage, recheckableCases } from './failure-recheck.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testResultsDir = path.join(projectRoot, 'test-results');
@@ -105,7 +107,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   await rm(resultsFile, { force: true });
 
   const playwrightBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
-  const playwrightArgs = ['test', '--project=chromium'];
+  const playwrightArgs = ['test', '--project=chromium', '--retries=0'];
   if (mode === 'safe') {
     playwrightArgs.push('tests/00-safe-cases.spec.ts');
   } else if (mode === 'homepage-clickable') {
@@ -130,16 +132,47 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
     TRACKING_FAULT_INJECTION_ENABLED: 'false'
   });
 
+  let summary = await loadSummary();
+  const recheckCases = recheckableCases(mode, summary.caseResults);
+  for (const [index, failedCase] of (process.env.DISABLE_FAILURE_RECHECK === 'true' ? [] : recheckCases).entries()) {
+    const recheckResultsFile = path.join(testResultsDir, `failure-recheck-${index + 1}-results.json`);
+    await rm(recheckResultsFile, { force: true });
+    const recheckArgsValue = recheckArgs(mode, [failedCase]);
+    console.log(`[recheck] 30秒冷却后单独复核（最多一次）：${failedCase.title}`);
+    await delay(30_000);
+    const recheckExit = await run(playwrightBin, ['test', '--project=chromium', '--retries=0',
+      '--output', path.join(testResultsDir, `failure-recheck-artifacts-${index + 1}`), ...recheckArgsValue], {
+      ...process.env, PLAYWRIGHT_RESULTS_FILE: recheckResultsFile,
+      PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(projectRoot, 'playwright-report', `failure-recheck-${index + 1}`),
+      ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
+      CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
+      TRACKING_TEST_ENABLED: 'false', TRACKING_FAULT_INJECTION_ENABLED: 'false'
+    });
+    const recheckSummary = await loadSummary(recheckResultsFile);
+    if (recheckExit !== 0 && recheckSummary.caseResults?.every(item => item.status === 'passed')) {
+      recheckSummary.reportErrors = [...(recheckSummary.reportErrors ?? []), { message: '复核进程异常退出，不能按通过处理' }];
+    }
+    summary = mergeRecheckResult(summary, recheckSummary, [failedCase]);
+    summary.recheck.cases.at(-1).exitCode = recheckExit;
+    // Keep the original Playwright outcome and evidence; add only review metadata.
+    try {
+      const originalReport = JSON.parse(await readFile(resultsFile, 'utf8'));
+      await writeFile(resultsFile, JSON.stringify({ ...originalReport, initialExitCode: playwrightExitCode, recheck: summary.recheck }, null, 2));
+    } catch (error) {
+      // A metadata write failure must not suppress the original failure alert.
+      console.error(`[recheck] 复核元数据写入失败；仍发送首次结果与内存复核结论：${error.message}`);
+    }
+    console.log(`[recheck] 二次复核退出码：${recheckExit}；${recheckMessage(summary)}`);
+  }
+  summary = finalSummary(summary);
   const finishedAt = new Date();
-  const summary = await loadSummary();
+  if (summary.stats) summary.stats.duration = finishedAt.getTime() - startedAt.getTime();
   const validateFailureRecord = process.env.FEISHU_FAILURE_RECORD_VALIDATION === 'true';
   if (validateFailureRecord) {
     console.warn('[feishu-doc] 已启用失败记录权限验证：将创建一份明确标注的验证文档，但不会影响用例结果。');
   }
-  // Playwright exits with zero when a failed first attempt passes on retry,
-  // but reports that case as flaky. Treat that as a failed scheduled run: it
-  // needs the same visible notification and failure record as a final failure.
-  const messageExitCode = playwrightExitCode === 0 && !hasBusinessFailure(summary) ? 0 : 1;
+  // Alert only after the second attempt; missing evidence is never recovery.
+  const messageExitCode = finalExitCode(summary, playwrightExitCode);
   const message = buildMessage({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
   const card = buildResultCard({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
@@ -204,19 +237,20 @@ async function readSummary(file) {
     await collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults);
   }
 
-  return {
+  return finalSummary({
     stats: report.stats ?? null,
     reportErrors: report.errors ?? [],
     failures: [...new Set(failures)],
     failureArtifacts,
     failureDetails,
     caseResults,
+    recheck: report.recheck,
     readError: null
-  };
+  });
 }
 
-async function loadSummary() {
-  return readSummary(resultsFile).catch((error) => ({
+async function loadSummary(file = resultsFile) {
+  return readSummary(file).catch((error) => ({
     stats: null,
     failures: [],
     failureArtifacts: [],
@@ -229,7 +263,9 @@ async function loadSummary() {
 async function collectFailures(suite, failures, failureArtifacts, failureDetails, caseResults) {
   for (const spec of suite.specs ?? []) {
     const caseStatus = resolveCaseStatus(spec);
-    caseResults.push({ title: spec.title, status: caseStatus });
+    const rawFile = spec.file ?? suite.file;
+    const file = rawFile && (path.isAbsolute(rawFile) ? rawFile : rawFile.startsWith('tests/') ? rawFile : `tests/${rawFile}`);
+    caseResults.push({ title: spec.title, status: caseStatus, file });
     if (['failed', 'flaky'].includes(caseStatus)) {
       failures.push(spec.title);
       const failedResults = (spec.tests ?? [])
@@ -275,7 +311,7 @@ function resolveCaseStatus(spec) {
 }
 
 function hasBusinessFailure(summary) {
-  return Boolean(summary.readError) || (summary.caseResults ?? [])
+  return Boolean(summary.readError) || Boolean(summary.reportErrors?.length) || !(summary.caseResults ?? []).length || (summary.caseResults ?? [])
     .some((item) => ['failed', 'flaky', 'unknown'].includes(item.status));
 }
 
@@ -392,6 +428,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
     }
   }
 
+  if (recheckMessage(summary)) lines.push(recheckMessage(summary));
   lines.push(buildReportReference());
   return lines.join('\n');
 }
@@ -530,6 +567,7 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
           ]
         },
         buildCaseDetails(summary),
+        ...(recheckMessage(summary) ? [{ tag: 'markdown', content: escapeCardText(recheckMessage(summary)) }] : []),
         ...(!passed ? [buildFailureDetail(summary)] : []),
         {
           tag: 'column_set',
@@ -656,7 +694,9 @@ function buildFailureDetail(summary) {
     vertical_spacing: '4px',
     elements: [
       { tag: 'markdown', content: "**<font color='red'>失败原因</font>**" },
-      { tag: 'markdown', content: `**${escapeCardText(title)}**<br>${escapeCardText(analysis)}`, text_size: 'normal' },
+      ...((summary.failureDetails ?? []).length ? summary.failureDetails.map(item => ({
+        tag: 'markdown', content: `**${escapeCardText(item.title)}**<br>${escapeCardText(item.analysis ?? item.reason)}`, text_size: 'normal'
+      })) : [{ tag: 'markdown', content: `**${escapeCardText(title)}**<br>${escapeCardText(analysis)}`, text_size: 'normal' }]),
       ...(summary.failureDetails ?? []).filter(item => item.generationEvidence).map(item => ({
         tag: 'markdown', content: `${escapeCardText(item.title)}\n${escapeCardText(formatGenerationEvidence(item.generationEvidence))}`, text_size: 'normal'
       })),
@@ -841,6 +881,7 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
     blocks.push(textBlock(description));
   }
 
+  if (recheckMessage(summary)) blocks.push(textBlock(recheckMessage(summary)));
   blocks.push(headingBlock('失败原因与建议', 2));
   for (const detail of summary.failureDetails ?? []) {
     blocks.push(textBlock(`失败用例：${detail.title}`));
@@ -1184,6 +1225,7 @@ function buildExecutionRecord({ title, testExitCode, mode, startedAt, finishedAt
     `<p><b>耗时：</b>${escapeXml(formatDuration(finishedAt.getTime() - startedAt.getTime()))}</p>`,
     `<p><b>执行结果：</b><span text-color="${resultColor}">${resultLabel}</span></p>`,
     `<p><b>测试统计：</b>${escapeXml(statistics)}</p>`,
+    ...(recheckMessage(summary) ? [`<p>${escapeXml(recheckMessage(summary))}</p>`] : []),
     '<h2>失败原因</h2>',
     `<table><thead><tr><th background-color="light-gray">用例</th><th background-color="light-gray">自动分析</th><th background-color="light-gray">原始错误</th></tr></thead><tbody>${failureRows}</tbody></table>`,
     '<h2>初步判断与修复建议</h2>',

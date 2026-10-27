@@ -18,6 +18,21 @@ test('nested suites retain all case statuses', () => {
   assert.equal(rows[0].status, 'unexpected');
 });
 
+test('review carries both reasons without leaking credentials or corrupting JSON', async () => {
+  const root=await mkdtemp(path.join(tmpdir(),'qa-recheck-bundle-'));
+  try {
+    await mkdir(path.join(root,'test-results'));
+    await writeFile(path.join(root,'test-results/results.json'),JSON.stringify({suites:[], recheck:{cases:[{
+      title:'TC-03',initialStatus:'failed',finalStatus:'failed-on-recheck',
+      firstFailure:{reason:'token=private123 first timeout'},secondFailure:{reason:'second timeout',analysis:'https://private.invalid'}
+    }]}}));
+    const bundle=await buildBundle(root,{});
+    assert.match(bundle.recheck.cases[0].firstReason,/first timeout/);
+    assert.equal(bundle.recheck.cases[0].secondReason,'second timeout');
+    assert.doesNotMatch(JSON.stringify(bundle),/private123|private.invalid/);
+  } finally {await rm(root,{recursive:true,force:true});}
+});
+
 test('diagnostic redaction removes credentials, links and personal data', () => {
   const text = redact('token="private key" Bearer secret123 gho_samplekey a@b.com https://private.test 13812345678');
   for (const value of ['private key', 'secret123', 'gho_samplekey', 'a@b.com', 'private.test', '13812345678']) assert.ok(!text.includes(value));

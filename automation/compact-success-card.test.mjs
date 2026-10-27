@@ -41,6 +41,17 @@ test('titles are escaped to prevent mentions and rich-content injection',()=>{
   assert.doesNotMatch(JSON.stringify(buildCompactSuccessCard(data)),/<at/);
 });
 
+test('recovered result is a compact warning, never disguised as a clean first pass',()=>{
+  const data=input();
+  data.summary.recheck={cases:[{title:data.summary.caseResults[0].title,finalStatus:'passed-on-recheck'}]};
+  data.summary.caseResults[0].recovered=true;
+  const card=buildCompactSuccessCard(data);
+  assert.equal(card.header.template,'orange');
+  assert.match(card.header.title.content,/复核通过/);
+  assert.match(card.body.elements[0].content,/首次失败.*二次复核通过/);
+  assert.doesNotMatch(JSON.stringify(card),/<at|failureDetail/);
+});
+
 test('real notification entry point selects compact success but keeps failure structure',async()=>{
   const dir=await mkdtemp(path.join(tmpdir(),'compact-notify-test-'));
   try{

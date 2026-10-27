@@ -58,7 +58,8 @@ jobs:
   regression:
     name: Chromium UI regression
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Budget includes one isolated recheck per failed case; cron is unchanged.
+    timeout-minutes: 100
     env:
       # Scheduled runs are hard-locked to TC-00~TC-05 even if dispatch
       # defaults or manual inputs change later.

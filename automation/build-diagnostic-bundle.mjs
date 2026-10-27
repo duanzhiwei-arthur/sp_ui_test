@@ -85,6 +85,14 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
   }
   const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,
     runAttempt: env.GITHUB_RUN_ATTEMPT, stats: report.stats,
+    // Raw cases above remain first-attempt evidence; never claim recovery was
+    // a clean first pass. Preserve both attempts for the read-only bot.
+    recheck: report.recheck ? { enabled: true, cases: (report.recheck.cases ?? []).slice(0, 50).map(item => ({
+      title: redact(item.title), initialStatus: item.initialStatus, finalStatus: item.finalStatus,
+      firstReason: redact(item.firstFailure?.reason).slice(0, 4000),
+      secondReason: redact(item.secondFailure?.reason ?? item.evidenceGap).slice(0, 4000),
+      secondAnalysis: redact(item.secondFailure?.analysis).slice(0, 4000)
+    })) } : undefined,
     errors: (report.errors ?? []).map(e => redact(e.message).slice(0, 4000)), cases };
   await writeFile(path.join(output, 'diagnostic.json'), JSON.stringify(bundle, null, 2));
   return bundle;
