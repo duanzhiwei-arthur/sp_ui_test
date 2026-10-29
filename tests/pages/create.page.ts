@@ -1,5 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { gotoWithDiagnostics } from './navigation.js';
+import { waitForGenerationState } from './generation-wait.js';
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
@@ -290,13 +291,14 @@ export class CreatePage {
   }
 
   async expectImageResourceLoaded(image: Locator, timeout = customizerTimeout): Promise<void> {
-    await image.waitFor({ state: 'attached', timeout });
     try {
-      await expect.poll(
-        () => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
-        { message: '生成图片未完成加载', timeout }
-      ).toBe(true);
+      // Preserve the original separate budgets for attachment and loading.
+      await waitForGenerationState(this.page, () => image.evaluateAll(elements => elements.length === 1),
+        timeout, '等待生成图片节点');
+      await waitForGenerationState(this.page, () => image.evaluateAll((elements: HTMLImageElement[]) =>
+        elements.length === 1 && elements[0].complete && elements[0].naturalWidth > 0), timeout, '生成图片未完成加载');
     } catch (error) {
+      if (error instanceof Error && error.message.includes('[GENERATION_FAILED]')) throw error;
       const imageState = await image.evaluateAll((elements: HTMLImageElement[]) => elements.map((element) => ({
         complete: element.complete,
         naturalWidth: element.naturalWidth,
@@ -320,7 +322,7 @@ export class CreatePage {
   }
 
   async expectImageLoaded(image: Locator, timeout = customizerTimeout): Promise<void> {
-    await expect(image).toBeVisible({ timeout });
+    await waitForGenerationState(this.page, () => image.isVisible(), timeout, '生成图片不可见');
     await this.expectImageResourceLoaded(image, timeout);
   }
 
@@ -332,11 +334,14 @@ export class CreatePage {
   }
 
   async waitForThreeDGeneration(): Promise<void> {
-    await this.threeDButton.waitFor({ state: 'visible', timeout: generationTimeout });
+    await waitForGenerationState(this.page, () => this.threeDButton.isVisible(), generationTimeout, '等待 3D 按钮');
     await this.click(this.threeDButton);
-    await expect(this.threeDView).toBeVisible();
+    await waitForGenerationState(this.page, () => this.threeDView.isVisible(), customizerTimeout, '等待 3D 视图');
     // A visible progress overlay means the 3D task is still rendering.
-    await expect(this.threeDProcessingOverlay).toBeHidden({ timeout: generationTimeout });
+    await waitForGenerationState(this.page, () => this.threeDProcessingOverlay.isHidden(), generationTimeout, '等待 3D 生成遮罩消失');
+    await waitForGenerationState(this.page, () => this.addToCartButton.evaluateAll(elements =>
+      elements.length === 1 && !elements[0].matches(':disabled') && elements[0].getAttribute('aria-disabled') !== 'true'),
+    120_000, '等待生成后 Add to Cart 可用');
     await expect(this.addToCartButton).toBeEnabled({ timeout: 120_000 });
   }
 

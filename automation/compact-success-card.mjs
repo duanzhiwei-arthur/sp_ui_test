@@ -1,3 +1,5 @@
+import { firstGenerationFailureMessages } from './generation-evidence.mjs';
+
 // The approved personal-preview layout. Return null for anything except a
 // completely clean run, leaving the existing detailed notification untouched.
 export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, scope, runId, headSha, runUrl }) {
@@ -30,6 +32,7 @@ export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, sco
     },
     body: { direction: 'vertical', padding: '12px', vertical_spacing: '8px', elements: [
       { tag: 'markdown', content: `**${cases.length}/${cases.length} 用例最终通过** · 耗时 ${Math.floor(seconds / 60)}分${seconds % 60}秒\n${recovered.length ? `⚠️ ${recovered.length} 条首次失败、二次复核通过（偶发恢复，保留首次证据）；未发送失败告警。\n` : ''}<font color='grey'>完成于 ${completed}（北京时间）</font>` },
+      ...firstGenerationFailureMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
       { tag: 'collapsible_panel', expanded: false, header: { title: { tag: 'plain_text', content: '用例明细与版本（展开）' } }, elements: [
         { tag: 'markdown', content: sorted.map(item => `${item.recovered ? '⚠️ 复核通过' : '✅'} ${escape(item.title)}`).join('\n') },
         { tag: 'markdown', content: `<font color='grey'>Run：${runId}\n提交：${headSha.slice(0, 12)}</font>`, text_size: 'notation' }

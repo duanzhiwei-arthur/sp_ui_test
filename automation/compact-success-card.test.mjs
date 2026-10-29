@@ -72,3 +72,35 @@ test('real notification entry point selects compact success but keeps failure st
     }
   }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('real text and card previews retain first generation IDs after recovery and persistent failure',async()=>{
+  const dir=await mkdtemp(path.join(tmpdir(),'generation-first-notify-'));
+  try{
+    const title='TC-05: generation';
+    const evidence={records:[{taskId:'4009974',assetId:'4025463',traceIds:['0511488dbeb53fcaa223c226f8db82d5'],
+      requestIds:['b48be519-4376-47fa-a79c-ea15bbb0c784-1793186946']}],
+      streams:[{businessErrors:[{errorCode:'1007',message:'internal LLM service image response must be one trusted stable URL token=private123 <at id=all>'}]}]};
+    for(const recovered of [true,false]){
+      const report={stats:{expected:0,unexpected:1,skipped:0,flaky:0,duration:1000},errors:[],
+        suites:[{specs:[{title,ok:false,tests:[{status:'unexpected',results:[{status:'failed',error:{message:'[GENERATION_FAILED] first'},attachments:[]}]}]}]}],
+        recheck:{cases:[{title,initialStatus:'failed',finalStatus:recovered?'passed-on-recheck':'failed-on-recheck',
+          firstFailure:{title,reason:'[GENERATION_FAILED] first',generationEvidence:evidence},
+          ...(!recovered?{secondFailure:{title,reason:'[GENERATION_FAILED] second',analysis:'second failure',generationEvidence:{records:[{taskId:'second-task',assetId:'second-asset',traceIds:['second-trace']}],streams:[]}}}:{})}]}};
+      const file=path.join(dir,'results.json');await writeFile(file,JSON.stringify(report));
+      for(const flag of ['--notification-card-preview','--notification-preview',...(!recovered?['--execution-record-preview']:[])]){
+        const output=execFileSync(process.execPath,['automation/run-and-notify.mjs',flag],{encoding:'utf8',timeout:15000,
+          env:{...process.env,PLAYWRIGHT_RESULTS_FILE:file,SCHEDULED_TEST_MODE:'daily',GITHUB_RUN_ID:'123',GITHUB_SHA:'a'.repeat(40),
+            GITHUB_REPOSITORY:'owner/repo',GITHUB_EVENT_NAME:'workflow_dispatch',DISPATCH_DEDUPE_KEY:''}});
+        for(const value of ['首次生成失败','4009974','4025463','0511488dbeb53fcaa223c226f8db82d5',
+          'b48be519-4376-47fa-a79c-ea15bbb0c784-1793186946','错误码：1007','原始原因：internal LLM service'])assert.ok(output.includes(value),value);
+        assert.doesNotMatch(output,/private123/);
+        if(flag==='--notification-card-preview'){
+          const card=JSON.parse(output);assert.equal(card.header.template,recovered?'orange':'red');
+          assert.doesNotMatch(output,/<at/);
+          if(recovered)assert.doesNotMatch(output,/failureDetail|second-task/);
+          else assert.match(output,/二次生成失败：/);
+        }
+      }
+    }
+  }finally{await rm(dir,{recursive:true,force:true});}
+});

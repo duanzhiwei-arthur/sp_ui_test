@@ -271,3 +271,11 @@ npm run report:tracking -- test-results/tracking-catalog-audit.json test-results
 lark-cli auth login --domain docs --domain drive
 lark-cli auth status --json --verify
 ```
+
+### 生成失败诊断增强（2026-10-29）
+
+- 2D图片/3D就绪等待期间，当前商品预览区出现可见的明确错误文字 **或** Retry按钮（任一即可）时立即以 `[GENERATION_FAILED]` 结束等待。有错误文字保留脱敏原文；仅Retry则记录“未取得错误详情”，不猜测根因。不会自动点击Retry或额外提交生成，仍由既有二次复核流程决定后续执行。
+- 不把隐藏错误/Retry、预览区外历史记录或普通进度文字当作当前生成失败。错误文字按明确失败措辞识别（如failed/error、生成失败），不是任意文字。成功仍需图片加载及原有3D/加购可用断言；未观察到失败信号的慢请求仍按原等待预算处理。
+- 生成Trace采集同时合并SSE与响应头 `x-trace-id`，单独记录 `x-request-id`；`asset_done` 中明确的 `errorCode/errorMessage` 进入诊断，终态事件或HTTP200不等于生成成功。无标识明确显示未采集，不猜造。
+- 本地验证命令：`npx playwright test --config verification/generation/playwright.config.ts`。这是独立框架验证，不加入默认/定时用例集合，不访问线上生成服务。
+- 最终飞书文本/卡片保留“首次生成失败”排查区，即使二次复核通过也展示首次的Task ID、Asset ID、Trace ID、Request ID、错误码和原始原因；未采集字段明确标注，不使用复核任务标识补齐。只在最终结果中补充，不新增首次即时告警/@所有人；正常首次全绿仍保持简版。失败文档同步保留首次证据。

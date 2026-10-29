@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
-import { collectGenerationEvidence, formatGenerationEvidence } from './generation-evidence.mjs';
+import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
 import { finalSummary, finalExitCode, mergeRecheckResult, recheckArgs, recheckMessage, recheckableCases } from './failure-recheck.mjs';
@@ -323,6 +323,8 @@ function normalizeFailureReason(message) {
 }
 
 function analyzeFailureReason(title, reason) {
+  if (/\[GENERATION_FAILED\]/u.test(reason)) return `生成页面已明确显示业务失败，不是单纯加载超时；${reason}`;
+  if (/\[GENERATION_TIMEOUT\]/u.test(reason)) return `生成等待超时但未观察到明确业务错误；请结合任务事件与页面状态排查，不能直接归因为网络。${reason}`;
   if (/\[NAV_HTTP\]/u.test(reason)) return '页面主文档返回异常 HTTP 状态，尚未开始业务断言。查看 navigation-diagnostics 中的状态码与请求记录。';
   if (/\[NAV_RESPONSE\]/u.test(reason)) return '页面主文档未在导航提交期限内完成提交。查看 navigation-diagnostics，区分网络/TLS/重定向与服务器响应异常。';
   if (/\[NAV_DOM_READY\]/u.test(reason)) return '主文档已返回，但 DOMContentLoaded 未在就绪期限内完成；页面可能仍有模块加载或脚本执行阻塞。查看 navigation-diagnostics，不能仅凭首屏有画面判定正常。';
@@ -429,6 +431,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
   }
 
   if (recheckMessage(summary)) lines.push(recheckMessage(summary));
+  lines.push(...firstGenerationFailureMessages(summary));
   lines.push(buildReportReference());
   return lines.join('\n');
 }
@@ -568,6 +571,7 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
         },
         buildCaseDetails(summary),
         ...(recheckMessage(summary) ? [{ tag: 'markdown', content: escapeCardText(recheckMessage(summary)) }] : []),
+        ...firstGenerationFailureMessages(summary).map(content => ({ tag: 'markdown', content: escapeCardText(content) })),
         ...(!passed ? [buildFailureDetail(summary)] : []),
         {
           tag: 'column_set',
@@ -698,7 +702,7 @@ function buildFailureDetail(summary) {
         tag: 'markdown', content: `**${escapeCardText(item.title)}**<br>${escapeCardText(item.analysis ?? item.reason)}`, text_size: 'normal'
       })) : [{ tag: 'markdown', content: `**${escapeCardText(title)}**<br>${escapeCardText(analysis)}`, text_size: 'normal' }]),
       ...(summary.failureDetails ?? []).filter(item => item.generationEvidence).map(item => ({
-        tag: 'markdown', content: `${escapeCardText(item.title)}\n${escapeCardText(formatGenerationEvidence(item.generationEvidence))}`, text_size: 'normal'
+        tag: 'markdown', content: `${summary.recheck?.cases?.some(row => row.title === item.title && row.secondFailure?.generationEvidence) ? '二次生成失败：' : ''}${escapeCardText(item.title)}\n${escapeCardText(formatGenerationEvidence(item.generationEvidence))}`, text_size: 'normal'
       })),
       { tag: 'markdown', content: `<font color='grey'>建议：${escapeCardText(suggestion)}</font>`, text_size: 'notation' }
     ]
@@ -882,6 +886,7 @@ function buildRemoteExecutionRecordBlocks({ testExitCode, mode, startedAt, finis
   }
 
   if (recheckMessage(summary)) blocks.push(textBlock(recheckMessage(summary)));
+  for (const content of firstGenerationFailureMessages(summary)) blocks.push(textBlock(content));
   blocks.push(headingBlock('失败原因与建议', 2));
   for (const detail of summary.failureDetails ?? []) {
     blocks.push(textBlock(`失败用例：${detail.title}`));
@@ -1226,6 +1231,7 @@ function buildExecutionRecord({ title, testExitCode, mode, startedAt, finishedAt
     `<p><b>执行结果：</b><span text-color="${resultColor}">${resultLabel}</span></p>`,
     `<p><b>测试统计：</b>${escapeXml(statistics)}</p>`,
     ...(recheckMessage(summary) ? [`<p>${escapeXml(recheckMessage(summary))}</p>`] : []),
+    ...firstGenerationFailureMessages(summary).map(content => `<p>${escapeXml(content).replaceAll('\n', '<br/>')}</p>`),
     '<h2>失败原因</h2>',
     `<table><thead><tr><th background-color="light-gray">用例</th><th background-color="light-gray">自动分析</th><th background-color="light-gray">原始错误</th></tr></thead><tbody>${failureRows}</tbody></table>`,
     '<h2>初步判断与修复建议</h2>',
