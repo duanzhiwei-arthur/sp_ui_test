@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from '../fixtures/automation-identity.js';
 import { TrackingCollector } from './tracking-collector.js';
 import { trackingActions } from './tracking-actions.js';
 import { trackingContracts } from './tracking-contracts.js';

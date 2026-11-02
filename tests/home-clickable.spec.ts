@@ -1,4 +1,5 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
+import { expect, test } from './fixtures/automation-identity.js';
 import { HomePage } from './pages/home.page.js';
 
 type ClickAudit = {

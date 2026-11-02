@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures/automation-identity.js';
 import { TrackingCollector } from './tracking-collector.js';
 import { TrackingFaultInjector } from './tracking-fault-injection.js';
 import { TrackingPage } from './tracking-page.js';

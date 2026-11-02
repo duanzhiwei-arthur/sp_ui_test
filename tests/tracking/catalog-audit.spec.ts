@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, createAutomationContext } from '../fixtures/automation-identity.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { buildTrackingAuditReport, TrackingStepEvidence } from './tracking-audit.js';
@@ -37,7 +37,7 @@ test.describe('有效埋点目录审计', () => {
         ) => Promise<void>;
       }) => Promise<void>
     ): Promise<void> => {
-      const context = await browser.newContext({ baseURL: trackingBaseUrl });
+      const context = await createAutomationContext(browser, { baseURL: trackingBaseUrl });
       const page = await context.newPage();
       const tracking = await TrackingCollector.create(page);
       const create = new TrackingPage(page);

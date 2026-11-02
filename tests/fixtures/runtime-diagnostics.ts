@@ -1,4 +1,5 @@
-import { test as base, expect, type Page, type Request, type ConsoleMessage } from '@playwright/test';
+import { type Page, type Request, type ConsoleMessage } from '@playwright/test';
+import { test as base, expect } from './automation-identity.js';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')

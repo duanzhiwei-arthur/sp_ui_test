@@ -1,5 +1,11 @@
 # JuJuBit UI Regression
 
+## 自动化匿名标识（2026-11-02）
+
+所有用例通过公共fixture在目标站点脚本执行前写入localStorage：`sdk_anonymous_id` = 字符串 `test`。日常回归、失败复核、TC-001、实验和埋点用例均接入；额外创建隔离上下文时使用 `createAutomationContext()`。刷新、新页面和目标站点弹窗继续注入，第三方支付/登录域名不修改。
+
+此规则不改变 `_anonymous_id`、Statsig stable_id、登录态或实验配置，不修改个人浏览器。`test` 用于标识自动化流量，可能将SDK维度的多个测试会话汇总到同一匿名标识；不据此判断实验分组。独立本地验证：`npx playwright test --config verification/identity/playwright.config.ts --grep-invert @live`；只读线上校验需显式设置 `IDENTITY_LIVE_CHECK=true` 并选择 `--grep @live`，不执行生成。
+
 基于 Playwright + TypeScript 的 JuJuBit 游客态 UI 回归框架。覆盖创作、生成、购物车、Checkout 与埋点审计；所有订单验证止于 Checkout 页面，**绝不填写支付信息、点击或提交 `Pay now`**。
 
 ## 快速开始
