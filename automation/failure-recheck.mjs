@@ -74,6 +74,13 @@ export function recheckMessage(summary) {
     '二次复核（保留首次失败证据；恢复不等于已证明网络误报）：',
     ...(flaky.length ? [`复核通过，偶发/待观察 ${flaky.length} 条：${flaky.join('、')}`] : []),
     ...(failed.length ? [`复核仍失败 ${failed.length} 条：${failed.join('、')}`] : []),
-    ...(unknown.length ? [`复核未完成或证据不足 ${unknown.length} 条：${unknown.join('、')}`] : [])
+    ...(unknown.length ? [`复核未完成或证据不足 ${unknown.length} 条：${unknown.join('、')}`] : []),
+    ...firstAccessFailureMessages(summary)
   ].join('\n');
+}
+
+export function firstAccessFailureMessages(summary) {
+  const cases = (summary.recheck?.cases ?? []).filter(item => /\[SITE_(VERIFICATION|RATE_LIMITED|ACCESS_DENIED)\]/u.test(item.firstFailure?.reason ?? ''));
+  if (!cases.length) return [];
+  return [`首次站点访问/验证阻断 ${cases.length} 条：${cases.map(item => item.title).join('、')}；复核恢复不等于首次业务已通过。`];
 }

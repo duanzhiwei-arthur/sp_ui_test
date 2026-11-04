@@ -82,6 +82,16 @@ TC-001 不是“无差别点击所有 DOM 节点”：商品卡片、社交媒�
 npx playwright test tests/home-clickable.spec.ts --grep 'TC-001' --project=chromium
 ```
 
+## 浏览器验证与访问阻断诊断
+
+2026-11-04新增识别：主文档403/429、HTTP200但实际为浏览器验证页、等待Create/Generate期间才出现的验证失败。错误分别标记`SITE_ACCESS_DENIED`、`SITE_RATE_LIMITED`、`SITE_VERIFICATION`，保留脱敏后的时间、HTTP、CF-Ray、Request ID、截图及Trace。普通接口/iframe错误不会被当成主页面验证阻断。
+
+业务步骤、业务断言、每日TC-00～TC-05六条、调度时间和失败单case复核一次均保持不变。验证阻断仍未通过；仅完整复核通过才报告恢复，并保留首次原因。不自动清Cookie、刷新、点击验证码或增加重试，更不把验证页当成功。生成/加购后的状态也不会被新逻辑清空。此改动改善识别与报告，不能保证站点防护放行自动化。
+
+HTTP200的“验证进行中”保留原业务等待预算，允许页面自行恢复；明确验证失败或主文档403/429才提前报错，持续验证在原预算耗尽后分类为阻断。
+
+本地实现验证：`npx playwright test --config verification/navigation/playwright.config.ts`（模拟服务，不计入线上业务case）；通知验证只用preview，不向群或个人发送消息。
+
 ## 常用命令
 
 ### UI 回归

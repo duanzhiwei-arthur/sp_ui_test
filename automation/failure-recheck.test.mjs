@@ -7,6 +7,26 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { finalSummary, finalExitCode, mergeRecheckResult, recheckArgs, recheckableCases, recheckMessage } from './failure-recheck.mjs';
 
+test('验证阻断不改变复核次数或通过标准，通知预览区分环境阻断', async () => {
+  const title='TC-03: 上传图片并生成后可加购进入 Checkout';
+  const reason='[SITE_VERIFICATION] 浏览器验证阻断；HTTP 403；CF-Ray=a5513fa7cdf23747-ATL';
+  const initial={caseResults:[{title,status:'failed'}],failureDetails:[{title,reason}],failures:[title],stats:{expected:0,unexpected:1}};
+  const recovered=mergeRecheckResult(initial,{caseResults:[{title,status:'passed'}]},initial.caseResults);
+  assert.equal(finalExitCode(finalSummary(recovered),1),0);
+  assert.match(recheckMessage(recovered),/首次站点访问\/验证阻断/);
+  const failed=mergeRecheckResult(initial,{caseResults:[{title,status:'failed'}],failureDetails:[{title,reason:'[SITE_ACCESS_DENIED] HTTP 403'}]},initial.caseResults);
+  assert.equal(finalExitCode(finalSummary(failed),1),1);
+  const dir=await mkdtemp(path.join(tmpdir(),'verification-card-preview-'));
+  try {
+    const file=path.join(dir,'results.json');
+    await writeFile(file,JSON.stringify({stats:{expected:0,unexpected:1,skipped:0,flaky:0,duration:1000},suites:[{specs:[{title,tests:[{status:'unexpected',results:[{status:'failed',error:{message:reason},attachments:[]}]}]}]}]}));
+    const output=execFileSync(process.execPath,['automation/run-and-notify.mjs','--notification-card-preview'],{encoding:'utf8',timeout:15000,
+      env:{...process.env,PLAYWRIGHT_RESULTS_FILE:file,SCHEDULED_TEST_MODE:'daily',GITHUB_EVENT_NAME:'workflow_dispatch',DISPATCH_DEDUPE_KEY:''}});
+    assert.match(output,/环境阻断/);assert.match(output,/a5513fa7cdf23747-ATL/);
+    assert.doesNotMatch(output,/Running \d+ tests|\[recheck\]/);
+  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
 test('all failed cases in the requested scope are eligible, including generation and experiments', () => {
   const cases = [{ title: 'TC-00: 首页', status: 'failed' }, { title: 'TC-01: Create', status: 'failed' },
     { title: 'TC-03: 生成', status: 'failed' }, { title: 'TC-05: History', status: 'failed' }];

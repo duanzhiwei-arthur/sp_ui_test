@@ -1,5 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { gotoWithDiagnostics } from './navigation.js';
+import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js';
 import { waitForGenerationState } from './generation-wait.js';
 
 const customizerTimeout = 120_000;
@@ -126,7 +127,7 @@ export class CreatePage {
   async gotoProductPage(): Promise<void> {
     // Keep an explicitly configured variant when a test environment needs one.
     await this.navigate(process.env.PRODUCT_URL ?? '/products/customize-your-own');
-    await expect(this.createTab).toBeVisible();
+    await expectVisibleWithAccessCheck(this.page, this.createTab);
   }
 
   async gotoHomePage(): Promise<void> {
@@ -140,6 +141,7 @@ export class CreatePage {
   }
 
   async assertSiteAvailable(status?: number): Promise<void> {
+    await assertSiteAccess(this.page, true);
     const bodyText = await this.page.locator('body').textContent({ timeout: 10_000 }).catch(() => '');
     const rateLimited = status === 429 || /legal-rate-limited/i.test(bodyText ?? '');
 
@@ -157,7 +159,7 @@ export class CreatePage {
   async waitForCustomizer(timeout = customizerTimeout): Promise<void> {
     await this.assertSiteAvailable();
     await expect(this.customizerLoading).toBeHidden({ timeout });
-    await expect(this.generateButton).toBeVisible({ timeout });
+    await expectVisibleWithAccessCheck(this.page, this.generateButton, timeout);
     await this.dismissMarketingPopup();
   }
 

@@ -2,11 +2,22 @@ import { test, expect } from '@playwright/test';
 import { createServer, type Server } from 'node:http';
 import { gotoWithDiagnostics } from '../../tests/pages/navigation.js';
 import { monitorPage, bounded, redactDiagnostic } from '../../tests/fixtures/runtime-diagnostics.js';
+import { expectVisibleWithAccessCheck, watchSiteAccess } from '../../tests/pages/site-access.js';
 
 let server: Server;
 let origin: string;
 test.beforeAll(async () => {
   server = createServer((request, response) => {
+    response.setHeader('Content-Type', 'text/html');
+    if (['/verify-200','/verify-403','/verify-failed','/deny','/limited'].includes(request.url ?? '')) {
+      response.writeHead(request.url === '/verify-403' || request.url === '/deny' ? 403 : request.url === '/limited' ? 429 : 200,
+        { 'Content-Type': 'text/html', 'cf-ray':'a5513fa7cdf23747-ATL', 'x-request-id':'5fba6bd1-0212-4e41-b3bb-8c723497c28f-1793770456', 'Retry-After':'60' });
+      response.end(request.url === '/verify-failed' ? 'Verification failed.' : request.url === '/deny' ? '<main>Access denied</main>' : request.url === '/limited' ? '<main>Too many requests</main>' : '<title>Browser verification</title><main><h1>Verifying your browser</h1><p>One quick check before you continue.</p><button>Verify browser</button></main>'); return;
+    }
+    if (request.url === '/late-verify') { response.end('<main>Loading</main><script>setTimeout(()=>document.body.innerHTML="Verification failed.",200)</script>'); return; }
+    if (request.url === '/late-429') { response.end('<main>Loading</main><script>setTimeout(()=>location.href="/limited",200)</script>'); return; }
+    if (request.url === '/business') { response.end('<main><h1>Product help</h1><p>Verify your browser if required.</p><div id="jjb-create-canvas"><button>Create</button></div><script>fetch("/deny");fetch("/limited")</script><iframe src="/verify-403"></iframe></main>'); return; }
+    if (request.url === '/verification-recovers') { response.end('<main><h1>Verifying your browser</h1><p>One quick check before you continue.</p></main><script>setTimeout(()=>document.body.innerHTML="<main><div id=jjb-create-canvas><button>Create</button></div></main>",500)</script>'); return; }
     if (request.url === '/never.js' || request.url === '/never-document') return;
     if (request.url === '/stream') { response.writeHead(200, { 'Content-Type': 'text/plain' }); response.write('partial'); return; }
     if (request.url === '/error') { response.writeHead(503); response.end('unavailable'); return; }
@@ -21,6 +32,67 @@ test.beforeAll(async () => {
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('fixture server missing');
   origin = `http://127.0.0.1:${address.port}`;
+});
+
+test('HTTP200验证页不能伪装成正常页面，保留状态及真实请求标识', async ({ page }, testInfo) => {
+  const before = page.listenerCount('response');
+  await gotoWithDiagnostics(page, origin + '/verify-200');
+  await expect(expectVisibleWithAccessCheck(page,page.getByRole('button',{name:'Create',exact:true}),500)).rejects.toThrow(/SITE_VERIFICATION/);
+  const attachment = testInfo.attachments.find(a => a.name === 'site-access-diagnostics');
+  expect(attachment?.body).toBeTruthy();
+  const evidence = JSON.parse(attachment!.body!.toString());
+  expect(evidence.status).toBe(200);
+  expect(evidence.cfRay).toBe('a5513fa7cdf23747-ATL');
+  expect(evidence.requestId).toBe('5fba6bd1-0212-4e41-b3bb-8c723497c28f-1793770456');
+  expect(page.listenerCount('response')).toBe(before);
+});
+
+test('HTTP200进行中验证自行恢复时继续原case，不提前失败或消耗复核', async ({ page }, testInfo) => {
+  await gotoWithDiagnostics(page,origin+'/verification-recovers');
+  await expectVisibleWithAccessCheck(page,page.getByRole('button',{name:'Create',exact:true}),3000);
+  expect(testInfo.attachments.some(a=>a.name==='site-access-diagnostics')).toBe(false);
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+});
+
+test('403验证页、普通403与429分别分类，均保持失败而非跳过', async ({ page }) => {
+  await expect(gotoWithDiagnostics(page, origin + '/verify-403')).rejects.toThrow(/SITE_(VERIFICATION|ACCESS_DENIED)/);
+  await expect(gotoWithDiagnostics(page, origin + '/deny')).rejects.toThrow(/SITE_ACCESS_DENIED/);
+  await expect(gotoWithDiagnostics(page, origin + '/limited')).rejects.toThrow(/SITE_RATE_LIMITED/);
+  await expect(gotoWithDiagnostics(page, origin + '/verify-failed')).rejects.toThrow(/SITE_VERIFICATION/);
+});
+
+test('等待Create期间才出现验证失败可及时识别，不刷新或清Cookie', async ({ page }) => {
+  await page.context().addCookies([{ name:'fixture-session',value:'preserve',url:origin }]);
+  let mainRequests = 0;
+  page.on('request',r=>{if(r.isNavigationRequest()&&r.frame()===page.mainFrame())mainRequests++;});
+  await gotoWithDiagnostics(page, origin + '/late-verify');
+  const start=Date.now();
+  await expect(expectVisibleWithAccessCheck(page,page.getByRole('button',{name:'Create',exact:true}),4000)).rejects.toThrow(/SITE_VERIFICATION/);
+  expect(Date.now()-start).toBeLessThan(2500);
+  expect(mainRequests).toBe(1);
+  expect((await page.context().cookies()).some(c=>c.name==='fixture-session'&&c.value==='preserve')).toBe(true);
+});
+
+test('异步主文档429被捕获，正常新导航不会沿用旧的403/429状态', async ({ page }) => {
+  const watcher=watchSiteAccess(page);
+  try {
+    await gotoWithDiagnostics(page,origin+'/late-429');
+    await expect(expectVisibleWithAccessCheck(page,page.locator('#absent'),4000)).rejects.toThrow(/SITE_RATE_LIMITED/);
+    await gotoWithDiagnostics(page,origin+'/healthy');
+    await expectVisibleWithAccessCheck(page,page.locator('main'),1000);
+  } finally {watcher.dispose();}
+});
+
+test('正常页面、接口403/429、验证iframe和普通提示文案不改变业务执行', async ({ page }) => {
+  const watcher=watchSiteAccess(page);
+  try {
+    await gotoWithDiagnostics(page,origin+'/business');
+    const create=page.getByRole('button',{name:'Create',exact:true});
+    await expectVisibleWithAccessCheck(page,create,1000);
+    await create.click();
+    await expect(create).toBeVisible();
+    await expect(expectVisibleWithAccessCheck(page,page.locator('#missing'),200)).rejects.toThrow(/toBeVisible/);
+  } finally {watcher.dispose();}
 });
 test.afterAll(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); });
 

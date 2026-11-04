@@ -325,6 +325,9 @@ function normalizeFailureReason(message) {
 function analyzeFailureReason(title, reason) {
   if (/\[GENERATION_FAILED\]/u.test(reason)) return `生成页面已明确显示业务失败，不是单纯加载超时；${reason}`;
   if (/\[GENERATION_TIMEOUT\]/u.test(reason)) return `生成等待超时但未观察到明确业务错误；请结合任务事件与页面状态排查，不能直接归因为网络。${reason}`;
+  if (/\[SITE_VERIFICATION\]/u.test(reason)) return `环境阻断：主页面进入浏览器验证/验证失败页；本阶段业务未验证，不归因于生成/删除功能。${reason}`;
+  if (/\[SITE_RATE_LIMITED\]/u.test(reason)) return `环境阻断：主文档HTTP 429；保留首次证据并按现有规则复核一次，不算业务通过。${reason}`;
+  if (/\[SITE_ACCESS_DENIED\]/u.test(reason)) return `访问阻断：主文档HTTP 403，具体原因待查；不能单凭403判断是浏览器验证或登录失败。${reason}`;
   if (/\[NAV_HTTP\]/u.test(reason)) return '页面主文档返回异常 HTTP 状态，尚未开始业务断言。查看 navigation-diagnostics 中的状态码与请求记录。';
   if (/\[NAV_RESPONSE\]/u.test(reason)) return '页面主文档未在导航提交期限内完成提交。查看 navigation-diagnostics，区分网络/TLS/重定向与服务器响应异常。';
   if (/\[NAV_DOM_READY\]/u.test(reason)) return '主文档已返回，但 DOMContentLoaded 未在就绪期限内完成；页面可能仍有模块加载或脚本执行阻塞。查看 navigation-diagnostics，不能仅凭首屏有画面判定正常。';

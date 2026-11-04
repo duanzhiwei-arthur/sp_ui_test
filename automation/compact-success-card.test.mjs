@@ -10,6 +10,12 @@ const input = () => ({ testExitCode:0, finishedAt:new Date('2026-10-22T07:37:33Z
   runId:'39739616960', headSha:'a'.repeat(40), runUrl:'https://github.com/owner/repo/actions/runs/39739616960',
   summary:{stats:{expected:6,unexpected:0,skipped:0,flaky:0,duration:1064000},reportErrors:[],failures:[],failureDetails:[],
     caseResults:[0,1,2,3,5,4].map(n=>({title:`TC-0${n}: test ${n}`,status:'passed'}))} });
+
+test('验证阻断复核通过时保留首次分类；普通成功卡片不增加内容',()=>{
+  const clean=input();assert.equal(buildCompactSuccessCard(clean).body.elements.length,3);
+  const data=input();data.summary.recheck={cases:[{title:'TC-03',finalStatus:'passed-on-recheck',firstFailure:{reason:'[SITE_VERIFICATION] HTTP 200'}}]};
+  const text=JSON.stringify(buildCompactSuccessCard(data));assert.match(text,/首次站点访问\/验证阻断/);assert.match(text,/复核通过/);
+});
 test('approved success layout, collapsed details, single action and no preview wording',()=>{
   const card=buildCompactSuccessCard(input());
   assert.equal(card.config.width_mode,'compact');

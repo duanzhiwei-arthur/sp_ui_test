@@ -3,7 +3,25 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildBundle, collectCases, normalizeTestFile, redact } from './build-diagnostic-bundle.mjs';
+import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess } from './build-diagnostic-bundle.mjs';
+
+test('验证页诊断保留时间与请求标识，移除Cookie、查询和未知字段', async () => {
+  const evidence={code:'SITE_VERIFICATION',status:403,at:'2026-11-04T05:34:16.262Z',
+    cfRay:'a5513fa7cdf23747-ATL',requestId:'5fba6bd1-0212-4e41-b3bb-8c723497c28f-1793770456',
+    signal:'Browser verification',url:'https://jujubit.ai/products/customize-your-own?token=secret',cookie:'private'};
+  const cleaned=sanitizeSiteAccess(evidence);
+  assert.equal(cleaned.requestId,evidence.requestId);assert.equal(cleaned.at,evidence.at);
+  assert.equal(cleaned.url,'https://jujubit.ai/products/customize-your-own');
+  assert.doesNotMatch(JSON.stringify(cleaned),/secret|cookie|private/);
+  const root=await mkdtemp(path.join(tmpdir(),'qa-site-access-'));
+  try {
+    await mkdir(path.join(root,'test-results'));
+    await writeFile(path.join(root,'test-results/results.json'),JSON.stringify({suites:[{specs:[{title:'TC-03',tests:[{status:'unexpected',results:[{status:'failed',
+      attachments:[{name:'site-access-diagnostics',body:Buffer.from(JSON.stringify(evidence)).toString('base64')}]}]}]}]}]}));
+    const bundle=await buildBundle(root,{});
+    assert.deepEqual(JSON.parse(bundle.cases[0].runtimeDiagnostics[0].text),cleaned);
+  } finally {await rm(root,{recursive:true,force:true});}
+});
 
 test('Playwright relative and absolute file names resolve to repository test source', () => {
   assert.equal(normalizeTestFile('full-flow-inventory.spec.ts'), 'tests/full-flow-inventory.spec.ts');

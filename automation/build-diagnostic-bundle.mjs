@@ -32,6 +32,28 @@ export function normalizeTestFile(file, root = process.cwd()) {
   return normalized.startsWith('tests/') ? normalized : `tests/${normalized}`;
 }
 
+// 新附件采用字段允许列表：保留排查标识，不让通用手机号脱敏破坏时间/Request ID。
+export function sanitizeSiteAccess(value) {
+  if (!value || !['SITE_VERIFICATION','SITE_RATE_LIMITED','SITE_ACCESS_DENIED'].includes(value.code)) return {};
+  const result = { code: value.code };
+  if (Number.isInteger(value.status) && value.status >= 0 && value.status <= 599) result.status = value.status;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.at ?? '')) result.at = value.at;
+  if (/^[a-f0-9]{16}-[A-Z]{3}$/.test(value.cfRay ?? '')) result.cfRay = value.cfRay;
+  if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(?:-\d{10})?$/.test(value.requestId ?? '')) result.requestId = value.requestId;
+  if (/^\d{1,6}$/.test(value.retryAfter ?? '')) result.retryAfter = value.retryAfter;
+  if (['Verification failed.','Browser verification','Challenge page',''].includes(value.signal)) result.signal = value.signal;
+  try {
+    const url = new URL(value.url);
+    if (['https://jujubit.ai','https://www.jujubit.ai'].includes(url.origin)) {
+      result.url = url.origin + (/^\/(?:products\/customize-your-own|cart)?\/?$/.test(url.pathname) ? url.pathname : '/[path-redacted]');
+    }
+  } catch { /* 未知URL不对外携带。 */ }
+  return result;
+}
+
+const attachmentText = (name, text) => name === 'site-access-diagnostics'
+  ? JSON.stringify(sanitizeSiteAccess(JSON.parse(text))) : redact(text).slice(0, 20000);
+
 export async function buildBundle(root = process.cwd(), env = process.env) {
   const resultsRoot = path.join(root, 'test-results');
   const output = path.join(root, 'diagnostic-evidence');
@@ -45,7 +67,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     let context = '';
     const runtimeDiagnostics = [];
     if (result) {
-      for (const attachment of (result.attachments ?? []).filter(a => ['runtime-diagnostics', 'navigation-diagnostics'].includes(a.name)).slice(0, 4)) {
+      for (const attachment of (result.attachments ?? []).filter(a => ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics'].includes(a.name)).slice(0, 6)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.
@@ -54,12 +76,12 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
             const text = Buffer.from(attachment.body, 'base64').toString('utf8');
             if (Buffer.byteLength(text) > 256 * 1024) continue;
             JSON.parse(text);
-            runtimeDiagnostics.push({ name: attachment.name, text: redact(text).slice(0, 20000) });
+            runtimeDiagnostics.push({ name: attachment.name, text: attachmentText(attachment.name, text) });
             continue;
           }
           const file = await realpath(path.resolve(root, attachment.path));
           if (!file.startsWith((await realpath(resultsRoot)) + path.sep) || (await stat(file)).size > 256 * 1024) continue;
-          runtimeDiagnostics.push({ name: attachment.name, text: redact(await readFile(file, 'utf8')).slice(0, 20000) });
+          runtimeDiagnostics.push({ name: attachment.name, text: attachmentText(attachment.name, await readFile(file, 'utf8')) });
         } catch { runtimeDiagnostics.push({ name: attachment.name, gap: '运行时诊断附件不可读' }); }
       }
       // Derive the sibling error-context from a reported artifact, never accept

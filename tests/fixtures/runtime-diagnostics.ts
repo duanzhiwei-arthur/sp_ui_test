@@ -1,5 +1,6 @@
 import { type Page, type Request, type ConsoleMessage } from '@playwright/test';
 import { test as base, expect } from './automation-identity.js';
+import { watchSiteAccess } from '../pages/site-access.js';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')
@@ -91,6 +92,7 @@ export function monitorPage(page: Page) {
 export const test = base.extend<{ runtimeDiagnostics: void }>({
   runtimeDiagnostics: [async ({ page }, use, testInfo) => {
     const monitor = monitorPage(page);
+    const access = watchSiteAccess(page);
     try { await use(); } finally {
       try {
         const snapshot = await monitor.snapshot();
@@ -102,7 +104,7 @@ export const test = base.extend<{ runtimeDiagnostics: void }>({
           } catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '失败截图不可用，保留录像并由通知层抽帧兜底。' }); }
         }
       } catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '运行时诊断采集失败，保留原始测试结果和Trace。' }); }
-      finally { monitor.dispose(); }
+      finally { monitor.dispose(); access.dispose(); }
     }
   }, { auto: true, timeout: 12_000 }]
 });
