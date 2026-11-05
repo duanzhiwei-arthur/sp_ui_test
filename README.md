@@ -1,5 +1,11 @@
 # JuJuBit UI Regression
 
+## 双仓库同步约定（2026-11-05）
+
+本工程维护源为 `duanzhiwei-arthur/sp_ui_test`；发布验证副本为 `vast-enterprise/shop-test-agent-s` 的 `projects/sp_ui_test/`。用户要求：后续用例、公共fixture/Page Object、报告逻辑及相关说明修改完成后，同步检查并更新两端已提交版本，交付时分别列出两端提交与验证结果；仅一端推送不算同步完成。
+
+同步只带本次已确认的提交，不复制脏工作区、凭据、node_modules、报告、录像；保留副本专用 `playwright.release.config.ts` 及根发布入口、其他工程和各自调度。发生冲突先核对，不整目录覆盖。正常业务case修改以本工程为源，副本接入差异留在副本；不得将旧仓库的定时工作流搬到合并仓库根目录。
+
 ## 自动化匿名标识（2026-11-02）
 
 所有用例通过公共fixture在目标站点脚本执行前写入localStorage：`sdk_anonymous_id` = 字符串 `test`。日常回归、失败复核、TC-001、实验和埋点用例均接入；额外创建隔离上下文时使用 `createAutomationContext()`。刷新、新页面和目标站点弹窗继续注入，第三方支付/登录域名不修改。
