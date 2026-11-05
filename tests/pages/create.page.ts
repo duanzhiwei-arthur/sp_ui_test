@@ -9,6 +9,7 @@ const actionPause = 2_000;
 const postThreeDRotationPause = 5_000;
 
 export class CreatePage {
+  readonly homeCreateLink: Locator;
   readonly createTab: Locator;
   readonly galleryTab: Locator;
   readonly styleButton: Locator;
@@ -58,6 +59,8 @@ export class CreatePage {
   readonly cookieAcceptButton: Locator;
 
   constructor(readonly page: Page) {
+    this.homeCreateLink = page.getByRole('navigation', { name: 'Primary', exact: true })
+      .getByRole('link', { name: 'Create', exact: true });
     const createCanvas = page.locator('#jjb-create-canvas');
     this.createTab = createCanvas.getByRole('button', { name: 'Create', exact: true });
     this.galleryTab = createCanvas.getByRole('button', { name: 'Gallery', exact: true });
@@ -132,6 +135,16 @@ export class CreatePage {
 
   async gotoHomePage(): Promise<void> {
     await this.navigate('/');
+  }
+
+  async expectHomeCreateEntry(timeout = 120_000): Promise<void> {
+    await expect(this.homeCreateLink, '主导航应有且仅有一个 Create 入口').toHaveCount(1, { timeout });
+    await expect(this.homeCreateLink).toBeVisible({ timeout });
+    const href = await this.homeCreateLink.getAttribute('href');
+    expect(href, 'Create 入口应具有目标地址').toBeTruthy();
+    const target = new URL(href!, this.page.url());
+    expect(target.origin, 'Create 应进入同站点创作页').toBe(new URL(this.page.url()).origin);
+    expect(target.pathname).toBe('/products/customize-your-own');
   }
 
   async navigate(path: string): Promise<void> {

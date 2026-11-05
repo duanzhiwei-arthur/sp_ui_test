@@ -3,9 +3,43 @@ import { createServer, type Server } from 'node:http';
 import { gotoWithDiagnostics } from '../../tests/pages/navigation.js';
 import { monitorPage, bounded, redactDiagnostic } from '../../tests/fixtures/runtime-diagnostics.js';
 import { expectVisibleWithAccessCheck, watchSiteAccess } from '../../tests/pages/site-access.js';
+import { CreatePage } from '../../tests/pages/create.page.js';
 
 let server: Server;
 let origin: string;
+
+test('首页三个Create入口仅选择Primary主导航，保持真实点击跳转', async ({ page }) => {
+  await page.goto(origin + '/healthy');
+  await page.setContent(`<a href="/other">Create</a><nav aria-label="Primary"><a href="/products/customize-your-own?variant=123">Create</a></nav><footer><a href="/footer">Create</a></footer>`);
+  expect(await page.getByRole('link', { name: 'Create', exact: true }).count()).toBe(3);
+  const create = new CreatePage(page);
+  await create.expectHomeCreateEntry(500);
+  await create.homeCreateLink.click();
+  await expect(page).toHaveURL(origin + '/products/customize-your-own?variant=123');
+});
+
+test('主导航缺失或重复不回退到其他Create链接', async ({ page }) => {
+  await page.goto(origin + '/healthy');
+  const create = new CreatePage(page);
+  for (const html of [
+    '<footer><a href="/products/customize-your-own">Create</a></footer>',
+    '<nav aria-label="Primary"><a href="/products/customize-your-own">Create</a><a href="/products/customize-your-own">Create</a></nav>'
+  ]) {
+    await page.setContent(html);
+    await expect(create.expectHomeCreateEntry(100)).rejects.toThrow(/主导航应有且仅有一个/);
+  }
+});
+
+test('主导航地址错误或跨站时不能通过，隐藏入口仍失败', async ({ page }) => {
+  await page.goto(origin + '/healthy');
+  const create = new CreatePage(page);
+  for (const href of ['/collections/all', 'https://external.invalid/products/customize-your-own']) {
+    await page.setContent(`<nav aria-label="Primary"><a href="${href}">Create</a></nav>`);
+    await expect(create.expectHomeCreateEntry(100)).rejects.toThrow();
+  }
+  await page.setContent('<nav aria-label="Primary" hidden><a href="/products/customize-your-own">Create</a></nav>');
+  await expect(create.expectHomeCreateEntry(100)).rejects.toThrow();
+});
 test.beforeAll(async () => {
   server = createServer((request, response) => {
     response.setHeader('Content-Type', 'text/html');

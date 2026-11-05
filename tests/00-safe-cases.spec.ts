@@ -39,9 +39,8 @@ test.describe('非生成顺序用例 @smoke', () => {
     const create = new CreatePage(page);
     await create.gotoHomePage();
     await create.dismissMarketingPopup();
-    const createLink = page.getByRole('link', { name: 'Create', exact: true });
-    await expect(createLink).toHaveCount(1);
-    await create.click(createLink);
+    await create.expectHomeCreateEntry();
+    await create.click(create.homeCreateLink);
     await expect(page).toHaveURL(/\/products\/customize-your-own/);
     await create.waitForCustomizer();
     await expect(create.galleryTab).toBeVisible();
