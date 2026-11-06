@@ -11,6 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
+import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
 import { finalSummary, finalExitCode, mergeRecheckResult, recheckArgs, recheckMessage, recheckableCases } from './failure-recheck.mjs';
 
@@ -283,6 +284,7 @@ async function collectFailures(suite, failures, failureArtifacts, failureDetails
       failureDetails.push({
         title: spec.title,
         reason,
+        category: failureCategory(reason),
         generationEvidence: await collectGenerationEvidence(failedResults.at(-1), projectRoot),
         analysis: analyzeFailureReason(spec.title, reason)
       });
@@ -323,6 +325,7 @@ function normalizeFailureReason(message) {
 }
 
 function analyzeFailureReason(title, reason) {
+  if (/\[ASSET_OWNERSHIP\]|\[CART_ASSET\]/u.test(reason)) return `${failureCategoryLabel(failureCategory(reason))}：${reason}；未以其他历史资产或旧商品代替本轮结果，不自动重复生成/加购。`;
   if (/\[GENERATION_FAILED\]/u.test(reason)) return `生成页面已明确显示业务失败，不是单纯加载超时；${reason}`;
   if (/\[GENERATION_TIMEOUT\]/u.test(reason)) return `生成等待超时但未观察到明确业务错误；请结合任务事件与页面状态排查，不能直接归因为网络。${reason}`;
   if (/\[SITE_VERIFICATION\]/u.test(reason)) return `环境阻断：主页面进入浏览器验证/验证失败页；本阶段业务未验证，不归因于生成/删除功能。${reason}`;

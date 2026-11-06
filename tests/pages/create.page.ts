@@ -2,6 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { gotoWithDiagnostics } from './navigation.js';
 import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js';
 import { waitForGenerationState } from './generation-wait.js';
+import { runAssets, optionalRunAssets } from '../fixtures/run-assets.js';
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
@@ -233,7 +234,10 @@ export class CreatePage {
 
   async startGeneration(): Promise<void> {
     await expect(this.generateButton).toBeEnabled();
-    await this.click(this.generateButton);
+    const assets = optionalRunAssets(this.page);
+    assets?.beginGeneration();
+    try { await this.click(this.generateButton); }
+    catch (error) { assets?.endGenerationAction(); throw error; }
   }
 
   async selectCanvasTemplates(): Promise<void> {
@@ -418,9 +422,14 @@ export class CreatePage {
   }
 
   async deleteLatestHistoryRecord(previousCount: number): Promise<void> {
-    // Gallery displays the newest generated record first.
-    const latestDeleteButton = this.historyRecordDeleteButtons.first();
+    const assets = runAssets(this.page);
+    const owned = await assets.requireSingleAsset();
+    if (!owned.imageUrl) throw Error('[ASSET_OWNERSHIP] 本轮响应缺少图片映射，拒绝按History位置猜测删除');
+    const record = this.historyRecordArticles.filter({ has: this.page.locator(`img[src=${JSON.stringify(owned.imageUrl)}]`) });
+    await expect(record, '[ASSET_OWNERSHIP] History必须唯一映射本轮生成图片').toHaveCount(1);
+    const latestDeleteButton = record.getByRole('button', { name: 'delete record', exact: true });
     await expect(latestDeleteButton).toBeVisible();
+    await assets.authorizeDelete(owned.assetId);
     const confirmDeletion = this.page.waitForEvent('dialog').then(async (dialog) => {
       try {
         expect(dialog.type()).toBe('confirm');
@@ -431,7 +440,19 @@ export class CreatePage {
         throw error;
       }
     });
-    await Promise.all([confirmDeletion, this.click(latestDeleteButton)]);
+    const deleted = this.page.waitForResponse(r => r.request().method() === 'DELETE'
+      && new URL(r.url()).origin === new URL(this.page.url()).origin
+      && new URL(r.url()).pathname === `/apps/ai/activity/assets/${owned.assetId}`, { timeout: 30_000 });
+    try {
+      const [response] = await Promise.all([deleted, confirmDeletion, this.click(latestDeleteButton)]);
+      expect(assets.wasDeleteBlocked(), '[ASSET_OWNERSHIP] 不允许删除非本次资产').toBe(false);
+      expect(response.ok(), '本次资产DELETE应成功').toBe(true);
+      const body = await response.json();
+      expect(body, '删除响应应为有效JSON').toBeTruthy();
+      expect(body?.success, '删除业务响应不得为失败').not.toBe(false);
+      await expect(record, '本轮资产对应的History卡片应消失').toHaveCount(0);
+      assets.markDeleted(owned.assetId);
+    } finally { assets.cancelDelete(); }
     await expect.poll(
       () => this.historyRecordDeleteButtons.count(),
       { message: '删除后本次生成记录应从 History 消失', timeout: customizerTimeout }

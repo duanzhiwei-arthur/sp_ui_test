@@ -1,6 +1,7 @@
 import { type Page, type Request, type ConsoleMessage } from '@playwright/test';
 import { test as base, expect } from './automation-identity.js';
 import { watchSiteAccess } from '../pages/site-access.js';
+import { RunAssets, registerRunAssets } from './run-assets.js';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')
@@ -93,6 +94,9 @@ export const test = base.extend<{ runtimeDiagnostics: void }>({
   runtimeDiagnostics: [async ({ page }, use, testInfo) => {
     const monitor = monitorPage(page);
     const access = watchSiteAccess(page);
+    const assets = new RunAssets(page);
+    registerRunAssets(page, assets);
+    await assets.install();
     try { await use(); } finally {
       try {
         const snapshot = await monitor.snapshot();
@@ -104,7 +108,11 @@ export const test = base.extend<{ runtimeDiagnostics: void }>({
           } catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '失败截图不可用，保留录像并由通知层抽帧兜底。' }); }
         }
       } catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '运行时诊断采集失败，保留原始测试结果和Trace。' }); }
-      finally { monitor.dispose(); access.dispose(); }
+      finally {
+        try { await testInfo.attach('run-assets', { body: JSON.stringify({ runId: process.env.GITHUB_RUN_ID ?? 'local', case: testInfo.title, retry: testInfo.retry, ...assets.snapshot() }), contentType: 'application/json' }); }
+        catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '资产审计附件不可用，未伪造资产标识' }); }
+        finally { try { await assets.dispose(); } finally { monitor.dispose(); access.dispose(); } }
+      }
     }
   }, { auto: true, timeout: 12_000 }]
 });

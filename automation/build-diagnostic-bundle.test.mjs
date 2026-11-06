@@ -3,7 +3,20 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess } from './build-diagnostic-bundle.mjs';
+import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets } from './build-diagnostic-bundle.mjs';
+
+test('资产审计ID不被手机号脱敏破坏，未知URL和凭据不进入摘要',()=>{
+ const s=sanitizeRunAssets({attemptId:'attempt-1',assets:[{assetId:'12345678901',taskId:'23456789012',imageUrl:'https://private.invalid/a?token=x'}],cookie:'secret',generationRequests:[{at:'2026-11-06T00:00:00.000Z',status:200,complete:false,requestId:'abc-123'}],unfinishedRequests:1});
+ assert.equal(s.assets[0].assetId,'12345678901');assert.equal(s.unfinishedRequests,1);assert.doesNotMatch(JSON.stringify(s),/secret|private.invalid|token=/);
+});
+test('成功case也保留资产记录，不把遗留任务丢出轻量报告',async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),'qa-assets-success-'));
+ try{
+  await mkdir(path.join(root,'test-results'));
+  await writeFile(path.join(root,'test-results/results.json'),JSON.stringify({suites:[{specs:[{title:'TC-04',tests:[{status:'expected',results:[{status:'passed',attachments:[{name:'run-assets',body:Buffer.from(JSON.stringify({attemptId:'one',assets:[],generationRequests:[{status:200,complete:false}],unfinishedRequests:1})).toString('base64')}]}]}]}]}]}));
+  const bundle=await buildBundle(root,{});assert.equal(bundle.cases[0].status,'expected');assert.equal(JSON.parse(bundle.cases[0].runtimeDiagnostics[0].text).unfinishedRequests,1);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 
 test('验证页诊断保留时间与请求标识，移除Cookie、查询和未知字段', async () => {
   const evidence={code:'SITE_VERIFICATION',status:403,at:'2026-11-04T05:34:16.262Z',

@@ -1,6 +1,7 @@
 import { readFile, mkdir, writeFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { collectGenerationEvidence } from './generation-evidence.mjs';
+import { failureCategory } from './failure-category.mjs';
 
 // Text-only evidence for the read-only bot. Videos stay in separate artifacts.
 export function redact(text) {
@@ -51,8 +52,20 @@ export function sanitizeSiteAccess(value) {
   return result;
 }
 
+export function sanitizeRunAssets(value) {
+  const id = v => (typeof v === 'string' || Number.isSafeInteger(v)) && /^[a-zA-Z0-9_-]{1,128}$/.test(String(v)) ? String(v) : undefined;
+  const at = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) ? v : undefined;
+  const array = v => Array.isArray(v) ? v.slice(0,100) : [];
+  return {version:1,attemptId:id(value?.attemptId),taskIds:array(value?.taskIds).map(id).filter(Boolean),
+    generationRequests:array(value?.generationRequests).map(r=>({at:at(r.at),status:Number.isInteger(r.status)?r.status:undefined,traceId:id(r.traceId),requestId:id(r.requestId),complete:r.complete===true})),
+    assets:array(value?.assets).map(a=>({assetId:id(a.assetId),taskId:id(a.taskId),traceId:id(a.traceId),terminal:a.terminal===true,deleted:a.deleted===true,imageObserved:a.imageObserved===true})),
+    unfinishedRequests:Number.isSafeInteger(value?.unfinishedRequests)?value.unfinishedRequests:undefined,
+    gaps:array(value?.gaps).map(g=>redact(g).slice(0,300)),
+    caveat:'仅当前case/attempt实测；没有终态不代表后台已取消或失败。'};
+}
 const attachmentText = (name, text) => name === 'site-access-diagnostics'
-  ? JSON.stringify(sanitizeSiteAccess(JSON.parse(text))) : redact(text).slice(0, 20000);
+  ? JSON.stringify(sanitizeSiteAccess(JSON.parse(text))) : name === 'run-assets'
+    ? JSON.stringify(sanitizeRunAssets(JSON.parse(text))) : redact(text).slice(0, 20000);
 
 export async function buildBundle(root = process.cwd(), env = process.env) {
   const resultsRoot = path.join(root, 'test-results');
@@ -64,10 +77,11 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
   const cases = [];
   for (const item of collectCases(report.suites).slice(0, 50)) {
     const result = item.results.findLast(r => ['failed', 'timedOut', 'interrupted'].includes(r.status));
+    const evidenceResult = result ?? item.results.at(-1);
     let context = '';
     const runtimeDiagnostics = [];
-    if (result) {
-      for (const attachment of (result.attachments ?? []).filter(a => ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics'].includes(a.name)).slice(0, 6)) {
+    if (evidenceResult) {
+      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets'] : ['run-assets']).includes(a.name)).slice(0, 6)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.
@@ -86,7 +100,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       }
       // Derive the sibling error-context from a reported artifact, never accept
       // arbitrary report paths or symlinks escaping the results directory.
-      for (const attachment of result.attachments ?? []) {
+      for (const attachment of result?.attachments ?? []) {
         if (!attachment.path) continue;
         const file = path.resolve(root, attachment.path);
         if (!file.startsWith(resultsRoot + path.sep)) continue;
@@ -99,6 +113,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       }
     }
     cases.push({ title: redact(item.title), file: normalizeTestFile(item.file, root), line: item.line, status: item.status,
+      failureCategory: result ? failureCategory(result.error?.message) : undefined,
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
       generationEvidence: await collectGenerationEvidence(result, root),

@@ -6,6 +6,7 @@ import { assetPath, canRunGeneration, testData } from './fixtures/test-data.js';
 import { CartDrawer } from './pages/cart-drawer.page.js';
 import { CreatePage } from './pages/create.page.js';
 import { CheckoutPage } from './pages/checkout.page.js';
+import { runAssets } from './fixtures/run-assets.js';
 
 function inventoryScript() {
   const scope = document;
@@ -65,7 +66,7 @@ test.describe('核心生成链路 @core-smoke', () => {
 
     const cart = new CartDrawer(page);
     await test.step('加入购物车并确认商品存在', async () => {
-      await create.click(create.addToCartButton);
+      await cart.addCurrentAsset(() => create.click(create.addToCartButton), runAssets(page));
       await create.navigate('/cart');
       await cart.expectHasItems();
       await saveInventory(page, 'cart-elements.json', testInfo);

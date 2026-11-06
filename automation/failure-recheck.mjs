@@ -1,3 +1,5 @@
+import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
+
 export function recheckableCases(mode, caseResults = []) {
   if (!['safe', 'daily', 'homepage-clickable', 'experiment', 'all'].includes(mode)) return [];
   return caseResults.filter(item => ['failed', 'flaky', 'unknown'].includes(item.status));
@@ -75,7 +77,10 @@ export function recheckMessage(summary) {
     ...(flaky.length ? [`复核通过，偶发/待观察 ${flaky.length} 条：${flaky.join('、')}`] : []),
     ...(failed.length ? [`复核仍失败 ${failed.length} 条：${failed.join('、')}`] : []),
     ...(unknown.length ? [`复核未完成或证据不足 ${unknown.length} 条：${unknown.join('、')}`] : []),
-    ...firstAccessFailureMessages(summary)
+    ...firstAccessFailureMessages(summary),
+    `复核原因分类：${Object.entries(items.reduce((counts, item) => {
+      const label = failureCategoryLabel(failureCategory(item.firstFailure?.reason)); counts[label] = (counts[label] ?? 0) + 1; return counts;
+    }, {})).map(([label, count]) => `${label} ${count}条`).join('；')}`
   ].join('\n');
 }
 
