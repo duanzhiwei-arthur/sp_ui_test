@@ -63,7 +63,14 @@ export function sanitizeRunAssets(value) {
     gaps:array(value?.gaps).map(g=>redact(g).slice(0,300)),
     caveat:'仅当前case/attempt实测；没有终态不代表后台已取消或失败。'};
 }
-const attachmentText = (name, text) => name === 'site-access-diagnostics'
+export function sanitizeGaCookie(value) {
+  const clean = value && typeof value === 'object' ? value : {};
+  const stringValue = v => typeof v === 'string' && v.length <= 512 ? v : null;
+  return { version: 1, case: stringValue(clean.case), retry: Number.isSafeInteger(clean.retry) ? clean.retry : null,
+    cookieValue: stringValue(clean.cookieValue), cookieClientId: stringValue(clean.cookieClientId) };
+}
+const attachmentText = (name, text) => name === 'ga-cookie-diagnostics'
+  ? JSON.stringify(sanitizeGaCookie(JSON.parse(text))) : name === 'site-access-diagnostics'
   ? JSON.stringify(sanitizeSiteAccess(JSON.parse(text))) : name === 'run-assets'
     ? JSON.stringify(sanitizeRunAssets(JSON.parse(text))) : redact(text).slice(0, 20000);
 
@@ -81,7 +88,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     let context = '';
     const runtimeDiagnostics = [];
     if (evidenceResult) {
-      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets'] : ['run-assets']).includes(a.name)).slice(0, 6)) {
+      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics'] : ['run-assets', 'ga-cookie-diagnostics']).includes(a.name)).slice(0, 8)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.

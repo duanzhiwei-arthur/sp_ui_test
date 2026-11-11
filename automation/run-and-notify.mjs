@@ -12,6 +12,7 @@ import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
+import { gaCookieRows } from './ga-cookie.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
 import { finalSummary, finalExitCode, mergeRecheckResult, recheckArgs, recheckMessage, recheckableCases } from './failure-recheck.mjs';
 
@@ -266,7 +267,8 @@ async function collectFailures(suite, failures, failureArtifacts, failureDetails
     const caseStatus = resolveCaseStatus(spec);
     const rawFile = spec.file ?? suite.file;
     const file = rawFile && (path.isAbsolute(rawFile) ? rawFile : rawFile.startsWith('tests/') ? rawFile : `tests/${rawFile}`);
-    caseResults.push({ title: spec.title, status: caseStatus, file });
+    const gaCookie = await collectGaCookie(spec.tests ?? []);
+    caseResults.push({ title: spec.title, status: caseStatus, file, gaCookie });
     if (['failed', 'flaky'].includes(caseStatus)) {
       failures.push(spec.title);
       const failedResults = (spec.tests ?? [])
@@ -293,6 +295,20 @@ async function collectFailures(suite, failures, failureArtifacts, failureDetails
   for (const child of suite.suites ?? []) {
     await collectFailures(child, failures, failureArtifacts, failureDetails, caseResults);
   }
+}
+
+async function collectGaCookie(tests) {
+  const result = tests.flatMap(test => test.results ?? []).at(-1);
+  const attachment = result?.attachments?.find(item => item.name === 'ga-cookie-diagnostics');
+  if (!attachment) return null;
+  try {
+    const text = typeof attachment.body === 'string'
+      ? Buffer.from(attachment.body, 'base64').toString('utf8')
+      : await readFile(path.resolve(attachment.path), 'utf8');
+    const data = JSON.parse(text);
+    return { cookieValue: typeof data.cookieValue === 'string' ? data.cookieValue : null,
+      cookieClientId: typeof data.cookieClientId === 'string' ? data.cookieClientId : null };
+  } catch { return null; }
 }
 
 function resolveCaseStatus(spec) {
@@ -436,6 +452,10 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
     }
   }
 
+  const gaRows = gaCookieRows(summary).map(item =>
+    `- ${item.title}：cookieValue=${item.cookieValue}；cookieClientId=${item.cookieClientId}`);
+  if (gaRows.length) lines.push('GA Cookie诊断（本次独立浏览器上下文）：', ...gaRows);
+
   if (recheckMessage(summary)) lines.push(recheckMessage(summary));
   lines.push(...firstGenerationFailureMessages(summary));
   lines.push(buildReportReference());
@@ -576,6 +596,7 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
           ]
         },
         buildCaseDetails(summary),
+        buildGaCookieCard(summary),
         ...(recheckMessage(summary) ? [{ tag: 'markdown', content: escapeCardText(recheckMessage(summary)) }] : []),
         ...firstGenerationFailureMessages(summary).map(content => ({ tag: 'markdown', content: escapeCardText(content) })),
         ...(!passed ? [buildFailureDetail(summary)] : []),
@@ -592,6 +613,15 @@ function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary })
       ]
     }
   };
+}
+
+function buildGaCookieCard(summary) {
+  const rows = gaCookieRows(summary);
+  return { tag: 'interactive_container', element_id: 'gaCookieDiagnostics', has_border: true,
+    border_color: 'blue-100', background_style: 'blue-50', corner_radius: '8px', padding: '12px', vertical_spacing: '4px',
+    elements: [{ tag: 'markdown', content: '**GA Cookie诊断（每个独立浏览器上下文）**' },
+      { tag: 'markdown', content: rows.length ? rows.map(row =>
+        `- **${escapeCardText(row.title)}**<br>cookieValue=${escapeCardText(row.cookieValue)}<br>cookieClientId=${escapeCardText(row.cookieClientId)}`).join('<br>') : '本轮没有可读取的浏览器上下文值。' }] };
 }
 
 function metricColumn(label, value, detail, color) {

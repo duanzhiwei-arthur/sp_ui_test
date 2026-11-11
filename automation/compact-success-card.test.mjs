@@ -12,19 +12,20 @@ const input = () => ({ testExitCode:0, finishedAt:new Date('2026-10-22T07:37:33Z
     caseResults:[0,1,2,3,5,4].map(n=>({title:`TC-0${n}: test ${n}`,status:'passed'}))} });
 
 test('验证阻断复核通过时保留首次分类；普通成功卡片不增加内容',()=>{
-  const clean=input();assert.equal(buildCompactSuccessCard(clean).body.elements.length,3);
+  const clean=input();assert.equal(buildCompactSuccessCard(clean).body.elements.length,4);
   const data=input();data.summary.recheck={cases:[{title:'TC-03',finalStatus:'passed-on-recheck',firstFailure:{reason:'[SITE_VERIFICATION] HTTP 200'}}]};
   const text=JSON.stringify(buildCompactSuccessCard(data));assert.match(text,/首次站点访问\/验证阻断/);assert.match(text,/复核通过/);
 });
 test('approved success layout, collapsed details, single action and no preview wording',()=>{
   const card=buildCompactSuccessCard(input());
   assert.equal(card.config.width_mode,'compact');
-  assert.equal(card.body.elements.length,3);
+  assert.equal(card.body.elements.length,4);
   assert.match(card.body.elements[0].content,/6\/6.*17分44秒/);
   assert.match(card.body.elements[0].content,/2026-10-22 15:37:33/);
   assert.equal(card.body.elements[1].expanded,false);
-  assert.ok(card.body.elements[1].elements[0].content.indexOf('TC-04')<card.body.elements[1].elements[0].content.indexOf('TC-05'));
-  assert.equal(card.body.elements[2].behaviors[0].default_url,input().runUrl);
+  assert.equal(card.body.elements[2].expanded,false);
+  assert.ok(card.body.elements[2].elements[0].content.indexOf('TC-04')<card.body.elements[2].elements[0].content.indexOf('TC-05'));
+  assert.equal(card.body.elements[3].behaviors[0].default_url,input().runUrl);
   assert.doesNotMatch(JSON.stringify(card),/个人预览|尚未应用|<at/);
 });
 for(const field of ['unexpected','skipped','flaky'])test(`${field} retains detailed card`,()=>{
@@ -56,6 +57,12 @@ test('recovered result is a compact warning, never disguised as a clean first pa
   assert.match(card.header.title.content,/复核通过/);
   assert.match(card.body.elements[0].content,/首次失败.*二次复核通过/);
   assert.doesNotMatch(JSON.stringify(card),/<at|failureDetail/);
+});
+
+test('成功卡片包含每个case的GA Cookie值',()=>{
+  const data=input();data.summary.caseResults[0].gaCookie={cookieValue:'GA1.1.1.2',cookieClientId:'1.2'};
+  const card=buildCompactSuccessCard(data);const text=JSON.stringify(card);
+  assert.match(text,/GA1\.1\.1\.2/);assert.match(text,/cookieClientId=1\.2/);
 });
 
 test('real notification entry point selects compact success but keeps failure structure',async()=>{

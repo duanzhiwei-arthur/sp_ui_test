@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets } from './build-diagnostic-bundle.mjs';
+import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets, sanitizeGaCookie } from './build-diagnostic-bundle.mjs';
+
+test('GA Cookie诊断只保留两个指定值，不丢失合法Cookie字符串',()=>{
+  const input={case:'TC-00: 首页',retry:0,cookieValue:'GA1.1.123456789.1790000000',cookieClientId:'123456789.1790000000',token:'hidden'};
+  const output=sanitizeGaCookie(input);
+  assert.equal(output.cookieValue,input.cookieValue);assert.equal(output.cookieClientId,input.cookieClientId);assert.equal(output.token,undefined);
+});
 
 test('资产审计ID不被手机号脱敏破坏，未知URL和凭据不进入摘要',()=>{
  const s=sanitizeRunAssets({attemptId:'attempt-1',assets:[{assetId:'12345678901',taskId:'23456789012',imageUrl:'https://private.invalid/a?token=x'}],cookie:'secret',generationRequests:[{at:'2026-11-06T00:00:00.000Z',status:200,complete:false,requestId:'abc-123'}],unfinishedRequests:1});

@@ -1,6 +1,7 @@
 import { firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { firstAccessFailureMessages } from './failure-recheck.mjs';
 import { firstFailureCategoryMessages } from './failure-category.mjs';
+import { gaCookieRows } from './ga-cookie.mjs';
 
 // The approved personal-preview layout. Return null for anything except a
 // completely clean run, leaving the existing detailed notification untouched.
@@ -37,6 +38,7 @@ export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, sco
       ...firstGenerationFailureMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
       ...firstAccessFailureMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
       ...firstFailureCategoryMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
+      { tag: 'collapsible_panel', expanded: false, header: { title: { tag: 'plain_text', content: 'GA Cookie诊断' } }, elements: [{ tag: 'markdown', content: gaCookieRows(summary).length ? gaCookieRows(summary).map(row => `**${escape(row.title)}**<br>cookieValue=${escape(row.cookieValue)}<br>cookieClientId=${escape(row.cookieClientId)}`).join('<br>') : '本轮没有可读取的浏览器上下文值。' }] },
       { tag: 'collapsible_panel', expanded: false, header: { title: { tag: 'plain_text', content: '用例明细与版本（展开）' } }, elements: [
         { tag: 'markdown', content: sorted.map(item => `${item.recovered ? '⚠️ 复核通过' : '✅'} ${escape(item.title)}`).join('\n') },
         { tag: 'markdown', content: `<font color='grey'>Run：${runId}\n提交：${headSha.slice(0, 12)}</font>`, text_size: 'notation' }

@@ -90,6 +90,14 @@ export function monitorPage(page: Page) {
   };
 }
 
+export async function readGaCookie(page: Page): Promise<{ cookieValue: string | null; cookieClientId: string | null }> {
+  return page.evaluate(() => {
+    const cookieValue = document.cookie.match(/(?:^|;\s*)_ga=([^;]*)/)?.[1] ?? null;
+    const cookieClientId = cookieValue?.match(/^GA\d+\.\d+\.(.+)$/)?.[1] ?? null;
+    return { cookieValue, cookieClientId };
+  });
+}
+
 export const test = base.extend<{ runtimeDiagnostics: void }>({
   runtimeDiagnostics: [async ({ page }, use, testInfo) => {
     const monitor = monitorPage(page);
@@ -101,6 +109,13 @@ export const test = base.extend<{ runtimeDiagnostics: void }>({
       try {
         const snapshot = await monitor.snapshot();
         await testInfo.attach('runtime-diagnostics', { body: JSON.stringify(snapshot, null, 2), contentType: 'application/json' });
+        try {
+          const gaCookie = await bounded(readGaCookie(page), 2_000, '读取GA Cookie');
+          await testInfo.attach('ga-cookie-diagnostics', { body: JSON.stringify({ version: 1, case: testInfo.title, retry: testInfo.retry, ...gaCookie }, null, 2), contentType: 'application/json' });
+          console.log(`[ga-cookie] case=${testInfo.title} cookieValue=${gaCookie.cookieValue ?? '未采集'} cookieClientId=${gaCookie.cookieClientId ?? '未采集'}`);
+        } catch (error) {
+          testInfo.annotations.push({ type: 'diagnostic-gap', description: `GA Cookie读取失败：${redactDiagnostic(String(error))}` });
+        }
         if (testInfo.status !== testInfo.expectedStatus && !page.isClosed()) {
           try {
             const image = await bounded(page.screenshot({ timeout: 3_000 }), 4_000, '失败截图');
