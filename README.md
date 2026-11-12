@@ -25,6 +25,8 @@ Playwright + TypeScript 游客态回归。此工程保留当前远端用例、�
 
 ## 本地运行
 
+下列命令对应整理后的代码版本。**README更新不等于工作区代码已更新**：保留未提交修改的旧工作区，先核对`git log -1 --oneline`及`package.json`，不要用强制覆盖来同步代码。旧工作区的新画板文件可能仍在`manual-qa/canvas-v3-daily-parity/`；整理后统一位于`experiments/canvas-v3/`，两者不是两套新增case。
+
 ```sh
 npm ci
 npx playwright install chromium
