@@ -7,7 +7,7 @@ export function checkProjectSync(source, destination, sourceRef='HEAD', destinat
   const git=(root,args)=>execFileSync('git',['-C',root,...args],{maxBuffer:16*1024*1024,stdio:['ignore','pipe','pipe']});
   const revision=(root,ref)=>git(root,['rev-parse','--verify',`${ref}^{commit}`]).toString().trim();
   const a=revision(source,sourceRef), b=revision(destination,destinationRef);
-  const shared=f=>/^(tests|automation|verification)\//.test(f)||['package.json','package-lock.json','tsconfig.json','playwright.config.ts','playwright.tracking.config.ts'].includes(f);
+  const shared=f=>/^(tests|automation|verification|experiments)\//.test(f)||['package.json','package-lock.json','tsconfig.json','playwright.config.ts'].includes(f);
   const paths=(root,rev,prefix='')=>git(root,['ls-tree','-r','--name-only',rev]).toString().trim().split('\n')
     .filter(f=>f.startsWith(prefix)).map(f=>f.slice(prefix.length)).filter(shared);
   const src=paths(source,a), dst=paths(destination,b,'projects/sp_ui_test/');

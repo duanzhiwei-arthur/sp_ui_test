@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, test as base } from '../fixtures/automation-identity.js';
+import { expect, test as base } from '../fixtures/ga-cookie.js';
 import {
   experimentRegistry,
   statsigStableIdStorageKey,

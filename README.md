@@ -1,327 +1,96 @@
-# JuJuBit UI Regression
+# JuJuBit UI 自动化
 
-## 双仓库同步约定（2026-11-05）
+Playwright + TypeScript 游客态回归。此工程保留当前远端用例、新画板同业务链路，以及运行它们所需的诊断和验证代码。**不填写支付资料、不点击最终支付、不提交订单。**
 
-本工程维护源为 `duanzhiwei-arthur/sp_ui_test`；发布验证副本为 `vast-enterprise/shop-test-agent-s` 的 `projects/sp_ui_test/`。用户要求：后续用例、公共fixture/Page Object、报告逻辑及相关说明修改完成后，同步检查并更新两端已提交版本，交付时分别列出两端提交与验证结果；仅一端推送不算同步完成。
+## 全部用例（一张表）
 
-同步只带本次已确认的提交，不复制脏工作区、凭据、node_modules、报告、录像；保留副本专用 `playwright.release.config.ts` 及根发布入口、其他工程和各自调度。发生冲突先核对，不整目录覆盖。正常业务case修改以本工程为源，副本接入差异留在副本；不得将旧仓库的定时工作流搬到合并仓库根目录。
-
-## 远端卡片 GA Cookie 诊断（2026-11-11）
-
-每次远端回归完成后，结果卡片的“GA Cookie诊断”折叠区域按独立浏览器上下文展示`cookieValue`和`cookieClientId`。采集只读取`document.cookie`，不写入、不修改Cookie、不参与断言、不影响case判定；无法读取时显示“未采集”。成功和失败卡片都会保留该区域，文本通知也包含相同字段。
-
-## 远端卡片 GA Cookie 诊断（2026-11-11）
-
-每条远端执行完成后，结果卡片的“GA Cookie诊断”折叠区域按独立浏览器上下文展示：`cookieValue` 与 `cookieClientId`。采集只读取 `document.cookie`，不写入、不修改Cookie、不参与断言、不影响case通过/失败判定；无法读取时显示“未采集”。成功卡片和失败卡片均保留该区域，文本通知同时保留同样字段。
-
-## 定时可靠性加固（2026-11-06）
-
-- 调度时间、六条业务case、一次失败单case复核及30秒冷却不变。验证阻断后仍由复核启动独立Playwright进程/浏览器，不在已生成/加购的case内清Cookie或重新生成；暂不修改站点防护。
-- 每case独立`attemptId`，只从本次Generate触发的POST响应建立Task/Asset归属。附加`run-assets`记录请求时间、响应状态/标识、本轮资产及未结束请求；图片地址仅用于内存定位，不写入该附件。TC-04后台任务未结束时标记未知/未完成，不声称浏览器退出即取消。
-- TC-05以本轮响应图片唯一匹配History卡片，DELETE出站前核验Asset ID；未知/重复映射不删除，清理仍走原UI确认，不改业务数据配置。
-- TC-03同时核对加购响应的`_Record ID`、返回行键，以及只读`cart.js`中的同一行；不以旧商品抵充，不自动重发POST。原购物车/Checkout UI断言保留。
-- 报告原因分类区分访问阻断、归属未确认、加购核验、生成失败、生成超时与未知断言；分类不改变退出码。未引入额度限制、额外自动清理或跨仓库锁。
-- 同步校验：`node automation/check-project-sync.mjs <原仓库路径> <合并仓库路径> [原仓库提交] [合并仓库提交]`。只读比对共享代码提交，差异退出1，不覆盖文件；README和发布专用配置由人工核对。
-- 实现模拟验证：`npx playwright test --config verification/ownership/playwright.config.ts`，不加入线上日常集合。新接口/页面结构缺少归属字段时会明确失败，需要更新适配，不能直接放宽为通过。
-
-本轮发布前验证：真实TC-03/TC-05/TC-04修正后3/3通过（资产4276113已核验加购；4276147已按归属删除；TC-04任务4260352/资产4276191在浏览器结束时未取得终态）。初版完整六条中TC-00～02通过，TC-03/05因新追踪时序失败、TC-04停在Loading customizer；已保留证据。追踪改为被动读取实时SSE，支持异步上传延迟和CRLF，不影响页面接收数据。初版产生的测试资产没有作未授权批量清理，不能宣称无遗留数据。最终验证详见双仓迁移记录。
-
-## 自动化匿名标识（2026-11-02）
-
-所有用例通过公共fixture在目标站点脚本执行前写入localStorage：`sdk_anonymous_id` = 字符串 `test`。日常回归、失败复核、TC-001、实验和埋点用例均接入；额外创建隔离上下文时使用 `createAutomationContext()`。刷新、新页面和目标站点弹窗继续注入，第三方支付/登录域名不修改。
-
-此规则不改变 `_anonymous_id`、Statsig stable_id、登录态或实验配置，不修改个人浏览器。`test` 用于标识自动化流量，可能将SDK维度的多个测试会话汇总到同一匿名标识；不据此判断实验分组。独立本地验证：`npx playwright test --config verification/identity/playwright.config.ts --grep-invert @live`；只读线上校验需显式设置 `IDENTITY_LIVE_CHECK=true` 并选择 `--grep @live`，不执行生成。
-
-基于 Playwright + TypeScript 的 JuJuBit 游客态 UI 回归框架。覆盖创作、生成、购物车、Checkout 与埋点审计；所有订单验证止于 Checkout 页面，**绝不填写支付信息、点击或提交 `Pay now`**。
-
-## 快速开始
-
-```bash
-npm install
-npx playwright install chromium
-cp .env.example .env
-
-# 安全冒烟：只跑 TC-00、TC-01、TC-02，不创建线上生成任务
-npm run test:smoke
-```
-
-在 `.env` 中配置测试素材和目标地址：
-
-```dotenv
-BASE_URL=https://jujubit.ai
-PRODUCT_URL=https://jujubit.ai/products/customize-your-own?variant=62485711716723
-TEST_IMAGE_SOLO=assets/two-dogs.jpeg
-TEST_IMAGE_DUO=assets/two-dogs.jpeg
-TEST_IMAGE_LARGE=assets/two-dogs.jpeg
-TEST_PROMPT=生成2个小狗
-```
-
-测试图片必须无隐私和版权风险。`assets/two-dogs.jpeg` 是仓库内的默认示例素材。
-
-## UI 回归用例
-
-测试固定使用一个 worker 串行执行。
-
-| 用例 | 覆盖范围 | 真实生成 |
+| 用例 | 业务步骤与验收 | 执行入口 / 真实影响 |
 | --- | --- | --- |
-| TC-00 | 首页 HTTP 可访问；生产店铺身份、主要配置模块和媒体资源正常展示；不点击 Create | 否 |
-| TC-001 | 首页唯一且安全的按钮逐个点击；监听页面 JS 错误和站内 HTTP 5xx；跳过订阅、Checkout 等有副作用操作 | 否 |
-| TC-01 | 首页进入 Create；自定义器加载完成；Create/Gallery 基础区域可见 | 否 |
-| TC-02 | 风格、Prompt、Solo/Duo、Basic/Pro 基础交互 | 否 |
-| TC-03 | 上传 → 2D → 3D → 旋转 → 加购 → Checkout | 是 |
-| TC-04 | 开始生成 → Gallery → 等待 Create 可点击 → 重新上传 → Generate 可用 | 是，未二次点击 Generate |
-| TC-05 | Prompt 生成 → 2D/3D → History 新增并删除最新记录 | 是 |
-| TC-06 | 会员实验 Treatment：校验 stable_id/分组 → 上传 → Generate → 会员入口 → 弹窗 → Join | 是，未等待生成完成 |
-| TC-EXP-01 | 会员实验 Control：校验 stable_id/分组 → 上传 → Generate → 会员入口不展示 | 是 |
-| TC-EXP-02 | 已退役：历史画板实验 Treatment 用例，保留代码追溯 | 否，固定跳过 |
+| TC-00 | 首页店铺身份、导航、主要模块和视觉资源健康检查 | 每小时daily；无生成 |
+| TC-001 | 首页安全按钮、Tab、FAQ、币种和购物车入口交互，检查新增JS/5xx异常 | 每日18:00独立巡检；无生成 |
+| TC-01 | 点击主导航唯一Create → 创作页 → 自定义器及Gallery可见 | 每小时daily；无生成 |
+| TC-02 | Free Style→TRPG→Free Style、Solo→Duo→Solo、Prompt编辑、Pro/Basic工具 | 每小时daily；无生成 |
+| TC-03 | 上传图片 → 真实生成2D/3D → 两秒旋转 → 本轮资产加购 → 购物车 → Checkout商品及支付入口 | 每小时daily；生成、加购；不支付 |
+| TC-04 | 提交生成 → 返回Create → 再次上传 → Generate可用；不点第二次Generate | 每小时daily；后台任务可能继续 |
+| TC-05 | 图片＋Prompt生成 → 2D/3D及旋转 → History新增 → UI确认删除本轮资产 | 每小时daily；生成、精确删除 |
+| TC-06 | 会员Treatment：上传→Generate触发实验→分桶核验→会员入口、弹窗及Join去向 | 会员实验点名；生成，不支付 |
+| TC-EXP-01 | 会员Control：同上传→Generate路径→分桶核验→会员入口不展示 | 会员实验点名；生成 |
+| EXP-TC-01 | 首页Create进入新画板；3D Preview步骤、V3与增信同时生效 | 新画板独立配置；Preview/开发店 |
+| EXP-TC-02 | 模板菜单切换、Settings Solo/Duo、内联Prompt、三个增信弹窗开关 | 新画板独立配置；无生成 |
+| EXP-TC-03 | 同源图片→真实2D/3D完成→旋转→加购→购物车→Checkout商品及支付入口 | 新画板独立配置；生成、加购，不支付 |
+| EXP-TC-04 | 真实任务提交后返回Create→替换图片→Generate可用，不提交第二次任务 | 新画板独立配置；后台任务可能继续 |
+| EXP-TC-05 | 图片＋Prompt真实生成→2D/3D及旋转→History新增→只删除本次记录 | 新画板独立配置；生成、精确删除 |
 
-默认 `ALLOW_PRODUCTION_GENERATION=false`，TC-03、TC-04、TC-05、TC-06、TC-EXP-01 会跳过。TC-00～TC-02 属于无生成安全冒烟；每日定时任务执行 TC-00～TC-05，其中 TC-00 只做首页健康检查，TC-01 负责 Create/自定义器入口，避免重复操作。TC-02 已恢复为不依赖实验分流的基础交互回归。`canvas_template_display` 已下线，TC-EXP-02 保留用于历史追溯但固定跳过。当前活跃的会员 Control/Treatment 共用上传 → Generate 触发路径，并校验实际 stable_id 和实验参数值。
+同表展示不代表一起定时执行：daily仍是 **TC-00～TC-05六条**；TC-001保持独立时间；会员实验仍是两条点名执行。新画板5条尚未接入生产定时，不改变原回归范围。执行顺序可能将TC-05放在TC-04前，避免后台任务干扰完整生成检查。
 
-### TC-00：首页健康检查步骤
+## 本地运行
 
-TC-00 不创建生成任务、不上传图片、不进入 Checkout，只验证首页的可访问性和主要展示模块：
-
-1. 打开 `BASE_URL` 首页，断言 HTTP 状态码小于 400、页面主内容区域可见；在生产默认校验 Shopify 店铺域名 `exn11x-id.myshopify.com` 和 Shop ID `95408849267`，防止测试店铺配置误发到线上。其他环境可通过 `EXPECTED_SHOPIFY_SHOP`、`EXPECTED_SHOPIFY_SHOP_ID` 覆盖；页面标题仅作为基本可用性信息读取，不把具体营销文案作为断言。
-2. 关闭首页营销/订阅弹窗（如果出现），避免遮罩影响后续检查。
-3. 检查顶部促销条、JuJuBit Logo 和桌面导航；导航至少有 5 个可见链接，链接地址非空，不固定具体导航文案或菜单数量。
-4. 依次滚动检查 Hero Banner、Pick Your Style、How It Works、Categories、Trending Products、Real Figurines、Customer Reviews、Follow Our Community 和 FAQs；每个模块只要求可见、有可见内容、宽高大于 0。Hero、模板、How It Works、Categories、Trending Products、Real Figurines 和 Community 等视觉模块还必须至少存在一个可渲染图片、视频、Canvas 或 CSS 背景资源，防止配置误改成纯色/纯文本空壳。
-5. 对当前视口内的图片、视频和 Canvas 做渲染健康检查：图片必须完成加载且自然宽高大于 0；视频不能处于无数据状态；Canvas 不能是空尺寸、全透明或纯黑。视口外的懒加载资源不判失败，滚动到对应模块后再检查。
-6. 检查 CSS 背景图资源是否出现已完成但自然宽度为 0 的加载失败情况。
-7. 滚动到页脚，确认至少有 3 个可用链接，不固定 `Company`、`Policies`、`Support` 等运营文案。
-TC-00 的定位使用稳定模块 class、链接路径和通用可见内容，不绑定“万圣节”、折扣数字、具体导航名称、页脚文案或产品标题；运营修改图片、促销文案、菜单名称和产品内容不会导致首页健康检查误报。它能识别生产店铺身份错误、首页配置导致的主要模块缺失、视觉模块退化为纯色/纯文本空壳、资源加载失败、图片尺寸为 0、可见 Canvas 全透明/纯黑等问题。Create 跳转和自定义器加载由 TC-01 覆盖；对于“合法的纯黑图片”无法仅凭 DOM 断言区分，需要额外的视觉基线或业务图片校验。
-
-### TC-01：主导航 Create 入口
-
-TC-01定位`Primary`主导航中名称为`Create`的链接，要求该范围内唯一、可见且指向同站点`/products/customize-your-own`。允许首页其他区域存在同名入口，不再要求全页面只有一个Create。点击后仍检查创作页URL、自定义器加载和Gallery展示；主导航缺失、重复或跳转地址错误仍失败，不使用`.first()`掩盖问题。定时范围和失败复核次数不变。
-
-### TC-001：首页安全点击巡检步骤
-
-TC-001 是独立的首页交互巡检，不创建生成任务、不上传图片、不提交订阅、不进入 Checkout。它使用独立定时任务每天北京时间 18:00 由妙搭主触发，GitHub Actions 在 18:30 兜底；两者按北京时间日期去重，结果单独发送到飞书：
-
-1. 打开首页并校验生产 Shopify 店铺身份；关闭可能出现的营销弹窗和遮罩。
-2. 点击促销条上一页/下一页、Hero 分页、Pick Your Style 分页和 How It Works 步骤。
-3. 点击 Real Figurines/Art Toy Tab、当前视口内可见且去重后的 Community 内容卡片、FAQ 分类 Tab。
-4. 在独立页面打开登录入口，校验登录页 HTTP 状态小于 400，不污染首页点击流程。
-5. 打开币种选择器并恢复页面状态；打开购物车作为最后一个操作，验证入口可用。Checkout、Newsletter Subscribe、移动端隐藏控件和视口外/轮播克隆按钮跳过，并在 `TC-001-click-audit.json` 附件中记录原因。
-6. 全程监听 JavaScript `pageerror` 和 JuJuBit 域名 HTTP 5xx；首页加载阶段已存在的基线错误单独记录，只有点击后新增的错误才判定 TC-001 失败。
-7. 每个点击控件使用短超时，动态弹窗、视口外克隆和抽屉布局异常会快速失败并指明控件，不会长时间无结果。
-
-TC-001 不是“无差别点击所有 DOM 节点”：商品卡片、社交媒体克隆节点、订阅提交、Checkout 和支付相关控件具有副作用或重复，不会强行点击。运行命令：
-
-```bash
-npx playwright test tests/home-clickable.spec.ts --grep 'TC-001' --project=chromium
-```
-
-## 浏览器验证与访问阻断诊断
-
-2026-11-04新增识别：主文档403/429、HTTP200但实际为浏览器验证页、等待Create/Generate期间才出现的验证失败。错误分别标记`SITE_ACCESS_DENIED`、`SITE_RATE_LIMITED`、`SITE_VERIFICATION`，保留脱敏后的时间、HTTP、CF-Ray、Request ID、截图及Trace。普通接口/iframe错误不会被当成主页面验证阻断。
-
-业务步骤、业务断言、每日TC-00～TC-05六条、调度时间和失败单case复核一次均保持不变。验证阻断仍未通过；仅完整复核通过才报告恢复，并保留首次原因。不自动清Cookie、刷新、点击验证码或增加重试，更不把验证页当成功。生成/加购后的状态也不会被新逻辑清空。此改动改善识别与报告，不能保证站点防护放行自动化。
-
-HTTP200的“验证进行中”保留原业务等待预算，允许页面自行恢复；明确验证失败或主文档403/429才提前报错，持续验证在原预算耗尽后分类为阻断。
-
-本地实现验证：`npx playwright test --config verification/navigation/playwright.config.ts`（模拟服务，不计入线上业务case）；通知验证只用preview，不向群或个人发送消息。
-
-## 常用命令
-
-### UI 回归
-
-```bash
-# 安全冒烟：TC-00、TC-01、TC-02
-npm run test:smoke
-
-# 只运行 TC-00：首页健康检查
-npx playwright test tests/00-safe-cases.spec.ts --grep 'TC-00' --project=chromium
-
-# 只运行 TC-001：首页安全点击巡检
-npx playwright test tests/home-clickable.spec.ts --grep 'TC-001' --project=chromium
-
-# 本地日常六条：选择 TC-00～TC-05；默认不允许真实生成
-npm run test:daily
-
-# 明确确认后执行真实日常六条（TC-00/TC-01/TC-02 无生成；TC-03～TC-05 会产生生成/加购影响）
-npm run test:daily:confirmed
-
-# 日常 6 条：TC-00～TC-05；不发送飞书
-PRODUCT_URL='https://jujubit.ai/products/customize-your-own?variant=62485711716723' \
-ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES \
-npx playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --project=chromium
-
-# 只运行 TC-03
-ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:core-smoke
-
-# 运行注册表中全部启用实验（Control + Treatment）；会真实生成
-ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:experiments
-
-# 只运行会员 Control / Treatment 实验
+```sh
+npm ci
+npx playwright install chromium
+npm run test:smoke                         # TC-00～TC-02，不生成
+npm run test:daily:confirmed               # 原六条，真实生成/加购/本次History删除
+npx playwright test tests/home-clickable.spec.ts --project=chromium
 ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:experiments:membership
-
-# 模拟远端按实验执行并发送结果通知
-SCHEDULED_TEST_MODE=experiment EXPERIMENT_KEY=membership npm run test:scheduled
-
-# 飞书 @机器人：会员实验（事件桥接进程，部署在云 VM/容器）
-npm run feishu:experiment-bot
-
-# 全量执行并发送飞书通知（无头 / 有头）
-npm run test:all
-npm run test:all:headed
-
-# 提交前门禁：类型检查 → automation/*.mjs 语法检查 → 调度策略单元测试 → 用例发现
-npm run validate
-
-# 打开最近一次报告
-npm run report
+npm run validate                          # 类型、语法、单元、默认发现；不执行线上case
 ```
 
-不要在需要 JSON 结果和飞书通知的命令后追加 `--reporter=list`，否则会覆盖 Playwright JSON reporter，导致通知脚本无法读取每条用例结果。
+素材为`assets/two-dogs.jpeg`；可通过`TEST_IMAGE_SOLO`等变量指定。生成用例必须显式允许，不配置时会跳过；跳过不是业务通过。不运行通知命令即可避免向飞书发送本地结果。
 
-### 通知与失败记录
+## 新画板同业务链路
 
-```bash
-# 按 SCHEDULED_TEST_MODE 运行 UI 回归；结束后通知飞书，失败时创建失败记录
-npm run test:scheduled
+文件：`experiments/canvas-v3/`，来源为原工作区的`manual-qa/canvas-v3-daily-parity/`五条，不是已下线的旧多模板实验。
 
-# 基于最近一次 results.json 操作，不重新运行测试
-npm run notify:preview
-npm run notify:test
-npm run record:preview
-npm run record:test
+目前保留原Preview验证机制：`_statsig_override`同时设置`canvas_v3_109.enable=true`、`canvas_trust_info.enable=true`，并检查实际V3结构和增信入口。**这是测试覆盖配置，不是stable_id真实线上分桶对比**；不要以“传了stable ID”冒充实际命中。
+
+```sh
+npm run typecheck:canvas
+CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com npm run test:canvas -- --list
+CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com npm run test:canvas -- --grep 'EXP-TC-01|EXP-TC-02'
+# 生成类需保留原显式授权和当天账本；账本可用limit:null表示已授权不限，不提交账本。
+CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com CANVAS_PARITY_ALLOW_GENERATION=true CANVAS_PARITY_LEDGER=/absolute/path/ledger.json npm run test:canvas
 ```
 
-定时/机器人执行入口对当前范围内首次失败的 Case 单独二次执行一次（每条复核前冷却30秒，不重跑已通过或跳过的Case）。第二次通过仅发标记“偶发恢复/复核通过”的结果汇总，不发失败告警、不 `@所有人`、不创建失败文档；第二次仍失败或无法取得有效复核结果才失败告警，附两次原因并保留两次录像/Trace。原始HTML/JSON保留首次结果，最终通知及退出码按两次结果合并判断。可用 `DISABLE_FAILURE_RECHECK=true` 停用复核。**生成类复核可能额外消耗一次额度或产生任务/加购副作用，不新增支付操作。**
+仅允许HTTPS Preview或授权开发店，不默认访问生产。用例对照关系见总表；V3没有旧Pro/Basic入口，该子项明确为UI差异，不声称已验收。原未提交目录保留不删除；精简工程只纳入这五条正式对应链路。
 
-失败告警仅在 `FEISHU_RECEIVE_ID_TYPE=chat_id` 时发送 `@所有人`，可用 `FEISHU_MENTION_ALL_ON_FAILURE=false` 关闭；群聊必须允许机器人 @所有人。提醒发送失败不会阻断结果卡片。失败截图上限10 MB、视频上限30 MB；视频无法转为MP4时降级为WebM附件。日常/首页巡检任务最大时长为100/40分钟（不是定时频率）；持续失败时复核会延迟告警并可能影响下一小时排队。策略详见 `automation/ROBUSTNESS-AND-DIAGNOSTICS.md`，本地修改需发布后才影响远端。
+## 远端触发与飞书
 
-群内 @机器人可使用 `运行用例`、`最新结果`、`为什么失败`、`失败视频` 等命令。“为什么失败”只返回失败 Case、失败步骤和失败原因，不附 GitHub 链接；“失败视频”直接发送 WebM 文件。工作流会额外上传轻量的 `ui-failure-videos-*` Artifact，避免机器人为提取录像下载完整报告包。
+- `ui-regression.yml`：每小时daily。外部定时器主触发，GitHub每小时`:30`兜底；按北京时间小时槽去重。实验由手动/飞书命令触发，不混入daily。
+- `homepage-clickable.yml`：TC-001每天18:00主触发、18:30兜底，按日期去重。**保留此工作流及依赖。**
+- `feishu-failure-video.yml`：按请求提供失败视频。机器人对话、执行命令、报告、视频和原群路由不因清理改变。
+- `automation/experiment-command-registry.json`：当前点名会员实验；旧`canvas_template_display`已退役，不再保留死case或失效命令。新画板暂不冒用旧canvas命令。
+- 首次失败冷却30秒，独立浏览器单case复核一次。复核恢复仍保留首次原因和证据；持续阻断不标通过。无无限刷新/验证码点击，无case中途清Cookie重生成。
 
-机器人采用“确定性工具 + 受限模型”的混合架构：`运行用例`、实验执行、去重、视频发送、定时和生产生成始终由代码规则处理，模型没有执行权限；自然语言问题和失败解释才调用妙搭官方文本模型。模型输入只包含程序从 GitHub/Playwright 提取并脱敏后的结构化事实，过滤 URL、Token、Cookie、Secret、邮箱和手机号；模型输出禁止链接和执行声明。模型超时、限流或异常时自动降级为结构化失败卡片，不影响自动化运行与结果通知。当前模型实例为 `ui-automation-answer`，单次回答最长约 350 字、超时上限 20 秒。
+机器人需要配置`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、目标接收人/群和可选失败文档父节点；调度桥接所需GitHub Token仅放私有配置/云端Secret。禁止提交`.env`、Token或浏览器会话。GitHub队列/网络延迟仍可能影响准点执行。
 
-可选接入外部 OpenAI 兼容大模型（如代理商中转）：在妙搭在线环境配置 `LLM_API_KEY`、`LLM_BASE_URL`（填到 `/v1`，代码自动补 `/chat/completions`）和 `LLM_MODEL` 三个环境变量后，模型问答优先走外部接口，失败时自动回退妙搭官方模型，再失败降级为结构化卡片。密钥只保存在妙搭在线环境，不写入仓库或日志。代码不主动设置外部模型的 `max_tokens`，由代理商/模型服务端决定输出上限；外部调用超时 25 秒。
+### 每次卡片都保留的两个值
 
-## 远端定时执行
+**GA Cookie诊断**区域按case展示`cookieValue`和`cookieClientId`。只读`document.cookie`中`_ga`，按`/^GA\d+\.\d+\.(.+)$/`解析ID；成功、失败、复核后卡片及文本通知均保留。首次和复核是独立会话，分别标注，不相互借值；缺失显示“未采集”。采集失败不改变case结果、不收集其他Cookie。
 
-远端任务由 GitHub Actions 运行，不依赖本地电脑。计划每天每小时整点执行一次，周末也执行；不再保留 11:00 和 18:30 两个固定时刻。
+**`sdk_anonymous_id=test`保留**：在目标站点脚本执行前注入字符串`test`，日常、TC-001、会员及新画板均使用。实际键是`sdk_anonymous_id`，不新增`sak_anonymous_id`；不改业务`_anonymous_id`、实验stable ID或第三方支付域名。此标记不证明服务端数据隔离或埋点已排除。
 
-采用「妙搭云端定时器主触发 + GitHub `schedule` 兜底去重」。2026-10-14 已发布妙搭 release `7696359274570714397`（代码 `1520e75`）：一个启用的整点触发器（`0 * * * *`，Asia/Shanghai），旧的第二个触发器已停用；GitHub 在每小时第 30 分钟兜底。首次按小时级配置到点执行的效果仍需以实际运行日志核验。
+## 诊断与安全
 
-- **主触发（已启用）**：妙搭 `ExperimentBotAutomation` 到点通过后端 HTTP 调用 GitHub API，以
-  `workflow_dispatch` 提交任务，绕过原生 schedule 事件调度；仍可能有 API 和 Runner 延迟。部署方式见
-  `automation/deploy/README.md` 为部署记录；`dispatch-scheduled-run.mjs` 仅作为 VM 备用方案，不同时启用。
-- **兜底（防漏跑）**：`.github/workflows/ui-regression.yml` 中的 `schedule` 仍保留，但改到
-  每小时第 30 分钟触发；两者用 `dedupe_key`（`hourly-<日期>-<小时>`，以
-  `run-marker-*` artifact 落地）在全局串行工作流内去重，具体限制见下文。
+`test-results/`保存JSON、截图、视频、Trace、运行资产审计，`playwright-report/`保存HTML，远端Artifact保留14天。生成失败采集Task/Asset/Trace/Request ID、错误码、原因与时间；未取得的字段不猜测。浏览器关闭不代表后台任务取消。
 
-```yaml
-# ui-regression.yml 中的兜底 cron
-- cron: '30 * * * *'     # 每小时第 30 分钟，兜底整点主触发
-```
+TC-03核验本轮Asset ID、加购行键和购物车持久化；TC-05按本轮响应图片唯一定位卡片、保护DELETE资产ID，不删未知历史数据。验证阻断、网络问题、生成超时及明确业务失败分别归类，不降低业务断言。
 
-计划使用 GitHub 托管 Runner。每日计划任务使用 `daily` 模式执行 TC-00～TC-05；需要时也可在 Actions 页面通过 **Run workflow** 手动选择 `safe`、`daily`、`all` 或 `experiment`。
+`verification/`是框架本身的本地模拟测试，不属于额外远端业务case：导航、生成等待、Checkout、身份和资产归属。保留这些检查是为了防止清理引入误报，而非扩展日常回归。
 
-GitHub 的原生 `schedule` 可能延迟数小时；外部定时器减少的是事件触发延迟，不能保证 Runner 秒级开始。self-hosted runner 也需要在线、有空闲容量和可用网络；固定出口仅有助于处理共享 IP 限流，不能保证消除 429。
-
-每个北京时间自然小时是一档；任务跨到下一小时才开始时会作为过期档跳过，避免与下一档重复生成。小时标记在环境准备成功后、真实生成开始前保存，保留 14 天；进入执行后即便业务失败，也不自动重跑以免重复生成。去重依赖当前 workflow 全局串行配置与可读取的 Artifact，并非永久或严格 exactly-once 保证。GitHub concurrency 也不是可靠任务队列，多个待运行请求可能被合并替换。
-
-结果卡片中的“开始时间”是 GitHub Runner 实际开始执行的时间，不是 cron 计划时间。例如 11:00 的小时档若到 11:03 才获得 Runner，卡片里的开始时间会是 11:03 左右；这不代表新增了一条定时配置。
-
-每日 `schedule` 使用 `daily` 模式，执行 TC-00～TC-05。实验执行通过 `workflow_dispatch` 的 `experiment` 模式完成；当前仅启用 `membership`（TC-EXP-01 + TC-06）。`canvas` 已因实验下线设为 disabled。
-
-远端工作流需要配置以下 GitHub Actions Secrets：
+## 目录与双仓库维护
 
 ```text
-FEISHU_APP_ID
-FEISHU_APP_SECRET
-FEISHU_GROUP_CHAT_ID
-FEISHU_EXECUTION_RECORDS_PARENT
+tests/                  当前远端case、Page Object、fixture、会员实验
+experiments/canvas-v3/  新画板五条同业务链路，独立配置
+automation/             触发、复核、卡片、诊断、视频和自身单元测试
+verification/           框架模拟验证，独立于线上执行集合
+.github/workflows/      原有三个远端入口
 ```
 
-点名实验的事件桥接服务另需配置 `GITHUB_TOKEN`（fine-grained，仅该仓库 `Actions: write`）、`GITHUB_REPOSITORY`、`GITHUB_WORKFLOW_FILE`、`GITHUB_REF`、`FEISHU_APP_ID`、`FEISHU_APP_SECRET`；`GITHUB_TOKEN` 只放在桥接服务的密钥管理器中，不写入仓库或日志。
+维护源：`duanzhiwei-arthur/sp_ui_test`；发布副本：`vast-enterprise/shop-test-agent-s/projects/sp_ui_test`。修改必须同步两端共享代码；保留副本专用`playwright.release.config.ts`及根发布入口和其他工程。根发布入口仍默认只跑daily六条，不发送原定时通知。
 
-可选 Actions Variable：`PRODUCT_URL`。每次实际进入 Playwright 的运行都会上传 `playwright-report/` 与 `test-results/` Artifact，保留 14 天；去重或超时跳过的任务不会生成测试报告。失败时机器人会在 `FEISHU_EXECUTION_RECORDS_PARENT` 指向的 Wiki 节点下创建失败记录；机器人需要是该知识库成员，并具备创建子页面和编辑权限。
-
-## 生产影响与安全边界
-
-`all` 模式会发现 9 条 UI 用例，但已退役的 TC-EXP-02 固定跳过；TC-03、TC-04、TC-05、TC-06、TC-EXP-01 各创建 1 条真实生成任务，TC-00～TC-02 不创建生成任务。TC-03 会加购并进入 Checkout，TC-05 删除本次创建的最新 History，会员实验不付款、不提交订单。`daily` 模式执行 TC-00～TC-05；实验点名模式只执行启用实验的 Control + Treatment。运行前请确认生成成本、购物车和 History 的影响。
-
-## 实验自动化
-
-实验配置统一维护在 `tests/experiments/experiment-registry.ts`，每个实验登记实验名、参数名、生命周期、环境、负责人、关联用例及各分组固定 stable_id。飞书命令与执行文件统一登记在 `automation/experiment-command-registry.json`，包含实验 key、中文命令别名、spec、用例编号和启用状态。`experiment.fixture.ts` 负责导航前注入、Statsig storage key 计算、实际分组校验和报告注解；`tests/zz-experiments/` 下的业务 spec 只负责对应分组的 UI 行为。
-
-新增实验时：先为每个分组准备独立 stable_id，在 TypeScript 注册表登记分组期望值并编写两组 UI 断言，再在 JSON 命令注册表增加一项。妙搭机器人运行时读取主仓库注册表，无需重新修改或发布机器人。一个 stable_id 不应复用于多个实验，避免组合分流污染。实验结束后将生命周期改为 `rolled_out` 或 `stopped`、将命令项设为 `enabled=false`，并把最终行为迁移回基础回归。
-
-若站点对 GitHub 托管 Runner 的共享出口返回 `HTTP 429` 或 `legal-rate-limited`，应使用固定出口 IP 的 self-hosted Runner；测试会保留限流证据而非继续等待元素超时。
-
-### 飞书点名执行实验
-
-飞书命令桥接服务已部署到妙搭云端应用 `JuJuBit 实验自动化机器人`（`app_17dsjs7c59z`），不依赖本地电脑。`sp-ui自动化机器人` 通过开发者服务器订阅 `im.message.receive_v1`；群内发送 `@sp-ui自动化机器人 会员实验` 后，云端服务会调用 GitHub `workflow_dispatch`，传入 `mode=experiment`、`experiment=membership` 和原群 `chat_id`。远端只执行 TC-06 与 TC-EXP-01；Playwright 完成后，结果卡片发送回触发消息所在群。回调 URL 使用保存在妙搭在线环境中的随机路径密钥校验，GitHub Token 也只保存在妙搭在线环境中，不写入仓库。
-
-`canvas_template_display` 已确认下线，注册表中的 `canvas` 命令已设为 `enabled=false`。群内发送“画板实验”不会再触发 GitHub Actions，也不会创建三条生成记录；TC-02 继续作为每日基础交互回归执行。
-
-实验命令成功提交 GitHub 后，机器人会立即回复“已收到，正在执行中”；执行结束后再发送包含逐条用例名称和状态的最终结果卡片。即时回复失败只记录日志，不会让飞书事件重试或重复生成。
-
-机器人只接受注册表中启用的精确命令别名；未知实验不会回退到 `all`。超过 10 分钟的消息重投会被忽略，GitHub 还会按飞书 `event_id` 保存 重复标记。云端 `schedule` 被工作流显式锁定为 `daily`，始终执行 TC-00～TC-05。
-
-结果卡片除通过率、失败数、跳过数和耗时外，还会在“用例明细”中逐条展示用例序号、名称与状态；实验模式可直接看到 Control 与 Treatment 两条用例的独立结果。
-
-仓库中的 `automation/feishu-experiment-bot.mjs` 和 `automation/feishu-experiment-command.mjs` 保留为自建 VM/容器的备用实现；线上当前使用妙搭 Webhook 服务。
-
-## 埋点专项
-
-埋点测试与 UI 回归独立，使用 `playwright.tracking.config.ts` 和 `tests/tracking/`。默认仅允许非生产环境；生产验证必须显式设置 `ALLOW_PRODUCTION_TRACKING=true`。
-
-`tests/tracking/` 默认不进入 UI 回归：`playwright.config.ts` 仅在显式设置 `TRACKING_TEST_ENABLED=true` 时才纳入这些用例，因此 `npm test` 当前发现 9 条 UI 用例，不再混入自我跳过的埋点用例。埋点始终通过下列 `npm run test:tracking*` 命令运行。
-
-```bash
-# 完整埋点审计：analytics + 有效目录审计
-TRACKING_BASE_URL=https://test.example.com npm run test:tracking
-
-# 明确授权后，对生产环境运行完整埋点审计
-ALLOW_PRODUCTION_TRACKING=true TRACKING_BASE_URL=https://jujubit.ai npm run test:tracking
-
-# 运行运行时契约校验
-TRACKING_BASE_URL=https://test.example.com npm run test:tracking:contract
-
-# Preview / 本地环境的异常注入
-TRACKING_BASE_URL=https://your-store.myshopifypreview.com npm run test:tracking:exceptions
-
-# 将目录审计 JSON 渲染为飞书文档 XML
-npm run report:tracking -- test-results/tracking-catalog-audit.json test-results/tracking-catalog-report.xml
+```sh
+node automation/check-project-sync.mjs /path/to/sp_ui_test /path/to/shop-test-agent-s
 ```
 
-完整有效目录审计会执行一次真实 2D/3D 生成和一次加购，但不会进入 Checkout、删除生产 History 或付款。有效目录会排除源文档中划线删除项和“异常”类型项；毕业季埋点、漏斗指标、AB 实验组映射表不纳入本目录。异常注入仅允许 Preview/本地地址，使用接口 Mock 和浏览器故障注入；未命中 Mock 不会被误报为通过。
-
-采集器验证 GA4、Statsig 和 Monitor 的浏览器请求。每项契约均要求：动作/有效曝光后至少上报一次、请求已发起且无敏感字段。参数按本次实际发送值记录；缺少目录中列出的参数不单独判失败。重复上报也不会单独判失败，但会在 JSON 与飞书执行文档的“上报次数与参数明细”表格中如实统计。目录审计发现未上报时，脚本返回非零退出码；`--record-existing` 仅用于补写既有报告，不改变原测试状态。表格列为“序号、标识、动作、参数、上报平台、上报次数”；全部有效目录项均进入同一张表，skipped 行标红并展示跳过原因，已执行但任一目标平台上报 0 次的行标黄。多平台事件在“上报次数”单元格内换行展示，例如 `GA4上报2次`、`Statsig上报1次`。HTTP 回执仅作为平台接收证据，不是前端上报通过的硬条件。
-
-埋点运行完成后会在 `FEISHU_TRACKING_RECORDS_PARENT` 下创建执行记录；机器人需要被添加到对应 Wiki 并具备编辑权限。
-
-## 结果、证据与定位
-
-| 内容 | 位置 |
-| --- | --- |
-| HTML 报告 | `playwright-report/` |
-| JSON 结果 | `test-results/results.json` |
-| 失败截图、视频、trace、错误上下文 | `test-results/` |
-| 埋点 HTML 报告 | `playwright-tracking-report/` |
-| 埋点有效目录审计 JSON | `test-results/tracking-catalog-audit.json` |
-| TC-03 页面元素快照 | `test-results/element-inventory/`（同时附加到 HTML 报告，随 Artifact 上传） |
-
-普通交互最多等待 2 分钟；2D 与 3D 生成各最多 5 分钟。2D 验证图片资源实际加载；3D 等待进度层消失、Add to Cart 可用，并验证横向拖动后画面变化。Checkout 仅校验订单摘要、地址表单、折扣入口和 `Pay now` 可见。
-
-线上尚未提供稳定的 `data-testid`，定位器以无障碍名称、`data-view-name` 和局部结构为主。页面改版后，优先复核生成图片、3D 进度层、工具图标、购物车商品及 Checkout 关键区域的定位器。
-
-## 飞书权限与本地授权
-
-企业应用需启用机器人能力，并具备 `im:message:send_as_bot`、图片/文件上传及目标 Wiki 编辑权限。需要本地操作飞书文档时，先完成用户授权：
-
-```bash
-lark-cli auth login --domain docs --domain drive
-lark-cli auth status --json --verify
-```
-
-### 生成失败诊断增强（2026-10-29）
-
-- 2D图片/3D就绪等待期间，当前商品预览区出现可见的明确错误文字 **或** Retry按钮（任一即可）时立即以 `[GENERATION_FAILED]` 结束等待。有错误文字保留脱敏原文；仅Retry则记录“未取得错误详情”，不猜测根因。不会自动点击Retry或额外提交生成，仍由既有二次复核流程决定后续执行。
-- 不把隐藏错误/Retry、预览区外历史记录或普通进度文字当作当前生成失败。错误文字按明确失败措辞识别（如failed/error、生成失败），不是任意文字。成功仍需图片加载及原有3D/加购可用断言；未观察到失败信号的慢请求仍按原等待预算处理。
-- 生成Trace采集同时合并SSE与响应头 `x-trace-id`，单独记录 `x-request-id`；`asset_done` 中明确的 `errorCode/errorMessage` 进入诊断，终态事件或HTTP200不等于生成成功。无标识明确显示未采集，不猜造。
-- 本地验证命令：`npx playwright test --config verification/generation/playwright.config.ts`。这是独立框架验证，不加入默认/定时用例集合，不访问线上生成服务。
-- 最终飞书文本/卡片保留“首次生成失败”排查区，即使二次复核通过也展示首次的Task ID、Asset ID、Trace ID、Request ID、错误码和原始原因；未采集字段明确标注，不使用复核任务标识补齐。只在最终结果中补充，不新增首次即时告警/@所有人；正常首次全绿仍保持简版。失败文档同步保留首次证据。
+只读比较已提交版本，不自动覆盖工作区。已删除埋点专项、旧多模板画板case、历史元素快照、首页源码抓取和重复说明；旧版可从Git历史恢复，未删除个人报告/素材或原工作区未提交内容。

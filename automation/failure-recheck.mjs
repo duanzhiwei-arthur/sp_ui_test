@@ -21,6 +21,8 @@ export function mergeRecheckResult(summary, recheckSummary, recheckedCases) {
     return {
       title: item.title,
       initialStatus: item.status,
+      firstGaCookie: item.gaCookie ?? null,
+      secondGaCookie: matches.length === 1 ? matches[0].gaCookie ?? null : null,
       firstFailure: summary.failureDetails?.find(detail => detail.title === item.title),
       secondFailure: recheckSummary.failureDetails?.find(detail => detail.title === item.title),
       secondArtifact: recheckSummary.failureArtifacts?.find(detail => detail.title === item.title),

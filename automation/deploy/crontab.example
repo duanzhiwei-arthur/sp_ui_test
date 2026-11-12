@@ -1,6 +1,0 @@
-# 云端 VM 用 crontab 的等价格式（参考 systemd/timer 目录里的 systemd 版本更推荐）。
-# dispatcher 使用 dotenv 读取仓库 .env；不把环境文件当 shell 执行。
-CRON_TZ=Asia/Shanghai
-
-# 每小时整点执行；GitHub Actions 在每小时 :30 兜底
-0 * * * *  cd /opt/sp_ui_test && /usr/bin/node automation/dispatch-scheduled-run.mjs >> automation/logs/dispatch.stdout.log 2>> automation/logs/dispatch.stderr.log

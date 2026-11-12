@@ -4,7 +4,7 @@ export const SDK_ANONYMOUS_ID_KEY = 'sdk_anonymous_id';
 export const SDK_ANONYMOUS_ID_VALUE = 'test';
 
 export function automationOrigins(baseURL?: string): string[] {
-  const url = new URL(baseURL ?? process.env.TRACKING_BASE_URL ?? process.env.BASE_URL ?? 'https://jujubit.ai');
+  const url = new URL(baseURL ?? process.env.BASE_URL ?? 'https://jujubit.ai');
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('自动化目标必须是 HTTP(S) 地址');
   const origins = new Set([url.origin]);
   // Allow the storefront's www redirect, not arbitrary payment/login domains.

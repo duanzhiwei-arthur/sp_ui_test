@@ -1,6 +1,8 @@
 import { test, expect, createAutomationContext, automationOrigins } from '../../tests/fixtures/automation-identity.js';
 import { test as diagnosticTest } from '../../tests/fixtures/runtime-diagnostics.js';
 import { test as experimentTest } from '../../tests/experiments/experiment.fixture.js';
+import { test as parityTest } from '../../experiments/canvas-v3/board.js';
+import { readGaCookie } from '../../tests/fixtures/ga-cookie.js';
 import type { BrowserContext, Page } from '@playwright/test';
 
 async function mockSite(context: BrowserContext) {
@@ -82,6 +84,23 @@ diagnosticTest('daily runtime-diagnostics fixture inherits identity', async ({ c
 experimentTest('experiment fixture inherits identity without changing its configured stable ID', async ({ context, page, experiment }) => {
   await mockSite(context); await page.goto('/'); expect(await readBoot(page)).toBe('test');
   if (experiment.variant.stableId) expect(await page.evaluate(() => localStorage.getItem('stable_id'))).toBe(experiment.variant.stableId);
+});
+
+parityTest('新画板同业务链路继承sdk_anonymous_id=test，实验覆盖配置独立保留', async ({ context, page, board }) => {
+  void board;
+  await mockSite(context);await page.goto('/');expect(await readBoot(page)).toBe('test');
+  const overrides=await page.evaluate(()=>JSON.parse(localStorage.getItem('_statsig_override')!));
+  expect(overrides).toEqual({canvas_v3_109:{enable:true},canvas_trust_info:{enable:true}});
+  expect(await page.evaluate(()=>localStorage.getItem('sak_anonymous_id'))).toBeNull();
+});
+
+diagnosticTest('GA Cookie按指定正则只读解析，缺失或无效时不改变Cookie',async({context,page})=>{
+ await mockSite(context);await page.goto('/');expect(await readGaCookie(page)).toEqual({cookieValue:null,cookieClientId:null});
+ await context.addCookies([{name:'_ga',value:'GA1.1.12345.67890',url:'https://jujubit.ai'}]);
+ expect(await readGaCookie(page)).toEqual({cookieValue:'GA1.1.12345.67890',cookieClientId:'12345.67890'});
+ await context.addCookies([{name:'_ga',value:'invalid-value',url:'https://jujubit.ai'}]);
+ expect(await readGaCookie(page)).toEqual({cookieValue:'invalid-value',cookieClientId:null});
+ expect((await context.cookies()).find(c=>c.name==='_ga')?.value).toBe('invalid-value');
 });
 
 test('live storefront storage check @live', async ({ page }) => {

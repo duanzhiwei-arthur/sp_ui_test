@@ -3,7 +3,6 @@ import 'dotenv/config';
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: process.env.TRACKING_TEST_ENABLED === 'true' ? [] : '**/tracking/**',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   // Production generation is not retried: a failed attempt may already have
