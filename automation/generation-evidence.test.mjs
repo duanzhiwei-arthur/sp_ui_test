@@ -6,6 +6,18 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { firstGenerationFailureMessages, generationResponseIds, collectGenerationEvidence, formatGenerationEvidence, isGenerationFailure, parseGenerationEvents, summarizeGenerationStream } from './generation-evidence.mjs';
 
+test('large or missing trace keeps correlated identifiers from this attempt audit only', async () => {
+  const audit = { generationRequests: [{ at: '2026-11-12T15:17:35.826Z', traceId: 'trace-first', requestId: 'request-first' }],
+    assets: [{ assetId: '4458620', taskId: '4442626', traceId: 'trace-first', imageUrl: 'https://private.example/token' }] };
+  const result = { startTime: '2026-11-12T15:17:15.660Z', duration: 400000, error: { message: '[GENERATION_TIMEOUT]' },
+    attachments: [{ name: 'run-assets', body: Buffer.from(JSON.stringify(audit)).toString('base64') }] };
+  const evidence = await collectGenerationEvidence(result);
+  assert.equal(evidence.records[0].taskId, '4442626');assert.equal(evidence.records[0].assetId, '4458620');
+  assert.deepEqual(evidence.records[0].requestIds, ['request-first']);assert.doesNotMatch(JSON.stringify(evidence), /private.example/);
+  const stale = await collectGenerationEvidence({ ...result, startTime: '2026-11-13T00:00:00Z' });
+  assert.deepEqual(stale.records, []);
+});
+
 test('stream summary keeps timing and terminal observations without inventing backend failure', () => {
   const summary = summarizeGenerationStream('event: asset_3d_start\ndata: {}\n\nevent: ping\ndata: {}\n\n', {
     startedDateTime: '2026-10-21T22:24:50.751Z', time: 180093.956, response: { status: 200 }

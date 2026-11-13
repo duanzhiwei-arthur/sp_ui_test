@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run scope. daily runs TC-00~TC-05; experiment runs a selected experiment.'
+        description: 'daily runs canvas control TC-00~05 and treatment EXP-TC-01~05; experiment remains membership.'
         required: true
         default: daily
         type: choice
@@ -57,17 +57,21 @@ concurrency:
 jobs:
   regression:
     name: Chromium UI regression
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Budget includes one isolated recheck per failed case; cron is unchanged.
     timeout-minutes: 100
     env:
-      # Scheduled runs are hard-locked to TC-00~TC-05 even if dispatch
-      # defaults or manual inputs change later.
+      # Scheduled runs remain daily; CANVAS_AB_ENABLED adds the separately
+      # assigned canvas treatment, never the unrelated membership experiment.
       SCHEDULED_TEST_MODE: ${{ (github.event_name == 'schedule' || inputs.dedupe_key != '') && 'daily' || inputs.mode || 'daily' }}
       EXPERIMENT_KEY: ${{ inputs.experiment || '' }}
       DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
       SCHEDULE_CRON: ${{ github.event.schedule || '' }}
       BASE_URL: https://jujubit.ai
+      CANVAS_AB_ENABLED: 'true'
+      CANVAS_PARITY_BASE_URL: https://jujubit.ai
+      CANVAS_CONTROL_STABLE_ID: ${{ vars.CANVAS_CONTROL_STABLE_ID || vars.TEST_CANVAS_CONTROL_STABLE_ID || '1' }}
+      CANVAS_TREATMENT_STABLE_ID: ${{ vars.CANVAS_TREATMENT_STABLE_ID || vars.TEST_CANVAS_TREATMENT_STABLE_ID || '2' }}
       PRODUCT_URL: ${{ vars.PRODUCT_URL }}
       TEST_IMAGE_SOLO: assets/two-dogs.jpeg
       TEST_IMAGE_DUO: assets/two-dogs.jpeg
@@ -76,8 +80,6 @@ jobs:
       TEST_MEMBERSHIP_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_STABLE_ID || 'jujubit-ui-e2e-membership-20260902' }}
       TEST_MEMBERSHIP_CONTROL_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_CONTROL_STABLE_ID }}
       TEST_STATSIG_CLIENT_KEY: ${{ vars.TEST_STATSIG_CLIENT_KEY || 'client-2tnhqG57crRsKHR9oTHbP4UsCNu7zQjghyI8otQUMU4' }}
-      TEST_CANVAS_CONTROL_STABLE_ID: ${{ vars.TEST_CANVAS_CONTROL_STABLE_ID || '67c122d0-f050-45bf-8bdf-72caa7c9eb4b' }}
-      TEST_CANVAS_TREATMENT_STABLE_ID: ${{ vars.TEST_CANVAS_TREATMENT_STABLE_ID || '8a544137-e12b-4c50-8080-4942201de028' }}
       TRACKING_TEST_ENABLED: 'false'
       TRACKING_FAULT_INJECTION_ENABLED: 'false'
 
@@ -123,7 +125,19 @@ jobs:
 
       - name: Install Chromium and Linux dependencies
         if: steps.dedupe.outputs.duplicate == 'false'
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 20
+        run: |
+          for attempt in 1 2; do
+            if timeout 480s npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              echo 'Browser setup failed twice; UI cases have not started.'
+              exit 1
+            fi
+            echo 'Browser setup failed; retrying setup once after 20 seconds (no business actions).'
+            sleep 20
+          done
 
       - name: Prepare failure-video encoder (file fallback if unavailable)
         if: steps.dedupe.outputs.duplicate == 'false'

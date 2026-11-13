@@ -2,6 +2,11 @@ import { type Page, type TestInfo } from '@playwright/test';
 import { test as base, expect } from '../../tests/fixtures/runtime-diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { assertCanvasAssignment, type CanvasAssignment } from '../../tests/fixtures/canvas-assignment.js';
+import { runAssets } from '../../tests/fixtures/run-assets.js';
+import { CartDrawer } from '../../tests/pages/cart-drawer.page.js';
+import { CheckoutPage } from '../../tests/pages/checkout.page.js';
+import { reserveCanvasGeneration } from '../../tests/fixtures/generation-budget.js';
 
 type RecordRow = { at: string; method: string; path: string; status?: number; trace?: string; taskId?: string };
 export class ExperimentBoard {
@@ -20,7 +25,12 @@ export class ExperimentBoard {
   }
   note(name: string, actual: unknown) { this.checkpoints.push({ name, actual }); }
   async install() {
-    await this.page.addInitScript(() => localStorage.setItem('_statsig_override', JSON.stringify({ canvas_v3_109: { enable: true }, canvas_trust_info: { enable: true } })));
+    if (!this.info.project.metadata.canvasAssignment) {
+      const origin = new URL(this.info.project.use.baseURL!).origin;
+      await this.page.addInitScript(origin => {
+        if (location.origin === origin) localStorage.setItem('_statsig_override', JSON.stringify({ canvas_v3_109: { enable: true }, canvas_trust_info: { enable: true } }));
+      }, origin);
+    }
     await this.page.route('**/activity/assets/*', async route => {
       const req = route.request(), id = new URL(req.url()).pathname.split('/').pop()!;
       if (req.method() === 'DELETE' && !this.allowedDeletes.has(id)) {
@@ -52,6 +62,8 @@ export class ExperimentBoard {
     expect(response?.ok()).toBe(true); await this.ready();
   }
   async ready() {
+    const assignment = this.info.project.metadata.canvasAssignment as CanvasAssignment | undefined;
+    if (assignment) await assertCanvasAssignment(this.page, this.info, assignment);
     await expect(this.root).toHaveAttribute('data-jjb-create-mount-status', 'mounted', { timeout: 120_000 });
     await this.dismiss();
     const version = await this.page.evaluate(() => {
@@ -89,19 +101,11 @@ export class ExperimentBoard {
     if (process.env.CANVAS_PARITY_ALLOW_GENERATION !== 'true') throw new Error('真实生成需CANVAS_PARITY_ALLOW_GENERATION=true');
     const file = process.env.CANVAS_PARITY_LEDGER;
     if (!file || !path.isAbsolute(file)) throw new Error('必须指定绝对路径CANVAS_PARITY_LEDGER');
-    const lock = file + '.lock'; const fd = fs.openSync(lock, 'wx');
-    try {
-      const data = JSON.parse(fs.readFileSync(file, 'utf8')) as { date: string; limit: number | null; attempts: number; entries: unknown[] };
-      const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
-      if (data.date !== date || !Number.isInteger(data.attempts) || data.attempts < 0 || !(data.limit === null || (Number.isInteger(data.limit) && data.limit >= 0))) throw new Error('额度账本日期或字段无效');
-      if (data.limit !== null && data.attempts >= data.limit) throw new Error('当日额度用尽，停止真实生成');
-      data.attempts++;
-      data.entries.push({ attempt: data.attempts, at: new Date().toISOString(), purpose: `sp_ui_test实验组定时同功能 ${this.info.title}`, status: 'reserved', environment: process.env.CANVAS_PARITY_BASE_URL });
-      fs.writeFileSync(file, JSON.stringify(data, null, 2)); this.note('生成额度预留', data.attempts);
-    } finally { fs.closeSync(fd); fs.unlinkSync(lock); }
+    reserveCanvasGeneration(this.info.title);
   }
   async generate() {
     await this.snapshotHistory(); this.reserve();
+    runAssets(this.page).beginGeneration();
     const pending = this.page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/activity/tasks'), { timeout: 60_000 });
     await this.root.getByRole('button', { name: 'Generate', exact: true }).click();
     const response = await pending; expect(response.ok(), '真实任务创建成功').toBe(true);
@@ -114,7 +118,11 @@ export class ExperimentBoard {
     // 新版隐藏的2D图使用lazy loading：先切到2D并滚入视口，不能对隐藏图先等naturalWidth。
     await expect(image).toHaveCount(1, { timeout: 300_000 });
     const switch2d = this.root.getByRole('button', { name: /^(Switch to )?2D$/ }).filter({ visible: true });
-    if (await switch2d.count()) await switch2d.click();
+    await expect.poll(async () => {
+      if (await image.isVisible()) return true;
+      if (await switch2d.count() && await switch2d.isEnabled()) await switch2d.click({ timeout: 3_000 });
+      return image.isVisible();
+    }, { timeout: 300_000, message: '生成事件可能自动切3D，等待真实2D切换完成后再校验资源' }).toBe(true);
     await expect(image).toBeVisible(); await image.scrollIntoViewIfNeeded();
     await expect.poll(() => image.evaluateAll(es => es.some(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), { timeout: 300_000, message: '真实2D图片加载成功，不以请求200代替' }).toBe(true);
     this.note('真实2D', '生成图片实际加载并可见');
@@ -149,11 +157,10 @@ export class ExperimentBoard {
     const before = await initial.json(); expect(before.item_count, '隔离上下文购物车应为空').toBe(0);
     const add = this.root.getByRole('button', { name: /^Add to Cart$/i }).filter({ visible: true });
     await expect(add).toBeEnabled();
-    const pending = this.page.waitForResponse(r => /\/cart\/add(?:\.js)?$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST');
-    await add.click(); const response = await pending; expect(response.ok()).toBe(true);
+    await new CartDrawer(this.page).addCurrentAsset(() => add.click(), runAssets(this.page));
     const cartResponse = await this.page.request.get('/cart.js'); expect(cartResponse.ok()).toBe(true);
     const cart = await cartResponse.json(); expect(cart.item_count).toBe(1); expect(cart.total_price).toBeGreaterThan(0);
-    this.note('真实加购', { status: response.status(), item_count: cart.item_count, total_price: cart.total_price, currency: cart.currency,
+    this.note('真实加购', { item_count: cart.item_count, total_price: cart.total_price, currency: cart.currency,
       items: cart.items.map((i: { variant_id: number; quantity: number; product_title: string; final_line_price: number }) => ({ variant_id: i.variant_id, quantity: i.quantity, title: i.product_title, final_line_price: i.final_line_price })) });
     await this.page.goto('/cart', { waitUntil: 'commit' }); await this.dismiss();
     const cartRoot = this.page.locator('#custom-cart-page-root'); await expect(cartRoot).toBeVisible({ timeout: 60_000 });
@@ -161,15 +168,14 @@ export class ExperimentBoard {
     const checkout = cartRoot.getByRole('button', { name: /^Check\s*out$/i }); await expect(checkout).toBeEnabled();
     await checkout.click({ noWaitAfter: true });
     await expect.poll(() => new URL(this.page.url()).pathname.includes('/checkouts/'), { timeout: 120_000 }).toBe(true);
-    await expect(this.page.getByText('Order summary', { exact: true }).filter({ visible: true }).first()).toBeVisible({ timeout: 120_000 });
-    const rows = this.page.getByRole('table', { name: 'Shopping cart', exact: true }).filter({ visible: true }).getByRole('row').filter({ has: this.page.getByRole('cell') });
-    await expect(rows.first()).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /Pay now|Complete order|Place order|Submit order/i }).filter({ visible: true }).first()).toBeVisible();
+    await new CheckoutPage(this.page).expectVisible();
     this.note('Checkout', '订单商品行及支付入口可见；未点击支付、未提交订单');
   }
   async deleteOwnRecord() {
     await this.captureNewRecords(); expect(this.createdRecords.size).toBe(1);
     const id = [...this.createdRecords][0]; expect(this.initialIds.has(id)).toBe(false);
+    const owned = await runAssets(this.page).requireSingleAsset();
+    expect(id, 'History记录必须对应本次生成响应的Asset ID').toBe(owned.assetId);
     // 定位确切record，不假定“最新第一条”永远属于本case。
     const target = this.root.locator(`article[data-history-record-id="${id}"]`);
     this.allowedDeletes.add(id);
@@ -177,9 +183,13 @@ export class ExperimentBoard {
       if (d.type() !== 'confirm' || !d.message().includes('Delete this history record?')) { await d.dismiss(); throw new Error('非预期删除确认，已取消'); }
       await d.accept();
     });
-    const response = this.page.waitForResponse(r => r.request().method() === 'DELETE' && new URL(r.url()).pathname.endsWith(`/activity/assets/${id}`));
-    await target.getByRole('button', { name: 'delete record', exact: true }).click(); await confirm;
-    expect((await response).ok()).toBe(true); await expect(target).toHaveCount(0); await expect(this.records).toHaveCount(0);
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.request().method() === 'DELETE' && new URL(r.url()).origin === new URL(this.info.project.use.baseURL!).origin
+        && new URL(r.url()).pathname.endsWith(`/activity/assets/${id}`), { timeout: 120_000 }),
+      target.getByRole('button', { name: 'delete record', exact: true }).click(), confirm,
+    ]);
+    expect(response.ok()).toBe(true); await expect(target).toHaveCount(0); await expect(this.records).toHaveCount(0);
+    runAssets(this.page).markDeleted(id);
     this.note('删除本次记录', { id, status: '已确认DELETE成功且History为空' });
   }
   async evidence() {
@@ -189,7 +199,7 @@ export class ExperimentBoard {
       loading: e.getAttribute('loading'), visible: e.getBoundingClientRect().height > 0,
     }))).catch(() => []);
     this.note('结束时模型诊断', viewer);
-    await this.info.attach('parity-checkpoints', { body: JSON.stringify({ experiment: { canvas_v3_109: true, canvas_trust_info: true }, checkpoints: this.checkpoints, network: this.log, createdRecords: [...this.createdRecords], deniedDeletes: this.deniedDeletes }, null, 2), contentType: 'application/json' });
+    await this.info.attach('parity-checkpoints', { body: JSON.stringify({ experiment: { mode: this.info.project.metadata.canvasAssignment ? 'stable-id' : 'preview-override', expected: this.info.project.metadata.canvasAssignment ?? { canvas_v3_109: true, canvas_trust_info: true } }, checkpoints: this.checkpoints, network: this.log, createdRecords: [...this.createdRecords], deniedDeletes: this.deniedDeletes }, null, 2), contentType: 'application/json' });
     expect(this.deniedDeletes, '不得删除非本case资产').toEqual([]);
   }
 }

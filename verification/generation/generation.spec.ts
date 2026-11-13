@@ -1,15 +1,36 @@
 import { test, expect } from '@playwright/test';
 import { CreatePage } from '../../tests/pages/create.page.js';
 import { generationFailure, waitForGenerationState } from '../../tests/pages/generation-wait.js';
+import { ExperimentBoard } from '../../experiments/canvas-v3/board.js';
+import type { TestInfo } from '@playwright/test';
 
 const error = 'runtime run failed: internal LLM service image response must be one trusted stable URL';
 const panel = `<div><p>${error}</p><button>Retry</button></div>`;
 const preview = (body: string) => `<div class="product-image-container"><div class="jjb-app">${body}</div></div>`;
 
+test('2D view is activated before waiting for the hidden lazy image to finish', async ({ page }) => {
+  await page.setContent(preview(`<button onclick="document.querySelector('[data-view-name]').hidden=false;document.querySelector('img').src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22%3E%3Crect width=%222%22 height=%222%22 fill=%22red%22/%3E%3C/svg%3E'">2D</button><div data-view-name="2d" hidden><img alt="Generated Toy Result" loading="lazy"></div>`));
+  await new CreatePage(page).waitForTwoDGeneration();
+  await expect(page.getByAltText('Generated Toy Result')).toBeVisible();
+});
+
+test('new canvas waits for a late 2D switch instead of checking the button only once', async ({ page }) => {
+  await page.setContent(`<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><img hidden alt="Generated Toy Result" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22/%3E"></div></div>`);
+  await page.evaluate(() => { setTimeout(() => {
+    const button = document.createElement('button'); button.textContent = 'Switch to 2D';
+    button.onclick = () => { document.querySelector('img')!.hidden = false; };
+    document.querySelector('#jjb-create-canvas')!.append(button);
+  }, 250); });
+  const board = new ExperimentBoard(page, {} as TestInfo);
+  Reflect.set(board, 'generated', true); // controlled fixture, no real task
+  await board.wait2D();
+  await expect(page.getByAltText('Generated Toy Result')).toBeVisible();
+});
+
 test('recorded business failure aborts 2D image wait without waiting five minutes', async ({ page }) => {
   await page.setContent(preview(panel));
   const started = Date.now();
-  await expect(new CreatePage(page).waitForTwoDGeneration()).rejects.toThrow(`[GENERATION_FAILED] 等待生成图片节点；生成页面明确报错：${error}`);
+  await expect(new CreatePage(page).waitForTwoDGeneration()).rejects.toThrow(`[GENERATION_FAILED] 等待生成图片节点及2D入口；生成页面明确报错：${error}`);
   expect(Date.now() - started).toBeLessThan(3000);
 });
 
