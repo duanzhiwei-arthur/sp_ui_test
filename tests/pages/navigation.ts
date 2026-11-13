@@ -1,17 +1,33 @@
 import { test, type Page, type Response } from '@playwright/test';
 import { bounded, monitorPage, redactDiagnostic } from '../fixtures/runtime-diagnostics.js';
 import { assertSiteAccess, SiteAccessError, watchSiteAccess } from './site-access.js';
+import { readOnlyWithRetry, retryableReadStatus } from '../fixtures/read-only-retry.js';
 
 export interface NavigationOptions { commitTimeout?: number; readyTimeout?: number; probeTimeout?: number }
 
 // Separate document response, DOM readiness and renderer responsiveness.
-// No refresh/retry and no silent passing of missing DOMContentLoaded.
+// Retry only the explicit GET document commit, once. DOM readiness and
+// assertions are not retried; no reloads, form submissions or payment actions.
 export async function gotoWithDiagnostics(page: Page, url: string, options: NavigationOptions = {}): Promise<Response> {
   const monitor = monitorPage(page);
   const access = watchSiteAccess(page);
   let phase = 'commit';
   try {
-    const response = await page.goto(url, { waitUntil: 'commit', timeout: options.commitTimeout ?? 90_000 });
+    const destination = new URL(url, page.url().startsWith('http') ? page.url() : 'https://jujubit.ai');
+    const safeRead = ['jujubit.ai', 'www.jujubit.ai', 'jujubit-dev.myshopify.com', '127.0.0.1', 'localhost'].includes(destination.hostname)
+      || destination.hostname.endsWith('.shopifypreview.com');
+    const response = await readOnlyWithRetry(
+      async () => {
+        const document = await page.goto(url, { waitUntil: 'commit', timeout: options.commitTimeout ?? 90_000 });
+        // Even an HTTP5xx response can be a challenge page. Never reload a
+        // detected challenge just because its status is retryable.
+        if (document && ([403, 429].includes(document.status()) || retryableReadStatus(document.status()))) await assertSiteAccess(page);
+        return document;
+      },
+      value => Boolean(value && retryableReadStatus(value.status())),
+      { attempts: safeRead && /^\/(?:products\/[\w-]+|cart)?\/?$/.test(destination.pathname) ? 2 : 1,
+        delayMs: 1_000, label: '主文档GET提交', status: response => response?.status() ?? 0 }
+    );
     if (response && [403, 429].includes(response.status())) await assertSiteAccess(page);
     if (!response || response.status() < 200 || response.status() >= 400) {
       throw new Error(`[NAV_HTTP] 页面HTTP状态异常：${response?.status() ?? '无响应'}`);

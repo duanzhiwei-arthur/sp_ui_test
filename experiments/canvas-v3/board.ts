@@ -7,6 +7,10 @@ import { runAssets } from '../../tests/fixtures/run-assets.js';
 import { CartDrawer } from '../../tests/pages/cart-drawer.page.js';
 import { CheckoutPage } from '../../tests/pages/checkout.page.js';
 import { reserveCanvasGeneration } from '../../tests/fixtures/generation-budget.js';
+import { readCartJson } from '../../tests/fixtures/read-only-retry.js';
+import { gotoWithDiagnostics } from '../../tests/pages/navigation.js';
+import { assertSiteAccess, expectVisibleWithAccessCheck } from '../../tests/pages/site-access.js';
+import { waitForGenerationState } from '../../tests/pages/generation-wait.js';
 
 type RecordRow = { at: string; method: string; path: string; status?: number; trace?: string; taskId?: string };
 export class ExperimentBoard {
@@ -14,7 +18,6 @@ export class ExperimentBoard {
   readonly records;
   readonly log: RecordRow[] = [];
   readonly createdRecords = new Set<string>();
-  readonly allowedDeletes = new Set<string>();
   readonly checkpoints: { name: string; actual: unknown }[] = [];
   readonly deniedDeletes: string[] = [];
   private initialIds = new Set<string>();
@@ -28,12 +31,13 @@ export class ExperimentBoard {
     if (!this.info.project.metadata.canvasAssignment) {
       const origin = new URL(this.info.project.use.baseURL!).origin;
       await this.page.addInitScript(origin => {
-        if (location.origin === origin) localStorage.setItem('_statsig_override', JSON.stringify({ canvas_v3_109: { enable: true }, canvas_trust_info: { enable: true } }));
+        if (location.origin === origin) localStorage.setItem('_statsig_override', JSON.stringify({ canvas_v3_109: { enable: true } }));
       }, origin);
     }
     await this.page.route('**/activity/assets/*', async route => {
       const req = route.request(), id = new URL(req.url()).pathname.split('/').pop()!;
-      if (req.method() === 'DELETE' && !this.allowedDeletes.has(id)) {
+      // The only remaining canvas scenario never deletes assets.
+      if (req.method() === 'DELETE') {
         this.deniedDeletes.push(id); await route.abort('blockedbyclient'); return;
       }
       await route.continue();
@@ -58,10 +62,11 @@ export class ExperimentBoard {
     if (await accept.isVisible()) { await accept.focus(); await this.page.keyboard.press('Enter'); }
   }
   async open() {
-    const response = await this.page.goto('/products/customize-your-own', { waitUntil: 'commit' });
-    expect(response?.ok()).toBe(true); await this.ready();
+    await gotoWithDiagnostics(this.page, '/products/customize-your-own');
+    await this.ready();
   }
   async ready() {
+    await assertSiteAccess(this.page, true);
     const assignment = this.info.project.metadata.canvasAssignment as CanvasAssignment | undefined;
     if (assignment) await assertCanvasAssignment(this.page, this.info, assignment);
     await expect(this.root).toHaveAttribute('data-jjb-create-mount-status', 'mounted', { timeout: 120_000 });
@@ -72,8 +77,7 @@ export class ExperimentBoard {
     });
     this.note('实际实验与部署版本', version);
     expect(version.actualV3, '必须命中canvas_v3_109实验组').toBe(true);
-    await expect(this.root.locator('.jjb-v3-upload-card')).toBeVisible();
-    for (const name of ['Digital Crafting', 'Ship Policy', 'Quality & Guarantee']) await expect(this.page.getByRole('button', { name, exact: true })).toBeVisible();
+    await expectVisibleWithAccessCheck(this.page, this.root.locator('.jjb-v3-upload-card'));
   }
   async upload() {
     const file = path.resolve(__dirname, '../../assets/two-dogs.jpeg');
@@ -83,13 +87,14 @@ export class ExperimentBoard {
     await expect(this.root.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
     this.note('正常图片上传', '与定时基线同源two-dogs.jpeg；Generate已可用');
   }
-  async preview() {
-    await this.root.locator('.jjb-v3-steps button').filter({ hasText: '3D Preview' }).click();
-    await expect(this.root.locator('.jjb-v3-steps [aria-current="step"]')).toContainText('3D Preview');
-  }
-  async create() {
-    await this.root.locator('.jjb-v3-steps button').filter({ hasText: 'Create' }).click();
-    await expect(this.root.locator('.jjb-v3-upload-card')).toBeVisible();
+  async selectDuoAndTrpg() {
+    await this.root.getByRole('button', { name: 'Settings: SOLO', exact: true }).click();
+    await this.page.getByRole('menuitemradio', { name: 'DUO', exact: true }).click();
+    await expect(this.root.getByRole('button', { name: 'Settings: DUO', exact: true })).toBeVisible();
+    await this.root.getByRole('button', { name: /^Choose template:/ }).click();
+    await this.page.getByRole('menuitemradio', { name: 'TRPG', exact: true }).click();
+    await expect(this.root.getByRole('button', { name: 'Choose template: TRPG', exact: true })).toBeVisible();
+    this.note('生成设置', { subjects: 'DUO', template: 'TRPG', order: '上传→Duo→TRPG' });
   }
   async snapshotHistory() {
     this.initialIds = new Set(await this.records.evaluateAll(es => es.map(e => e.getAttribute('data-history-record-id')!)));
@@ -104,11 +109,18 @@ export class ExperimentBoard {
     reserveCanvasGeneration(this.info.title);
   }
   async generate() {
+    await assertSiteAccess(this.page);
+    const assignment = this.info.project.metadata.canvasAssignment as CanvasAssignment | undefined;
+    if (assignment) await assertCanvasAssignment(this.page, this.info, assignment);
     await this.snapshotHistory(); this.reserve();
     runAssets(this.page).beginGeneration();
-    const pending = this.page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/activity/tasks'), { timeout: 60_000 });
-    await this.root.getByRole('button', { name: 'Generate', exact: true }).click();
-    const response = await pending; expect(response.ok(), '真实任务创建成功').toBe(true);
+    const origin = new URL(this.page.url()).origin;
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).origin === origin
+        && new URL(r.url()).pathname.endsWith('/activity/tasks'), { timeout: 60_000 }),
+      this.root.getByRole('button', { name: 'Generate', exact: true }).click(),
+    ]);
+    expect(response.ok(), '[GENERATION_FAILED] 真实任务创建应成功；不自动重复提交').toBe(true);
     this.generated = true;
     this.note('真实生成请求', { status: response.status(), trace: response.headers()['x-trace-id'] });
     await expect(this.root.locator('.jjb-v3-steps [aria-current="step"]')).toContainText('3D Preview');
@@ -116,25 +128,28 @@ export class ExperimentBoard {
   async wait2D() {
     const image = this.root.locator('.jjb-v3-viewer img[alt="Generated Toy Result"]');
     // 新版隐藏的2D图使用lazy loading：先切到2D并滚入视口，不能对隐藏图先等naturalWidth。
-    await expect(image).toHaveCount(1, { timeout: 300_000 });
+    await waitForGenerationState(this.page, async () => await image.count() === 1, 300_000, '等待新画板2D图片节点');
     const switch2d = this.root.getByRole('button', { name: /^(Switch to )?2D$/ }).filter({ visible: true });
-    await expect.poll(async () => {
+    await waitForGenerationState(this.page, async () => {
       if (await image.isVisible()) return true;
       if (await switch2d.count() && await switch2d.isEnabled()) await switch2d.click({ timeout: 3_000 });
       return image.isVisible();
-    }, { timeout: 300_000, message: '生成事件可能自动切3D，等待真实2D切换完成后再校验资源' }).toBe(true);
+    }, 300_000, '等待新画板真实2D切换完成');
     await expect(image).toBeVisible(); await image.scrollIntoViewIfNeeded();
-    await expect.poll(() => image.evaluateAll(es => es.some(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), { timeout: 300_000, message: '真实2D图片加载成功，不以请求200代替' }).toBe(true);
+    await waitForGenerationState(this.page, () => image.evaluateAll(es => es.some(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), 300_000, '等待新画板真实2D图片加载成功');
     this.note('真实2D', '生成图片实际加载并可见');
     await this.captureNewRecords();
   }
   async wait3DAndRotate() {
     const switch3d = this.root.getByRole('button', { name: /^(Switch to )?3D$/ }).filter({ visible: true });
-    if (await switch3d.count()) { await expect(switch3d).toBeEnabled({ timeout: 300_000 }); await switch3d.click(); }
+    if (await switch3d.count()) {
+      await waitForGenerationState(this.page, () => switch3d.isEnabled(), 300_000, '等待新画板3D切换可用');
+      await switch3d.click();
+    }
     const model = this.root.locator('model-viewer').filter({ visible: true }).first();
-    await expect(model).toBeVisible({ timeout: 300_000 });
+    await waitForGenerationState(this.page, () => model.isVisible(), 300_000, '等待新画板3D视图');
     await model.scrollIntoViewIfNeeded();
-    await expect.poll(() => model.evaluate(e => Boolean((e as unknown as { loaded: boolean }).loaded)), { timeout: 300_000, message: '真实3D模型必须loaded=true' }).toBe(true);
+    await waitForGenerationState(this.page, () => model.evaluate(e => Boolean((e as unknown as { loaded: boolean }).loaded)), 300_000, '等待新画板真实3D模型loaded=true');
     await model.scrollIntoViewIfNeeded();
     const orbit = () => model.evaluate(e => (e as unknown as { getCameraOrbit(): { theta: number; phi: number; radius: number } }).getCameraOrbit());
     const before = await orbit(), box = await model.boundingBox(); if (!box) throw new Error('3D模型无交互区域');
@@ -152,17 +167,55 @@ export class ExperimentBoard {
     for (const id of ids) if (!this.initialIds.has(id)) this.createdRecords.add(id);
     this.note('本次新增History', [...this.createdRecords]);
   }
+  async zoomThreeD(timeout = 15_000) {
+    const model = this.root.locator('model-viewer').filter({ visible: true });
+    await expect(model, '仅操作当前可见的3D模型').toHaveCount(1);
+    await expect.poll(() => model.evaluate(e => Boolean((e as unknown as { loaded: boolean }).loaded)), { timeout }).toBe(true);
+    await model.scrollIntoViewIfNeeded();
+    const radius = () => model.evaluate(e => (e as unknown as { getCameraOrbit(): { radius: number } }).getCameraOrbit().radius);
+    const before = await radius(); expect(Number.isFinite(before) && before > 0, '模型相机距离必须有效').toBe(true);
+    const gesture = async (delta: number) => {
+      // A sticky header and layout shifts can leave the model's geometric
+      // centre outside its visible area. Recompute a hit-tested visible point
+      // before each safe wheel gesture; don't mistake page scrolling for zoom.
+      await model.scrollIntoViewIfNeeded();
+      const point = await model.evaluate(e => {
+        const r = e.getBoundingClientRect();
+        const top = Math.max(r.top, Math.min(140, innerHeight / 4));
+        const bottom = Math.min(r.bottom, innerHeight - 40);
+        const left = Math.max(0, r.left), right = Math.min(innerWidth, r.right);
+        const x = (left + right) / 2, y = (top + bottom) / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { x, y, visible: bottom > top && right > left, hit: hit === e || Boolean(hit && e.contains(hit)) };
+      });
+      expect(point.visible && point.hit, '滚轮落点必须属于实际可见的模型，不被页头/遮罩截走').toBe(true);
+      await this.page.mouse.move(point.x, point.y);
+      await this.page.mouse.wheel(0, delta);
+      await this.page.waitForTimeout(300); // allow camera inertia, not task completion
+    };
+    for (let attempt = 0; attempt < 3 && await radius() >= before * .99; attempt++) await gesture(-450);
+    await expect.poll(radius, { timeout, message: '向上滚轮放大后，相机距离应缩短至少1%' }).toBeLessThan(before * .99);
+    const zoomedIn = await radius();
+    await this.page.screenshot({ path: this.info.outputPath('model-zoom-in.png') });
+    for (let attempt = 0; attempt < 3 && await radius() <= zoomedIn * 1.01; attempt++) await gesture(450);
+    await expect.poll(radius, { timeout, message: '向下滚轮缩小后，相机距离应增加至少1%' }).toBeGreaterThan(zoomedIn * 1.01);
+    const zoomedOut = await radius();
+    await expect(model).toBeVisible();
+    await expect.poll(() => model.evaluate(e => Boolean((e as unknown as { loaded: boolean }).loaded)), { timeout }).toBe(true);
+    this.note('真实3D放大及缩小', { before, zoomedIn, zoomedOut, gesture: '鼠标滚轮', modelStillLoaded: true });
+    await this.page.screenshot({ path: this.info.outputPath('model-zoom-out.png') });
+  }
   async addAndCheckout() {
-    const initial = await this.page.request.get('/cart.js'); expect(initial.ok()).toBe(true);
-    const before = await initial.json(); expect(before.item_count, '隔离上下文购物车应为空').toBe(0);
+    const before = await readCartJson(this.page, '加购前隔离购物车检查');
+    expect(before.item_count, '隔离上下文购物车应为空').toBe(0);
     const add = this.root.getByRole('button', { name: /^Add to Cart$/i }).filter({ visible: true });
     await expect(add).toBeEnabled();
     await new CartDrawer(this.page).addCurrentAsset(() => add.click(), runAssets(this.page));
-    const cartResponse = await this.page.request.get('/cart.js'); expect(cartResponse.ok()).toBe(true);
-    const cart = await cartResponse.json(); expect(cart.item_count).toBe(1); expect(cart.total_price).toBeGreaterThan(0);
+    const cart = await readCartJson(this.page, '加购后购物车数量与金额检查');
+    expect(cart.item_count).toBe(1); expect(cart.total_price).toBeGreaterThan(0);
     this.note('真实加购', { item_count: cart.item_count, total_price: cart.total_price, currency: cart.currency,
       items: cart.items.map((i: { variant_id: number; quantity: number; product_title: string; final_line_price: number }) => ({ variant_id: i.variant_id, quantity: i.quantity, title: i.product_title, final_line_price: i.final_line_price })) });
-    await this.page.goto('/cart', { waitUntil: 'commit' }); await this.dismiss();
+    await gotoWithDiagnostics(this.page, '/cart'); await this.dismiss();
     const cartRoot = this.page.locator('#custom-cart-page-root'); await expect(cartRoot).toBeVisible({ timeout: 60_000 });
     await expect(cartRoot.getByRole('spinbutton').first()).toHaveValue('1');
     const checkout = cartRoot.getByRole('button', { name: /^Check\s*out$/i }); await expect(checkout).toBeEnabled();
@@ -171,27 +224,6 @@ export class ExperimentBoard {
     await new CheckoutPage(this.page).expectVisible();
     this.note('Checkout', '订单商品行及支付入口可见；未点击支付、未提交订单');
   }
-  async deleteOwnRecord() {
-    await this.captureNewRecords(); expect(this.createdRecords.size).toBe(1);
-    const id = [...this.createdRecords][0]; expect(this.initialIds.has(id)).toBe(false);
-    const owned = await runAssets(this.page).requireSingleAsset();
-    expect(id, 'History记录必须对应本次生成响应的Asset ID').toBe(owned.assetId);
-    // 定位确切record，不假定“最新第一条”永远属于本case。
-    const target = this.root.locator(`article[data-history-record-id="${id}"]`);
-    this.allowedDeletes.add(id);
-    const confirm = this.page.waitForEvent('dialog').then(async d => {
-      if (d.type() !== 'confirm' || !d.message().includes('Delete this history record?')) { await d.dismiss(); throw new Error('非预期删除确认，已取消'); }
-      await d.accept();
-    });
-    const [response] = await Promise.all([
-      this.page.waitForResponse(r => r.request().method() === 'DELETE' && new URL(r.url()).origin === new URL(this.info.project.use.baseURL!).origin
-        && new URL(r.url()).pathname.endsWith(`/activity/assets/${id}`), { timeout: 120_000 }),
-      target.getByRole('button', { name: 'delete record', exact: true }).click(), confirm,
-    ]);
-    expect(response.ok()).toBe(true); await expect(target).toHaveCount(0); await expect(this.records).toHaveCount(0);
-    runAssets(this.page).markDeleted(id);
-    this.note('删除本次记录', { id, status: '已确认DELETE成功且History为空' });
-  }
   async evidence() {
     const viewer = await this.root.locator('model-viewer').evaluateAll(es => es.map(e => ({
       registered: Boolean(customElements.get('model-viewer')),
@@ -199,7 +231,7 @@ export class ExperimentBoard {
       loading: e.getAttribute('loading'), visible: e.getBoundingClientRect().height > 0,
     }))).catch(() => []);
     this.note('结束时模型诊断', viewer);
-    await this.info.attach('parity-checkpoints', { body: JSON.stringify({ experiment: { mode: this.info.project.metadata.canvasAssignment ? 'stable-id' : 'preview-override', expected: this.info.project.metadata.canvasAssignment ?? { canvas_v3_109: true, canvas_trust_info: true } }, checkpoints: this.checkpoints, network: this.log, createdRecords: [...this.createdRecords], deniedDeletes: this.deniedDeletes }, null, 2), contentType: 'application/json' });
+    await this.info.attach('parity-checkpoints', { body: JSON.stringify({ experiment: { mode: this.info.project.metadata.canvasAssignment ? 'stable-id' : 'preview-override', expected: this.info.project.metadata.canvasAssignment ?? { canvas_v3_109: true } }, checkpoints: this.checkpoints, network: this.log, createdRecords: [...this.createdRecords], deniedDeletes: this.deniedDeletes }, null, 2), contentType: 'application/json' });
     expect(this.deniedDeletes, '不得删除非本case资产').toEqual([]);
   }
 }

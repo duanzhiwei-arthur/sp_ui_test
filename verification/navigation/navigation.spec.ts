@@ -157,6 +157,26 @@ test('server error cannot pass with visible text', async ({ page }) => {
   await expect(gotoWithDiagnostics(page, origin + '/error')).rejects.toThrow(/NAV_HTTP.*503/);
 });
 
+test('safe storefront GET recovers from one 503 and records both attempts', async ({ page }, info) => {
+  let hits = 0;
+  await page.route(origin + '/products/customize-your-own', route => {
+    hits++;
+    return route.fulfill({ status: hits === 1 ? 503 : 200, contentType: 'text/html', body: '<main>Ready</main>' });
+  });
+  await gotoWithDiagnostics(page, origin + '/products/customize-your-own');
+  expect(hits).toBe(2);
+  expect(info.annotations.some(a => a.type === 'read-only-retry')).toBe(true);
+});
+
+test('429, malformed DOM readiness and checkout document are not replayed', async ({ page }) => {
+  for (const [pathname, status] of [['/cart', 429], ['/checkouts/private', 503]] as const) {
+    let hits = 0;
+    await page.route(origin + pathname, route => { hits++; return route.fulfill({ status, body: '<main>blocked</main>' }); });
+    await expect(gotoWithDiagnostics(page, origin + pathname)).rejects.toThrow();
+    expect(hits).toBe(1);
+  }
+});
+
 test('short renderer probe is a warning but downstream business assertion still runs', async ({ page }, testInfo) => {
   const response = await gotoWithDiagnostics(page, origin + '/healthy', { probeTimeout: 1 });
   expect(response.status()).toBe(200);

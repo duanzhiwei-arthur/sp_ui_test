@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'daily runs canvas control TC-00~05 and treatment EXP-TC-01~05; experiment remains membership.'
+        description: 'daily runs canvas control TC-00~05 and one treatment EXP-TC-01; experiment remains membership.'
         required: true
         default: daily
         type: choice

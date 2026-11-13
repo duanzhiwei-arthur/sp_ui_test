@@ -1,20 +1,19 @@
 import { gaCookieRows } from './ga-cookie.mjs';
 import { formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
+import { isCanvasTreatment, isCanvasControl, hasCompleteCanvasScope } from './canvas-scope.mjs';
+export { isCanvasTreatment, isCanvasControl } from './canvas-scope.mjs';
 
 const escape = value => String(value ?? '').replace(/[&<>*`_\[\]]/g, c => `&#${c.charCodeAt(0)};`);
-export const isCanvasTreatment = title => /^EXP-TC-0[1-5][：:]/u.test(title);
-export const isCanvasControl = title => /^TC-0[0-5][：:]/u.test(title);
 
 export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId, headSha, runUrl }) {
   const cases = summary.caseResults ?? [];
   const reviews = summary.recheck?.cases ?? [];
-  const complete = cases.length === 11 && cases.filter(row => isCanvasControl(row.title)).length === 6
-    && cases.filter(row => isCanvasTreatment(row.title)).length === 5
-    && new Set(cases.map(row => row.title.split(/[：:]/u)[0])).size === 11;
+  const complete = hasCompleteCanvasScope(cases);
   const failed = testExitCode !== 0 || summary.readError || summary.reportErrors?.length || !complete || cases.some(row => row.status !== 'passed');
   const recovered = reviews.filter(row => row.finalStatus === 'passed-on-recheck').length;
+  const readRetries = cases.reduce((count, row) => count + (row.readRetries ?? 0), 0);
   const passed = cases.filter(row => row.status === 'passed').length;
-  const color = failed ? 'red' : recovered ? 'orange' : 'green';
+  const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
   const panels = [['画板对照组', isCanvasControl], ['画板实验组', isCanvasTreatment]].map(([name, matches]) => {
     const rows = cases.filter(row => matches(row.title)).sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
@@ -27,6 +26,7 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
       const detail = summary.failureDetails?.find(d => d.title === row.title);
       const cookies = gaCookieRows(summary).filter(r => r.title === row.title || r.title.startsWith(row.title + '（'));
       return [{ tag: 'markdown', content: `**${status}｜${escape(row.title)}**` },
+        ...(row.readRetries ? [{ tag: 'markdown', content: `⚠️ 只读操作重试 ${row.readRetries} 处；首次状态和耗时保留于证据，不重放生成/加购。` }] : []),
         ...(detail ? [{ tag: 'markdown', content: escape(detail.analysis ?? detail.reason) },
           ...(detail.generationEvidence ? [{ tag: 'markdown', content: escape(formatGenerationEvidence(detail.generationEvidence)) }] : [])] : []),
         ...(review?.firstFailure ? [{ tag: 'markdown', content: `首次原因：${escape(review.firstFailure.analysis ?? review.firstFailure.reason)}\n复核：${escape(review.finalStatus)}` }] : []),
@@ -44,6 +44,7 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
       { tag: 'markdown', content: `**${passed}/${cases.length} 用例通过** · ${Math.floor(duration / 60)}分${duration % 60}秒\n${escape(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', dateStyle: 'short', timeStyle: 'medium' }).format(finishedAt))}（北京时间）${recovered ? `\n⚠️ ${recovered}条首次失败、复核恢复；首次原因保留在组内。` : ''}` },
       ...(failed ? [{ tag: 'markdown', content: `❌ ${escape(failedTitles.join('、') || summary.readError || '执行或报告不完整')}\n展开对应组查看原因、Task/Asset/Trace/Request ID及证据。` }] : []),
       ...panels,
+      ...(readRetries ? [{ tag: 'markdown', content: `⚠️ 本轮有 ${readRetries} 处只读操作重试，成功不代表首次无异常。` }] : []),
       { tag: 'markdown', text_size: 'notation', content: `Run：${escape(runId ?? 'local')} · 提交：${escape((headSha ?? '未提交').slice(0, 12))}` },
       ...(runUrl?.startsWith('https://') ? [{ tag: 'button', text: { tag: 'plain_text', content: '完整运行与截图／录屏' }, type: 'primary_filled', behaviors: [{ type: 'open_url', default_url: runUrl }] }] : [])
     ] } };

@@ -1,6 +1,7 @@
 import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { automationOrigins } from './automation-identity.js';
 import { statsigStableIdStorageKey } from '../experiments/experiment-registry.js';
+import { assertSiteAccess } from '../pages/site-access.js';
 
 export type CanvasAssignment = { stableId: string; variant: 'control' | 'treatment' };
 
@@ -34,11 +35,15 @@ export async function assertCanvasAssignment(page: Page, info: TestInfo, assignm
   let last: Awaited<ReturnType<typeof read>> | undefined;
   try {
     await expect.poll(async () => {
+      await assertSiteAccess(page, true);
       last = await read();
       return { stableId: last.stableId, canvas: last.canvas, renderedV3: last.renderedV3, override: last.override };
     }, { timeout: 45_000, message: '画板实验分组前置校验：stable_id与真实分组/画板必须一致；不自动强制开启实验' })
       .toEqual({ stableId: assignment.stableId, canvas: assignment.variant === 'treatment', renderedV3: assignment.variant === 'treatment', override: null });
-    if (assignment.variant === 'treatment') expect(last?.trust, 'EXP用例同时要求canvas_trust_info.enable=true；缺少增信分组不能冒充通过').toBe(true);
+    // The remaining canvas case does not assert the independent trust experiment.
+  } catch (error) {
+    if (error instanceof Error && /\[SITE_/.test(error.message)) throw error;
+    throw new Error('[EXPERIMENT_ASSIGNMENT] 画板分组前置未满足；业务尚未验证，不自动覆盖实验参数。', { cause: error });
   } finally {
     await info.attach('canvas-assignment', { body: JSON.stringify({ expected: assignment, actual: last ?? null, at: new Date().toISOString() }, null, 2), contentType: 'application/json' });
   }

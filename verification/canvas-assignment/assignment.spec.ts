@@ -29,14 +29,14 @@ test('wrong SDK stable_id cannot pass even when treatment UI and flags are true'
     window.__jjbCanvasV3Enabled = true;
   </script>` }));
   await page.goto('/');
-  await expect(assertCanvasAssignment(page, info, { stableId: 'expected', variant: 'treatment' })).rejects.toThrow('画板实验分组前置校验');
+  await expect(assertCanvasAssignment(page, info, { stableId: 'expected', variant: 'treatment' })).rejects.toThrow('EXPERIMENT_ASSIGNMENT');
 });
 
-test('treatment without trust assignment cannot pass the combined screenshot cases', async ({ context, page }, info) => {
+test('canvas treatment does not require the unrelated trust experiment', async ({ context, page }, info) => {
   await context.route('**/*', route => route.fulfill({ contentType: 'text/html', body: `<script>
     window.statsigClient = { getContext: () => ({stableID: 'expected'}), getExperiment: name => ({get: () => name === 'canvas_v3_109'}) };
     window.__jjbCanvasV3Enabled = true;
   </script>` }));
   await page.goto('/');
-  await expect(assertCanvasAssignment(page, info, { stableId: 'expected', variant: 'treatment' })).rejects.toThrow('EXP用例同时要求');
+  await assertCanvasAssignment(page, info, { stableId: 'expected', variant: 'treatment' });
 });

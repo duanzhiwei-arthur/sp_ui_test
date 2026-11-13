@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import path from 'node:path';
+import { canvasRunOptions } from './run-options.js';
 const target = process.env.CANVAS_PARITY_BASE_URL;
 if (!target) throw new Error('显式设置 CANVAS_PARITY_BASE_URL；不默认测试生产');
 const url = new URL(target);
@@ -10,6 +11,7 @@ export default defineConfig({
   outputDir: path.resolve(__dirname, '../../test-results/canvas-v3'),
   reporter: [['list'], ['json', { outputFile: process.env.PLAYWRIGHT_RESULTS_FILE ?? path.resolve(__dirname, '../../test-results/canvas-v3-results.json') }]],
   use: { baseURL: url.origin, headless: true, viewport: { width: 1440, height: 1000 },
+    launchOptions: { slowMo: canvasRunOptions().slowMo },
     navigationTimeout: 60_000, actionTimeout: 20_000, trace: 'off', video: 'off', screenshot: 'only-on-failure' },
-  projects: [{ name: 'canvas-v3-109-with-trust', metadata: { baseline: 'scheduled TC-01..TC-05', canvas_v3_109: true, canvas_trust_info: true } }],
+  projects: [{ name: 'canvas-v3-109', metadata: { scope: 'EXP-TC-01', canvas_v3_109: true } }],
 });

@@ -4,6 +4,8 @@ import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js
 import { waitForGenerationState } from './generation-wait.js';
 import { runAssets, optionalRunAssets } from '../fixtures/run-assets.js';
 import { reserveCanvasGeneration } from '../fixtures/generation-budget.js';
+import { test } from '@playwright/test';
+import { assertCanvasAssignment, type CanvasAssignment } from '../fixtures/canvas-assignment.js';
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
@@ -175,6 +177,9 @@ export class CreatePage {
     await this.assertSiteAvailable();
     await expect(this.customizerLoading).toBeHidden({ timeout });
     await expectVisibleWithAccessCheck(this.page, this.generateButton, timeout);
+    const info = test.info();
+    const assignment = info.project.metadata.canvasAssignment as CanvasAssignment | undefined;
+    if (assignment) await assertCanvasAssignment(this.page, info, assignment);
     await this.dismissMarketingPopup();
   }
 
@@ -235,6 +240,10 @@ export class CreatePage {
 
   async startGeneration(): Promise<void> {
     await expect(this.generateButton).toBeEnabled();
+    await assertSiteAccess(this.page);
+    const info = test.info();
+    const assignment = info.project.metadata.canvasAssignment as CanvasAssignment | undefined;
+    if (assignment) await assertCanvasAssignment(this.page, info, assignment);
     reserveCanvasGeneration('画板对照组生成；失败/超时保守计入，不自动回退');
     const assets = optionalRunAssets(this.page);
     assets?.beginGeneration();

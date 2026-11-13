@@ -2,7 +2,7 @@ import { type Page, type Request, type ConsoleMessage } from '@playwright/test';
 import { test as base, expect } from './ga-cookie.js';
 import { watchSiteAccess } from '../pages/site-access.js';
 import { RunAssets, registerRunAssets } from './run-assets.js';
-import { installCanvasAssignment, assertCanvasAssignment, type CanvasAssignment } from './canvas-assignment.js';
+import { installCanvasAssignment, type CanvasAssignment } from './canvas-assignment.js';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')
@@ -94,17 +94,13 @@ export function monitorPage(page: Page) {
 export { readGaCookie } from './ga-cookie.js';
 
 export const test = base.extend<{ runtimeDiagnostics: void; canvasAssignment: void }>({
-  canvasAssignment: [async ({ context, page, baseURL }, use, testInfo) => {
+  canvasAssignment: [async ({ context, baseURL }, use, testInfo) => {
     const assignment = testInfo.project.metadata.canvasAssignment as CanvasAssignment | undefined;
     if (assignment) {
       await installCanvasAssignment(context, baseURL!, assignment);
       testInfo.annotations.push({ type: 'stable_id', description: assignment.stableId }, { type: 'canvas_variant', description: assignment.variant });
-      // Check before generation; a Checkout or blank homepage at teardown is
-      // not a valid place to read the storefront's canvas assignment.
-      if (assignment.variant === 'control' && !testInfo.title.startsWith('TC-00:')) {
-        await page.goto('/products/customize-your-own', { waitUntil: 'commit' });
-        await assertCanvasAssignment(page, testInfo, assignment);
-      }
+      // Install before SDK boot; actual assignment is checked on the case's
+      // own navigation by CreatePage/ExperimentBoard. No extra storefront GET.
     }
     await use();
   }, { auto: true, timeout: 120_000 }],

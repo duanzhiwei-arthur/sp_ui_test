@@ -1,11 +1,12 @@
 import type { Page } from '@playwright/test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { bounded, redactDiagnostic } from '../fixtures/runtime-diagnostics.js';
+import { assertSiteAccess } from './site-access.js';
 
 // Either a visible explicit error or Retry in the active preview is terminal.
 // A historical failed item, hidden panel or unrelated alert is not a new failure.
 export async function generationFailure(page: Page): Promise<string | undefined> {
-  const preview = page.locator('.product-image-container .jjb-app').first();
+  const preview = page.locator('.product-image-container .jjb-app, #jjb-create-canvas .jjb-v3-viewer').filter({ visible: true });
   const errors = preview.getByText(/\b(?:error|failed|failure)\b|something went wrong|unable to generate|生成失败|生成出错|生成异常|无法生成|服务异常/i)
     .and(page.locator(':visible'));
   const messages = await errors.allTextContents();
@@ -21,6 +22,7 @@ export async function waitForGenerationState(page: Page, ready: () => Promise<bo
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     const remaining = () => Math.max(1, deadline - Date.now());
+    await bounded(assertSiteAccess(page, true), remaining(), label);
     const failure = await bounded(generationFailure(page), remaining(), label);
     if (failure) throw new Error(`[GENERATION_FAILED] ${label}；生成页面明确报错：${failure}`);
     if (await bounded(ready(), remaining(), label)) return;

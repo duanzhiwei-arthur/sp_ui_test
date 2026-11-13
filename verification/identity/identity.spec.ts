@@ -90,7 +90,7 @@ parityTest('新画板同业务链路继承sdk_anonymous_id=test，实验覆盖�
   void board;
   await mockSite(context);await page.goto('/');expect(await readBoot(page)).toBe('test');
   const overrides=await page.evaluate(()=>JSON.parse(localStorage.getItem('_statsig_override')!));
-  expect(overrides).toEqual({canvas_v3_109:{enable:true},canvas_trust_info:{enable:true}});
+  expect(overrides).toEqual({canvas_v3_109:{enable:true}});
   expect(await page.evaluate(()=>localStorage.getItem('sak_anonymous_id'))).toBeNull();
 });
 

@@ -24,6 +24,7 @@ export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, sco
   const escape = value => String(value).replace(/[&<>*`_\[\]]/g, character => `&#${character.charCodeAt(0)};`);
   const sorted = [...cases].sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
   const recovered = (summary.recheck?.cases ?? []).filter(item => item.finalStatus === 'passed-on-recheck');
+  const readRetries = cases.reduce((count, row) => count + (row.readRetries ?? 0), 0);
   if ((summary.recheck?.cases ?? []).some(item => item.finalStatus !== 'passed-on-recheck')) return null;
   return {
     schema: '2.0',
@@ -31,13 +32,14 @@ export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, sco
     header: {
       title: { tag: 'plain_text', content: recovered.length ? 'JuJuBit · 复核通过' : 'JuJuBit · 回归通过' },
       subtitle: { tag: 'plain_text', content: scope },
-      template: recovered.length ? 'orange' : 'green', icon: { tag: 'standard_icon', token: 'notice_colorful' }
+      template: recovered.length || readRetries ? 'orange' : 'green', icon: { tag: 'standard_icon', token: 'notice_colorful' }
     },
     body: { direction: 'vertical', padding: '12px', vertical_spacing: '8px', elements: [
       { tag: 'markdown', content: `**${cases.length}/${cases.length} 用例最终通过** · 耗时 ${Math.floor(seconds / 60)}分${seconds % 60}秒\n${recovered.length ? `⚠️ ${recovered.length} 条首次失败、二次复核通过（偶发恢复，保留首次证据）；未发送失败告警。\n` : ''}<font color='grey'>完成于 ${completed}（北京时间）</font>` },
       ...firstGenerationFailureMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
       ...firstAccessFailureMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
       ...firstFailureCategoryMessages(summary).map(content => ({ tag: 'markdown', content: escape(content) })),
+      ...(readRetries ? [{ tag: 'markdown', content: `⚠️ ${readRetries}处只读操作曾重试；首次状态和耗时保留在运行证据中。` }] : []),
       { tag: 'collapsible_panel', expanded: false, header: { title: { tag: 'plain_text', content: 'GA Cookie诊断' } }, elements: [{ tag: 'markdown', content: gaCookieRows(summary).length ? gaCookieRows(summary).map(row => `**${escape(row.title)}**<br>cookieValue=${escape(row.cookieValue)}<br>cookieClientId=${escape(row.cookieClientId)}`).join('<br>') : '本轮没有可读取的浏览器上下文值。' }] },
       { tag: 'collapsible_panel', expanded: false, header: { title: { tag: 'plain_text', content: '用例明细与版本（展开）' } }, elements: [
         { tag: 'markdown', content: sorted.map(item => `${item.recovered ? '⚠️ 复核通过' : '✅'} ${escape(item.title)}`).join('\n') },

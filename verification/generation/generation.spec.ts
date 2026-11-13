@@ -8,6 +8,40 @@ const error = 'runtime run failed: internal LLM service image response must be o
 const panel = `<div><p>${error}</p><button>Retry</button></div>`;
 const preview = (body: string) => `<div class="product-image-container"><div class="jjb-app">${body}</div></div>`;
 
+test('new canvas Retry aborts 2D wait without repeating Generate', async ({ page }, info) => {
+  await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><button>Retry</button></div></div>');
+  const board = new ExperimentBoard(page, info);
+  await expect(board.wait2D()).rejects.toThrow('GENERATION_FAILED');
+});
+
+for (const supportsZoom of [true, false]) {
+  test(`canvas zoom ${supportsZoom ? 'asserts both radius changes' : 'rejects wheel gestures with no model change'}`, async ({ page }, info) => {
+    await page.setContent('<div id="jjb-create-canvas"><model-viewer style="display:block;width:400px;height:400px"></model-viewer></div>');
+    await page.evaluate(supports => {
+      customElements.define('model-viewer', class extends HTMLElement {
+        loaded = true;
+        radius = 10;
+        getCameraOrbit() { return { radius: this.radius }; }
+        connectedCallback() {
+          this.addEventListener('wheel', event => {
+            event.preventDefault();
+            if (supports) this.radius *= (event as WheelEvent).deltaY < 0 ? .8 : 1.25;
+          }, { passive: false });
+        }
+      });
+    }, supportsZoom);
+    const board = new ExperimentBoard(page, info);
+    if (supportsZoom) {
+      await board.zoomThreeD(2_000);
+      const point = board.checkpoints.find(p => p.name === '真实3D放大及缩小')!;
+      expect(point.actual).toMatchObject({ before: 10, zoomedIn: 8, zoomedOut: 10, modelStillLoaded: true });
+    } else {
+      await expect(board.zoomThreeD(500)).rejects.toThrow('相机距离应缩短');
+      expect(board.checkpoints.some(p => p.name === '真实3D放大及缩小')).toBe(false);
+    }
+  });
+}
+
 test('2D view is activated before waiting for the hidden lazy image to finish', async ({ page }) => {
   await page.setContent(preview(`<button onclick="document.querySelector('[data-view-name]').hidden=false;document.querySelector('img').src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22%3E%3Crect width=%222%22 height=%222%22 fill=%22red%22/%3E%3C/svg%3E'">2D</button><div data-view-name="2d" hidden><img alt="Generated Toy Result" loading="lazy"></div>`));
   await new CreatePage(page).waitForTwoDGeneration();

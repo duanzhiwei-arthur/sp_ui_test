@@ -62,6 +62,16 @@ test('本轮资产加购响应与购物车GET一致才通过，POST只发一次'
 test('旧商品不能抵充本轮加购成功，不自动补发加购',async({page})=>{
   const tracker=await generate(page,'/wrong-cart');try{await expect(new CartDrawer(page).addCurrentAsset(()=>page.locator('#add').click(),tracker)).rejects.toThrow(/本轮Asset ID/);expect(adds).toBe(1);}finally{await tracker.dispose();}
 });
+test('加购后GET一次503只重查购物车，不重复POST加购',async({page})=>{
+ const tracker=await generate(page);let reads=0;
+ try{
+  await page.route(origin+'/cart.js',route=>{
+   reads++;return route.fulfill({status:reads===1?503:200,contentType:'application/json',body:JSON.stringify({items:[{key:'line-key',quantity:1,properties:{'_Record ID':'asset-new'}}]})});
+  });
+  await new CartDrawer(page).addCurrentAsset(()=>page.locator('#add').click(),tracker);
+  expect(adds).toBe(1);expect(reads).toBe(2);expect(tracker.snapshot().cartLines).toHaveLength(1);
+ }finally{await tracker.dispose();}
+});
 test('DELETE重定向不能重放到旧资产',async({page})=>{
  const tracker=await generate(page,'/redirect-delete');try{await tracker.authorizeDelete('asset-new');const failed=await page.evaluate(()=>fetch('/apps/ai/activity/assets/asset-new',{method:'DELETE'}).then(()=>false,()=>true));expect(failed).toBe(true);expect(deletes).toEqual(['/apps/ai/activity/assets/asset-new']);expect(tracker.wasDeleteBlocked()).toBe(true);}finally{await tracker.dispose();}
 });

@@ -2,6 +2,8 @@
 
 Playwright + TypeScript 游客态回归。此工程保留当前远端用例、新画板同业务链路，以及运行它们所需的诊断和验证代码。**不填写支付资料、不点击最终支付、不提交订单。**
 
+本文描述当前本地待发布版本。新画板单用例及双组卡片尚未推送远端；修改本地代码不会自动改变线上定时任务。
+
 ## 全部用例（一张表）
 
 | 用例 | 业务步骤与验收 | 执行入口 / 真实影响 |
@@ -15,17 +17,13 @@ Playwright + TypeScript 游客态回归。此工程保留当前远端用例、�
 | TC-05 | 图片＋Prompt生成 → 2D/3D及旋转 → History新增 → UI确认删除本轮资产 | 每小时daily；生成、精确删除 |
 | TC-06 | 会员Treatment：上传→Generate触发实验→分桶核验→会员入口、弹窗及Join去向 | 会员实验点名；生成，不支付 |
 | TC-EXP-01 | 会员Control：同上传→Generate路径→分桶核验→会员入口不展示 | 会员实验点名；生成 |
-| EXP-TC-01 | 首页Create进入新画板；3D Preview步骤、V3与增信同时生效 | 每小时daily实验组；无生成 |
-| EXP-TC-02 | 模板菜单切换、Settings Solo/Duo、内联Prompt、三个增信弹窗开关 | 每小时daily实验组；无生成 |
-| EXP-TC-03 | 同源图片→真实2D/3D完成→旋转→本轮资产加购→购物车→Checkout商品及支付入口 | 每小时daily实验组；生成、加购，不支付 |
-| EXP-TC-04 | 上传→提交生成→直接返回Create→Generate可用；不等2D/3D、不重新上传、不提交第二次任务 | 每小时daily实验组；后台任务可能继续 |
-| EXP-TC-05 | 图片＋Prompt真实生成→2D/3D及旋转→History新增→只删除本次响应对应记录 | 每小时daily实验组；生成、精确删除 |
+| EXP-TC-01 | 进入新画板→3D Preview出现→上传图片→Duo→TRPG→Generate→真实2D/3D完成→旋转与放大缩小→本轮资产加购→购物车→Checkout商品及支付入口 | 本地实验组；生成、加购，不支付、不删除 |
 
-本版本每小时daily分两组：**画板对照组TC-00～05六条＋画板实验组EXP-TC-01～05五条，共11条**。TC-001仍每日18:00独立运行，会员TC-06／TC-EXP-01仍点名执行，不能与EXP-TC-01混淆。每组先执行完整生成／删除，再跑生成中返回场景（05先于04），不改变case名称与结果归属。
+本地双组入口为**画板对照组TC-00～05六条＋画板实验组EXP-TC-01一条，共7条**。其他新画板实验用例已删除，不再发现或执行。TC-001仍独立运行；会员TC-06／TC-EXP-01仍点名执行，不能与EXP-TC-01混淆。对照组仍先05后04，避免后台任务干扰完整生成检查。
 
 ## 本地运行
 
-下列命令对应整理后的代码版本。**README更新不等于工作区代码已更新**：保留未提交修改的旧工作区，先核对`git log -1 --oneline`及`package.json`，不要用强制覆盖来同步代码。旧工作区的新画板文件可能仍在`manual-qa/canvas-v3-daily-parity/`；整理后统一位于`experiments/canvas-v3/`，两者不是两套新增case。
+当前实现与本地验证目录：`/Users/macbookair/Desktop/开发代码/自动化/sp_ui_test-browser-guard`。下列命令在此目录执行。常用旧目录`/Users/macbookair/Desktop/开发代码/自动化/sp_ui_test`保留用户未提交代码，本次仅同步README；文档相同不代表代码已更新。合并仓库副本位于`/Users/macbookair/Desktop/shop-test-agent-s/projects/sp_ui_test`。不以强制覆盖或reset同步旧目录。
 
 ```sh
 npm ci
@@ -39,43 +37,55 @@ npm run validate                          # 类型、语法、单元、默认发
 
 素材为`assets/two-dogs.jpeg`；可通过`TEST_IMAGE_SOLO`等变量指定。生成用例必须显式允许，不配置时会跳过；跳过不是业务通过。不运行通知命令即可避免向飞书发送本地结果。
 
-## 新画板同业务链路
+## 新画板实验（仅 EXP-TC-01）
 
-文件：`experiments/canvas-v3/`，来源为原工作区的`manual-qa/canvas-v3-daily-parity/`五条，不是已下线的旧多模板实验。
+文件：`experiments/canvas-v3/daily-parity.spec.ts`，只保留一条正常业务链路，不再单独执行Prompt、增信弹窗、返回Create或History删除实验。历史报告保留，不改写历史结果。
 
-`test:canvas:stable`是真实分组入口：旧画板TC-00～05＋新画板EXP-TC-01～05。两组隔离游客上下文，不强制改实验开关；检查SDK实际stableID、`canvas_v3_109.enable`和画板一致，实验组同时要求`canvas_trust_info.enable=true`。TC-00为公共首页健康检查，不提前打开画板。分组不匹配在生成前报错，不当作通过。`test:canvas`仅用于Preview强制开关覆盖，不能代替线上分桶验证。
+`test:canvas:stable`按真实stable_id分组，两个组用独立游客上下文，不强制开关；检查SDK实际ID、`canvas_v3_109.enable`与实际画板一致。不依赖独立的增信实验。旋转必须改变相机角度，放大/缩小必须分别缩短/增大相机距离，不能只凭鼠标动作判通过。加购核对本轮Asset ID，Checkout只校验商品与支付入口。
 
 ```sh
-# 本地真实分组：将占位值替换为该实验已配置的ID。无默认ID。
-CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_CONTROL_STABLE_ID=CONTROL_ID CANVAS_TREATMENT_STABLE_ID=TREATMENT_ID npm run test:canvas:stable -- --grep '(TC-0[12]:|EXP-TC-0[12])'
-# 可追加 --headed；完整执行去掉 --grep，并设置下文的生成授权/账本。
+# 只查看当前实验用例，不运行或覆盖执行报告
+CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 npm run test:canvas:stable -- --list --reporter=list
+# 有头执行唯一实验用例，账本使用当天共享QA账本的绝对路径
+CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 CANVAS_PARITY_ALLOW_GENERATION=true CANVAS_PARITY_LEDGER=/absolute/path/today-ledger.json npm run test:canvas:stable -- --headed
 ```
 
-对照组生成需`ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES`；实验组需`CANVAS_PARITY_ALLOW_GENERATION=true`。本地双组共用`CANVAS_PARITY_LEDGER=/absolute/path/ledger.json`当天QA账本，每次生成前预留，不提交私有账本。只换ID适用于实验名、参数及页面链路不变的同一实验；其他实验不能直接复用。
+只设置实验ID就只跑实验组。需要两组共7条时，再加`CANVAS_CONTROL_STABLE_ID=1 ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES TEST_IMAGE_SOLO=assets/two-dogs.jpeg`。本地两组共用当天账本，动作前预留，不提交账本。只换ID适用于同一实验名、参数和页面链路；不要复用其他实验ID。
 
-远端`ui-regression.yml`设置`CANVAS_AB_ENABLED=true`；仓库变量`CANVAS_CONTROL_STABLE_ID`和`CANVAS_TREATMENT_STABLE_ID`可换ID；不复用已退役多模板实验的TEST_CANVAS变量。默认`1/2`已于2026-11-13实测命中false/true。每轮正常生成6次，加上每条最多一次复核，最多12次；不会无限重试。将`CANVAS_AB_ENABLED`改为false可回到原daily六条入口。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
+### 操作速度与双组并行
 
-Preview入口仍用`_statsig_override`同时开启上述两个开关，仅用于测试覆盖，不证明真实分桶：
+本地`--headed`默认每个Playwright操作减速1.5秒，方便观察；已有对照case自己的停顿仍保留，因此不是精确每1.5秒一步。可用`UI_ACTION_DELAY_MS=1000`／`2000`调整，设`0`关闭；CI和无头默认不减速。这只是演示节奏，不代替元素等待：可点击动作最多60秒、导航120秒，生成2D/3D各阶段仍按原等待期限；TC-04返回后Generate可用性的10秒断言不变。超时、HTTP异常和明确生成失败仍失败，不靠固定暂停忽略。
+
+加`CANVAS_PARALLEL_GROUPS=true`可在本地并行对照/实验两个项目：总共最多2个worker，每组最多1个、组内串行，每条case仍使用隔离浏览器上下文。默认串行，CI/GitHub Actions拒绝开启此开关；本次不改远端定时并发策略。本地并行演示中出现过cart.js超时，不据此认定并行必然导致故障，但尚不建议用于远端。理论耗时接近较慢一组，生成服务、限流、CPU/GPU或网络竞争可能抵消收益。
+
+稳定性策略：仅白名单站点的首页／创作商品页／购物车GET导航提交，以及`cart.js`只读GET，遇到明确连接中断、提交/请求超时或5xx时最多重试一次，间隔1秒。DOM就绪和元素断言失败不重新导航；403/429、验证码和业务错误不在步骤内重试。Checkout按钮只点击一次，Checkout文档不自动刷新，避免重放跨域或表单请求。生成POST、加购POST、删除DELETE都不自动重放；整条失败case仍按原规则最多复核一次，复核可能新建任务，首次证据保留。
+
+分组校验复用case自己的页面：进入画板就检查，点击Generate前再核对实际ID/实验/画板及访问状态，不额外提前打开创作页。新画板2D/3D等待中持续检查访问阻断和明确错误／Retry，生成失败立即保留原因，不傻等满5分钟。图片完整加载、model-viewer.loaded、真实旋转缩放、本轮Asset ID加购核验均保留。
+
+`cart.js`通过当前页面的同源浏览器GET读取，沿用页面会话与网络路径，避免Node接口客户端和浏览器代理路径不同；30秒超时覆盖响应头和响应体，5xx/连接失败最多再查一次，Cookie不复制到日志。`read-only-diagnostics`记录每次状态、耗时及是否重试，不记录请求头；只读恢复在卡片标橙色，提示不等同首次无异常。分类区分访问阻断、实验前置、只读HTTP/传输异常、生成失败/超时及资产/加购核验问题；未知根因不猜成网络。Trace、截图、Task/Asset/Trace/Request ID和首次/复核证据继续保留。
+
+本地工作流草案由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。该草案本次未部署。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
+
+Preview入口`test:canvas`仅强制开启新画板开关，不修改增信实验、不证明真实分桶：
 
 ```sh
 npm run typecheck:canvas
 CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com npm run test:canvas -- --list --reporter=list
-CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com npm run test:canvas -- --grep 'EXP-TC-01|EXP-TC-02'
-# 生成类需保留原显式授权和当天账本；账本可用limit:null表示已授权不限，不提交账本。
+# 执行时同样需要显式生成授权和当天账本，不提交私有账本。
 CANVAS_PARITY_BASE_URL=https://YOUR-PREVIEW.shopifypreview.com CANVAS_PARITY_ALLOW_GENERATION=true CANVAS_PARITY_LEDGER=/absolute/path/ledger.json npm run test:canvas
 ```
 
-Preview入口仅允许HTTPS Preview或授权开发店；真实分组入口需显式指定线上或开发店地址。V3没有旧Pro/Basic入口，该子项明确为UI差异，不声称已验收。原未提交目录保留不删除；精简工程只纳入这五条正式对应链路。
+Preview只允许HTTPS预览或授权开发店；真实分组需显式指定线上或开发店地址。历史未提交的个人目录和报告不因本次删case而清理；当前正式入口只发现EXP-TC-01。
 
 ## 远端触发与飞书
 
-- `ui-regression.yml`：每小时画板双组11条，串行执行、一次汇总通知；外部定时器主触发，GitHub每小时`:30`兜底，按北京时间小时槽去重。Ubuntu固定24.04，减少runner系统版本漂移；网络/DNS仍可能失败。
+- `ui-regression.yml`本地草案：每小时画板双组7条，串行执行、一次汇总；小时槽、`:30`兜底与去重不变。草案未部署，不据README宣称线上已更新。网络/DNS仍可能失败。
 - `homepage-clickable.yml`：TC-001每天18:00主触发、18:30兜底，按日期去重。**保留此工作流及依赖。**
 - `feishu-failure-video.yml`：按请求提供失败视频。机器人对话、执行命令、报告、视频和原群路由不因清理改变。
 - `automation/experiment-command-registry.json`：当前点名会员实验；旧`canvas_template_display`已退役，不再保留死case或失效命令。新画板暂不冒用旧canvas命令。
 - 首次失败冷却30秒，独立浏览器单case复核一次。复核恢复仍保留首次原因和证据；持续阻断不标通过。无无限刷新/验证码点击，无case中途清Cookie重生成。
 
-画板结果卡片默认收起为“画板对照组／画板实验组”两个面板，标题显示各组通过数；展开查看case、首次与复核原因、生成标识及GA Cookie。顶部保留最终失败提示，复核恢复标橙色，未执行／缺组／跳过不能冒充11条通过。TC-001和会员通知维持原样。
+画板卡片保留“画板对照组／画板实验组”两个收起面板（6条／1条），展开查看case、首次/复核原因、生成标识与GA Cookie。顶部保留失败提示；缺组、重复、跳过或出现退役用例不能冒充7条通过。TC-001和会员通知不改。
 
 机器人需要配置`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、目标接收人/群和可选失败文档父节点；调度桥接所需GitHub Token仅放私有配置/云端Secret。禁止提交`.env`、Token或浏览器会话。GitHub队列/网络延迟仍可能影响准点执行。
 
@@ -97,7 +107,7 @@ TC-03核验本轮Asset ID、加购行键和购物车持久化；TC-05按本轮�
 
 ```text
 tests/                  当前远端case、Page Object、fixture、会员实验
-experiments/canvas-v3/  新画板五条同业务链路，独立配置
+experiments/canvas-v3/  新画板唯一实验用例，独立配置
 automation/             触发、复核、卡片、诊断、视频和自身单元测试
 verification/           框架模拟验证，独立于线上执行集合
 .github/workflows/      原有三个远端入口

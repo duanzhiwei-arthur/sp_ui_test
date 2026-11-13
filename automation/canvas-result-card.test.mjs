@@ -2,15 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
 const control = Array.from({length:6},(_,i)=>({title:`TC-0${i}: control`,status:'passed',gaCookie:{cookieValue:'GA1.1.10.20',cookieClientId:'10.20'}}));
-const treatment = Array.from({length:5},(_,i)=>({title:`EXP-TC-0${i+1}：treatment`,status:'passed',gaCookie:{cookieValue:'GA1.1.30.40',cookieClientId:'30.40'}}));
+const treatment = [{title:'EXP-TC-01：treatment',status:'passed',gaCookie:{cookieValue:'GA1.1.30.40',cookieClientId:'30.40'}}];
 const input = {summary:{caseResults:[...control,...treatment],stats:{duration:1000}},testExitCode:0,finishedAt:new Date('2026-11-13T00:00:00Z'),runId:'123',headSha:'a'.repeat(40),runUrl:'https://github.com/owner/repo/actions/runs/123'};
-test('two collapsed groups contain all eleven cases and GA values, without mixing membership',()=>{
+test('two collapsed groups contain six controls and one treatment, with GA values',()=>{
   const card=buildCanvasResultCard(input);
   const panels=card.body.elements.filter(e=>e.tag==='collapsible_panel');
   assert.equal(panels.length,2);assert.ok(panels.every(p=>p.expanded===false));
-  assert.match(panels[0].header.title.content,/画板对照组 · 6\/6/);assert.match(panels[1].header.title.content,/画板实验组 · 5\/5/);
+  assert.match(panels[0].header.title.content,/画板对照组 · 6\/6/);assert.match(panels[1].header.title.content,/画板实验组 · 1\/1/);
   assert.match(JSON.stringify(panels[0]),/cookieValue=GA1\.1\.10\.20/);assert.match(JSON.stringify(panels[1]),/cookieClientId=30\.40/);
   assert.equal(isCanvasTreatment('TC-EXP-01: membership'),false);
+  assert.equal(isCanvasTreatment('EXP-TC-02：retired'),false);
+  assert.equal(card.header.template,'green');
 });
 test('failed or recovered generation retains first/second diagnostics inside its group',()=>{
   const row=treatment[0];
@@ -27,4 +29,9 @@ test('missing group or skipped cases cannot produce a green card',()=>{
   for(const rows of [control, [...control, ...treatment.slice(1)], [...control,...treatment.map(r=>({...r,status:'skipped'}))]]) {
     assert.equal(buildCanvasResultCard({...input, summary:{...input.summary,caseResults:rows}}).header.template,'red');
   }
+});
+
+test('read-only recovery remains visible and orange even without whole-case recheck', () => {
+  const card = buildCanvasResultCard({ ...input, summary: { ...input.summary, caseResults: [...control, { ...treatment[0], readRetries: 1 }] } });
+  assert.equal(card.header.template, 'orange'); assert.match(JSON.stringify(card), /只读操作重试/);
 });

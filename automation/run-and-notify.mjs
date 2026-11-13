@@ -12,6 +12,7 @@ import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
+import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope } from './canvas-scope.mjs';
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
 import { gaCookieRows } from './ga-cookie.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
@@ -115,12 +116,12 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   if (canvasDaily) {
     if (!process.env.CANVAS_CONTROL_STABLE_ID?.trim() || !process.env.CANVAS_TREATMENT_STABLE_ID?.trim()) throw new Error('画板双组定时任务必须同时配置对照与实验stable_id');
     if (!process.env.CANVAS_PARITY_LEDGER) {
-      // Both groups: six initial generations plus at most six isolated
+      // Both groups: four initial generations plus at most four isolated
       // rechecks. Local QA uses its shared daily ledger instead.
       if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('本地双组运行需指定CANVAS_PARITY_LEDGER共享账本');
       process.env.CANVAS_PARITY_LEDGER = path.join(projectRoot, 'test-results', `canvas-budget-${Date.now()}.json`);
       await (await import('node:fs/promises')).mkdir(testResultsDir, { recursive: true });
-      await writeFile(process.env.CANVAS_PARITY_LEDGER, JSON.stringify({ scope: 'run', runId: process.env.GITHUB_RUN_ID, date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), limit: 12, attempts: 0, basis: '本次双组定时任务及每条最多一次复核', entries: [] }), { flag: 'wx' });
+      await writeFile(process.env.CANVAS_PARITY_LEDGER, JSON.stringify({ scope: 'run', runId: process.env.GITHUB_RUN_ID, date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), limit: CANVAS_MAX_GENERATIONS_PER_RUN, attempts: 0, basis: '本次双组定时任务及每条最多一次复核', entries: [] }), { flag: 'wx' });
     }
   } else if (mode === 'safe') {
     playwrightArgs.push('tests/00-safe-cases.spec.ts');
@@ -150,10 +151,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
 
   let summary = await loadSummary();
   if (canvasDaily) {
-    const expected = [...Array.from({ length: 6 }, (_, i) => `TC-0${i}`), ...Array.from({ length: 5 }, (_, i) => `EXP-TC-0${i + 1}`)];
-    const actual = summary.caseResults.map(row => row.title.split(/[：:]/u)[0]);
-    if (expected.some(id => actual.filter(value => value === id).length !== 1) || actual.length !== 11 || summary.caseResults.some(row => row.status === 'skipped')) {
-      summary.reportErrors = [...(summary.reportErrors ?? []), { message: '画板双组应完整执行11条，不允许缺组、重复或跳过冒充通过' }];
+    if (!hasCompleteCanvasScope(summary.caseResults) || summary.caseResults.some(row => row.status === 'skipped')) {
+      summary.reportErrors = [...(summary.reportErrors ?? []), { message: `画板双组应完整执行${CANVAS_CASE_IDS.length}条，不允许缺组、重复或跳过冒充通过` }];
       try {
         const raw = JSON.parse(await readFile(resultsFile, 'utf8'));
         await writeFile(resultsFile, JSON.stringify({ ...raw, errors: summary.reportErrors }, null, 2));
@@ -296,7 +295,8 @@ async function collectFailures(suite, failures, failureArtifacts, failureDetails
     const file = isCanvasTreatment(spec.title) ? 'experiments/canvas-v3/daily-parity.spec.ts'
       : rawFile && (path.isAbsolute(rawFile) ? rawFile : rawFile.startsWith('tests/') ? rawFile : `tests/${path.basename(rawFile)}`);
     const gaCookie = await collectGaCookie(spec.tests ?? []);
-    caseResults.push({ title: spec.title, status: caseStatus, file, gaCookie });
+    const readRetries = (spec.tests ?? []).flatMap(test => test.annotations ?? []).filter(a => a.type === 'read-only-retry').length;
+    caseResults.push({ title: spec.title, status: caseStatus, file, gaCookie, readRetries });
     if (['failed', 'flaky'].includes(caseStatus)) {
       failures.push(spec.title);
       const failedResults = (spec.tests ?? [])
@@ -369,6 +369,9 @@ function normalizeFailureReason(message) {
 }
 
 function analyzeFailureReason(title, reason) {
+  if (/\[EXPERIMENT_ASSIGNMENT\]/u.test(reason)) return `实验分组前置未满足，业务尚未验证；请核对stable_id、实际SDK分桶与画板部署版本。${reason}`;
+  if (/\[READ_TRANSPORT\]/u.test(reason)) return `只读查询两次尝试后仍未完成；不能据此判定生成失败或重复加购。${reason}`;
+  if (/\[READ_HTTP\]/u.test(reason)) return `只读查询HTTP异常；403/429不在步骤内重试，保留原状态。${reason}`;
   if (/\[ASSET_OWNERSHIP\]|\[CART_ASSET\]/u.test(reason)) return `${failureCategoryLabel(failureCategory(reason))}：${reason}；未以其他历史资产或旧商品代替本轮结果，不自动重复生成/加购。`;
   if (/\[GENERATION_FAILED\]/u.test(reason)) return `生成页面已明确显示业务失败，不是单纯加载超时；${reason}`;
   if (/\[GENERATION_TIMEOUT\]/u.test(reason)) return `生成等待超时但未观察到明确业务错误；请结合任务事件与页面状态排查，不能直接归因为网络。${reason}`;
@@ -472,6 +475,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
     lines.push('全部用例：');
     for (const item of sortCaseResults(summary.caseResults)) {
       lines.push(`- [${formatCaseStatus(item.status)}] ${item.title}`);
+      if (item.readRetries) lines.push(`  只读操作重试 ${item.readRetries} 处，首次证据保留；不代表首次无异常。`);
       if (['failed', 'flaky'].includes(item.status)) {
         const detail = summary.failureDetails.find((failure) => failure.title === item.title);
         lines.push(`  失败原因：${formatFailureReasonForMessage(detail?.analysis)}`);
@@ -491,7 +495,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 }
 
 function executionScopeLabel() {
-  if (canvasDaily) return '画板对照组 TC-00～TC-05 + 画板实验组 EXP-TC-01～05';
+  if (canvasDaily) return '画板对照组 TC-00～TC-05 + 画板实验组 EXP-TC-01';
   if (mode === 'all') return '全部用例（真实生成）';
   if (mode === 'daily') return '日常回归 TC-00～TC-05（真实生成用例含 TC-03～TC-05）';
   if (mode === 'homepage-clickable') return '首页按钮巡检 TC-001（无生成）';

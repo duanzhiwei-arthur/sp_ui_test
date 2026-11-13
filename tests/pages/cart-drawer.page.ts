@@ -1,5 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import type { RunAssets } from '../fixtures/run-assets.js';
+import { readCartJson } from '../fixtures/read-only-retry.js';
 
 const actionPause = 2_000;
 
@@ -56,13 +57,10 @@ export class CartDrawer {
     expect(typeof item.key, '[CART_ASSET] 加购响应应有精确购物车行键').toBe('string');
     expect(Number(item.quantity)).toBeGreaterThan(0);
     // 独立GET核对持久化；不重发加购、不用任意旧商品抵充本次结果。
-    const cart = await this.page.request.get(new URL('/cart.js', origin).href, { maxRedirects: 0, maxRetries: 0, timeout: 30_000 });
-    expect(cart.ok(), '[CART_ASSET] 购物车查询应成功').toBe(true);
-    const contents = await cart.json();
+    const contents = await readCartJson(this.page, '加购后本轮资产持久化查询');
     expect(contents.items?.some((r: { key?: string; quantity?: number; properties?: Record<string, unknown> }) =>
       r.key === item.key && String(r.properties?.['_Record ID']) === asset.assetId && Number(r.quantity) > 0), '[CART_ASSET] 本轮资产应实际存在于购物车').toBe(true);
     assets.recordCart(asset.assetId, item.key);
-    await cart.dispose();
   }
 
   private async click(target: Locator): Promise<void> {
