@@ -9,16 +9,18 @@ test('manual full run displays eight cases including homepage checks in a third 
   const summary = { ...input.summary, caseResults: [...control, ...treatment, ...extra] };
   const card = buildCanvasResultCard({ ...input, summary, allCases: true });
   assert.equal(card.header.template, 'green');
-  assert.equal(card.body.elements.filter(e => e.tag === 'collapsible_panel').length, 3);
+  assert.equal(card.body.elements.filter(e => e.tag === 'collapsible_panel').length, 5);
   for (const row of extra) assert.ok(JSON.stringify(card).includes(row.title));
   assert.equal(buildCanvasResultCard({ ...input, allCases: true }).header.template, 'red');
 });
 test('two collapsed groups contain six controls and one treatment, with GA values',()=>{
   const card=buildCanvasResultCard(input);
   const panels=card.body.elements.filter(e=>e.tag==='collapsible_panel');
-  assert.equal(panels.length,2);assert.ok(panels.every(p=>p.expanded===false));
+  assert.equal(panels.length,4);assert.ok(panels.every(p=>p.expanded===false));
   assert.match(panels[0].header.title.content,/画板对照组 · 6\/6/);assert.match(panels[1].header.title.content,/画板实验组 · 1\/1/);
-  assert.match(JSON.stringify(panels[0]),/cookieValue=GA1\.1\.10\.20/);assert.match(JSON.stringify(panels[1]),/cookieClientId=30\.40/);
+  const cookies = card.body.elements.find(e => e.element_id === 'gaCookies');
+  assert.match(JSON.stringify(cookies),/cookieValue=GA1\.1\.10\.20/);assert.match(JSON.stringify(cookies),/cookieClientId=30\.40/);
+  assert.doesNotMatch(JSON.stringify(panels.slice(0,2)), /cookieValue|cookieClientId/);
   assert.equal(isCanvasTreatment('TC-EXP-01: membership'),false);
   assert.equal(isCanvasTreatment('EXP-TC-02：retired'),false);
   assert.equal(card.header.template,'green');
@@ -40,16 +42,29 @@ test('missing group or skipped cases cannot produce a green card',()=>{
   }
 });
 
-test('failed dual-group reports retain the approved detailed card layout and collapsed groups', () => {
+test('failed reports show one concise summary and keep diagnostics collapsed', () => {
   const row = { ...treatment[0], status: 'failed' };
   const card = buildCanvasResultCard({ ...input, testExitCode: 1, summary: { ...input.summary,
     caseResults: [...control, row], failureDetails: [{ title: row.title, analysis: '2D view switch timeout' }] } });
-  assert.equal(card.config.width_mode, 'default');
-  assert.match(card.header.title.content, /JuJuBit 自动化测试/);
-  for (const id of ['metrics', 'runInfo', 'failureDetail']) assert.ok(card.body.elements.some(e => e.element_id === id), id);
-  assert.equal(card.body.elements.find(e => e.element_id === 'metrics').columns.length, 3);
+  assert.equal(card.config.width_mode, 'compact');
+  assert.match(card.header.title.content, /回归未通过/);
+  for (const id of ['attention', 'runInfo', 'failureDetail', 'gaCookies']) assert.ok(card.body.elements.some(e => e.element_id === id), id);
+  assert.equal(card.body.elements.some(e => e.element_id === 'metrics'), false);
   assert.match(JSON.stringify(card.body.elements.find(e => e.element_id === 'failureDetail')), /2D view switch timeout/);
   assert.ok(card.body.elements.filter(e => e.tag === 'collapsible_panel').every(e => e.expanded === false));
+});
+
+test('long errors are brief on the first screen while the original survives in diagnostics', () => {
+  const reason = 'unabridged error ' + 'detail '.repeat(100);
+  const row = { ...treatment[0], status: 'failed' };
+  const card = buildCanvasResultCard({ ...input, testExitCode: 1, summary: { ...input.summary,
+    caseResults: [...control, row], failureDetails: [{ title: row.title, reason }] } });
+  const attention = card.body.elements.find(e => e.element_id === 'attention');
+  assert.ok(attention.content.length < 180);
+  assert.match(attention.content, /…/);
+  assert.ok(JSON.stringify(card.body.elements.find(e => e.element_id === 'failureDetail')).includes(reason));
+  const visible = card.body.elements.filter(e => e.tag !== 'collapsible_panel');
+  assert.doesNotMatch(JSON.stringify(visible), /cookieValue|cookieClientId|unabridged error detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail detail/);
 });
 
 test('read-only recovery remains visible and orange even without whole-case recheck', () => {

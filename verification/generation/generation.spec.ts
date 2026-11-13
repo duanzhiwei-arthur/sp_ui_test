@@ -5,11 +5,30 @@ import { ExperimentBoard } from '../../experiments/canvas-v3/board.js';
 import type { TestInfo } from '@playwright/test';
 import { selectCanvasView } from '../../tests/pages/canvas-view.js';
 
-test('permanently animated view button uses native keyboard recovery without generating', async ({ page }) => {
+test('permanently animated view button uses hit-tested mouse recovery without generating', async ({ page }) => {
   await page.setContent(`<style>@keyframes moving{from{transform:translateX(0)}to{transform:translateX(40px)}}button{animation:moving .3s infinite alternate}</style><button aria-label="Switch to 2D">2D</button><img hidden width="100" height="100" alt="result">`);
   await page.evaluate(() => { document.querySelector('button')!.onclick = () => { document.querySelector('img')!.hidden = false; }; });
   const result = await selectCanvasView(page, page.getByRole('button', { name: 'Switch to 2D' }), () => page.getByAltText('result').isVisible(), 10000);
-  expect(result.keyboardUsed).toBe(true);
+  expect(result.directPointerAttempts).toBeGreaterThan(0);
+  await expect(page.getByAltText('result')).toBeVisible();
+});
+
+test('2D validation recovers an automatic 3D switch while the image is still loading', async ({ page }) => {
+  await page.route('https://image.test/toy.svg', async route => {
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    await route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>' });
+  });
+  await page.setContent('<div class="product-image-container"><div class="jjb-app"><button>2D</button><div data-view-name="2d"><img alt="Generated Toy Result" width="10" height="10"></div></div></div>');
+  await page.evaluate(() => {
+    const image = document.querySelector('img')!;
+    const panel = image.parentElement!;
+    document.querySelector('button')!.onclick = () => { panel.hidden = false; };
+    image.src = 'https://image.test/toy.svg';
+    setTimeout(() => { panel.hidden = true; }, 100);
+  });
+  await new CreatePage(page).waitForTwoDGeneration();
+  await expect(page.getByAltText('Generated Toy Result')).toBeVisible();
+  expect(await page.getByAltText('Generated Toy Result').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 });
 
 test('view activation does not bypass an overlay', async ({ page }) => {

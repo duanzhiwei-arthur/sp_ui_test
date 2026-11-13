@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { errors, expect, Locator, Page } from '@playwright/test';
 import { gotoWithDiagnostics } from './navigation.js';
 import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js';
 import { waitForGenerationState } from './generation-wait.js';
@@ -361,15 +361,30 @@ export class CreatePage {
     // never finish loading until its view is selected. Do not accept width
     // alone (a partially downloaded image can already have dimensions).
     await waitForGenerationState(this.page, () => this.twoDResultImage.count().then(count => count === 1), generationTimeout, '等待生成图片节点及2D入口');
+    let selectionAttempts = 0;
     await waitForGenerationState(this.page, async () => {
-      if (await this.twoDResultImage.isVisible()) return true;
+      const image = this.twoDResultImage;
+      // A single readiness observation must prove BOTH visible and loaded.
+      // Generation events can auto-switch to 3D between separate assertions.
+      const loadedAndVisible = () => image.evaluateAll((elements: HTMLImageElement[]) => elements.length === 1
+        && elements[0].checkVisibility() && elements[0].getBoundingClientRect().width > 0
+        && elements[0].getBoundingClientRect().height > 0 && elements[0].complete && elements[0].naturalWidth > 0);
+      if (await loadedAndVisible()) return true;
       // asset_2d_done can auto-switch the view after an earlier click. Only
       // reselect the read-only 2D tab; never regenerate or click Retry.
-      if (await this.twoDButton.isVisible() && await this.twoDButton.isEnabled()) await this.twoDButton.click({ timeout: 3_000 });
-      return this.twoDResultImage.isVisible();
-    }, generationTimeout, '展示生成2D结果');
-    await this.twoDResultImage.scrollIntoViewIfNeeded({ timeout: customizerTimeout });
-    await this.expectImageLoaded(this.twoDResultImage, generationTimeout);
+      if (!await image.isVisible() && await this.twoDButton.isVisible() && await this.twoDButton.isEnabled()) {
+        if (selectionAttempts >= 4) throw Error('[UI_VIEW_TIMEOUT] 2D视图反复被切走，已达到4次安全选择上限，不重复生成');
+        selectionAttempts++;
+        try { await this.twoDButton.click({ timeout: 3_000 }); }
+        catch (error) { if (!(error instanceof errors.TimeoutError)) throw error; }
+      }
+      if (await image.isVisible()) {
+        try { await image.scrollIntoViewIfNeeded({ timeout: 1000 }); }
+        catch (error) { if (!(error instanceof errors.TimeoutError)) throw error; }
+      }
+      return loadedAndVisible();
+    }, generationTimeout, '生成2D结果可见且图片加载完成');
+    if (selectionAttempts > 1) test.info().annotations.push({ type: 'read-only-retry', description: `2D结果展示发生${selectionAttempts}次只读选择，未重新生成` });
   }
 
   async waitForThreeDGeneration(): Promise<void> {
