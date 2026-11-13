@@ -2,7 +2,7 @@
 
 Playwright + TypeScript 游客态回归。此工程保留当前远端用例、新画板同业务链路，以及运行它们所需的诊断和验证代码。**不填写支付资料、不点击最终支付、不提交订单。**
 
-本文描述本次发布版本：每小时运行画板双组7条，TC-001保留独立每日任务。手动全部执行入口覆盖表内10条用例；以GitHub运行记录的提交号核实实际版本。
+本文描述本次发布版本：每小时运行画板双组7条，TC-001保留独立每日任务。手动全部执行入口覆盖表内8条用例；以GitHub运行记录的提交号核实实际版本。
 
 ## 全部用例（一张表）
 
@@ -15,11 +15,9 @@ Playwright + TypeScript 游客态回归。此工程保留当前远端用例、�
 | TC-03 | 上传图片 → 真实生成2D/3D → 两秒旋转 → 本轮资产加购 → 购物车 → Checkout商品及支付入口 | 每小时daily；生成、加购；不支付 |
 | TC-04 | 上传→提交生成→直接返回Create→Generate可用；不等2D/3D、不重新上传、不点第二次Generate | 每小时daily；后台任务可能继续 |
 | TC-05 | 图片＋Prompt生成 → 2D/3D及旋转 → History新增 → UI确认删除本轮资产 | 每小时daily；生成、精确删除 |
-| TC-06 | 会员Treatment：上传→Generate触发实验→分桶核验→会员入口、弹窗及Join去向 | 会员实验点名；生成，不支付 |
-| TC-EXP-01 | 会员Control：同上传→Generate路径→分桶核验→会员入口不展示 | 会员实验点名；生成 |
 | EXP-TC-01 | 进入新画板→3D Preview出现→上传图片→Duo→TRPG→Generate→真实2D/3D完成→旋转与放大缩小→本轮资产加购→购物车→Checkout商品及支付入口 | 每小时daily实验组；生成、加购，不支付、不删除 |
 
-双组入口为**画板对照组TC-00～05六条＋画板实验组EXP-TC-01一条，共7条**。其他新画板实验用例已删除，不再发现或执行。TC-001仍独立运行；会员TC-06／TC-EXP-01仍点名执行，不能与EXP-TC-01混淆。对照组仍先05后04，避免后台任务干扰完整生成检查。
+双组入口为**画板对照组TC-00～05六条＋画板实验组EXP-TC-01一条，共7条**。其他新画板实验用例已删除，不再发现或执行。TC-001仍独立运行；会员TC-06／TC-EXP-01已删除，点名入口同步移除。对照组仍先05后04，避免后台任务干扰完整生成检查。
 
 ## 本地运行
 
@@ -31,7 +29,6 @@ npx playwright install chromium
 npm run test:smoke                         # TC-00～TC-02，不生成
 npm run test:daily:confirmed               # 原六条，真实生成/加购/本次History删除
 npx playwright test tests/home-clickable.spec.ts --project=chromium
-ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:experiments:membership
 npm run validate                          # 类型、语法、单元、默认发现；不执行线上case
 ```
 
@@ -66,7 +63,7 @@ CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 CANVAS_PA
 
 工作流由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
 
-手动选择`mode=all`会使用独立`all.config.ts`，执行上表10条：双组7条＋TC-001＋会员TC-06／TC-EXP-01。报告增加第三个折叠区展示其余3条，漏项、重复、跳过均不能标为全量通过。工作流可填写`personal_open_id`将**该次手动执行**的结果私发；留空沿用`chat_id`或原群配置，定时任务不填此项。
+手动选择`mode=all`会使用独立`all.config.ts`，执行上表8条：双组7条＋TC-001。报告增加第三个折叠区展示TC-001，漏项、重复、跳过均不能标为全量通过。工作流可填写`personal_open_id`将**该次手动执行**的结果私发；留空沿用`chat_id`或原群配置，定时任务不填此项。
 
 Preview入口`test:canvas`仅强制开启新画板开关，不修改增信实验、不证明真实分桶：
 
@@ -84,10 +81,10 @@ Preview只允许HTTPS预览或授权开发店；真实分组需显式指定线�
 - `ui-regression.yml`：每小时画板双组7条，串行执行、一次汇总；小时槽、`:30`兜底与去重不变。网络/DNS仍可能失败。
 - `homepage-clickable.yml`：TC-001每天18:00主触发、18:30兜底，按日期去重。**保留此工作流及依赖。**
 - `feishu-failure-video.yml`：按请求提供失败视频。机器人对话、执行命令、报告、视频和原群路由不因清理改变。
-- `automation/experiment-command-registry.json`：当前点名会员实验；旧`canvas_template_display`已退役，不再保留死case或失效命令。新画板暂不冒用旧canvas命令。
+- `automation/experiment-command-registry.json`：会员实验和旧`canvas_template_display`点名入口均已移除，当前注册表为空。新画板通过双组或全量入口执行，不冒用旧canvas命令。
 - 首次失败冷却30秒，独立浏览器单case复核一次。复核恢复仍保留首次原因和证据；持续阻断不标通过。无无限刷新/验证码点击，无case中途清Cookie重生成。
 
-画板卡片保留“画板对照组／画板实验组”两个收起面板（6条／1条），展开查看case、首次/复核原因、生成标识与GA Cookie。顶部保留失败提示；缺组、重复、跳过或出现退役用例不能冒充7条通过。TC-001和会员通知不改。
+画板卡片保留“画板对照组／画板实验组”两个收起面板（6条／1条），展开查看case、首次/复核原因、生成标识与GA Cookie。顶部保留失败提示；缺组、重复、跳过或出现退役用例不能冒充7条通过。TC-001独立通知保留。
 
 机器人需要配置`FEISHU_APP_ID`、`FEISHU_APP_SECRET`、目标接收人/群和可选失败文档父节点；调度桥接所需GitHub Token仅放私有配置/云端Secret。禁止提交`.env`、Token或浏览器会话。GitHub队列/网络延迟仍可能影响准点执行。
 
@@ -95,7 +92,7 @@ Preview只允许HTTPS预览或授权开发店；真实分组需显式指定线�
 
 **GA Cookie诊断**区域按case展示`cookieValue`和`cookieClientId`。只读`document.cookie`中`_ga`，按`/^GA\d+\.\d+\.(.+)$/`解析ID；成功、失败、复核后卡片及文本通知均保留。首次和复核是独立会话，分别标注，不相互借值；缺失显示“未采集”。采集失败不改变case结果、不收集其他Cookie。
 
-**`sdk_anonymous_id=test`保留**：在目标站点脚本执行前注入字符串`test`，日常、TC-001、会员及新画板均使用。实际键是`sdk_anonymous_id`，不新增`sak_anonymous_id`；不改业务`_anonymous_id`、实验stable ID或第三方支付域名。此标记不证明服务端数据隔离或埋点已排除。
+**`sdk_anonymous_id=test`保留**：在目标站点脚本执行前注入字符串`test`，日常、TC-001及新画板均使用。实际键是`sdk_anonymous_id`，不新增`sak_anonymous_id`；不改业务`_anonymous_id`、实验stable ID或第三方支付域名。此标记不证明服务端数据隔离或埋点已排除。
 
 ## 诊断与安全
 
@@ -108,7 +105,7 @@ TC-03核验本轮Asset ID、加购行键和购物车持久化；TC-05按本轮�
 ## 目录与双仓库维护
 
 ```text
-tests/                  当前远端case、Page Object、fixture、会员实验
+tests/                  当前远端case、Page Object、fixture
 experiments/canvas-v3/  新画板唯一实验用例，独立配置
 automation/             触发、复核、卡片、诊断、视频和自身单元测试
 verification/           框架模拟验证，独立于线上执行集合

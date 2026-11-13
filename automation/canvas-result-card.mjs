@@ -16,7 +16,7 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
   const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
   const panels = [['画板对照组', isCanvasControl], ['画板实验组', isCanvasTreatment],
-    ...(allCases ? [['首页按钮与会员用例', title => !isCanvasControl(title) && !isCanvasTreatment(title)]] : [])].map(([name, matches]) => {
+    ...(allCases ? [['首页按钮巡检', title => !isCanvasControl(title) && !isCanvasTreatment(title)]] : [])].map(([name, matches]) => {
     const rows = cases.filter(row => matches(row.title)).sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
     const ok = rows.filter(row => row.status === 'passed').length;
     const countRecovered = rows.filter(row => reviews.some(r => r.title === row.title && r.finalStatus === 'passed-on-recheck')).length;

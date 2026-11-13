@@ -4,8 +4,8 @@ import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.m
 const control = Array.from({length:6},(_,i)=>({title:`TC-0${i}: control`,status:'passed',gaCookie:{cookieValue:'GA1.1.10.20',cookieClientId:'10.20'}}));
 const treatment = [{title:'EXP-TC-01：treatment',status:'passed',gaCookie:{cookieValue:'GA1.1.30.40',cookieClientId:'30.40'}}];
 const input = {summary:{caseResults:[...control,...treatment],stats:{duration:1000}},testExitCode:0,finishedAt:new Date('2026-11-13T00:00:00Z'),runId:'123',headSha:'a'.repeat(40),runUrl:'https://github.com/owner/repo/actions/runs/123'};
-test('manual full run displays all ten cases including membership in a third collapsed panel', () => {
-  const extra = ['TC-001', 'TC-06', 'TC-EXP-01'].map(title => ({ title: `${title}: other`, status: 'passed' }));
+test('manual full run displays eight cases including homepage checks in a third collapsed panel', () => {
+  const extra = ['TC-001'].map(title => ({ title: `${title}: other`, status: 'passed' }));
   const summary = { ...input.summary, caseResults: [...control, ...treatment, ...extra] };
   const card = buildCanvasResultCard({ ...input, summary, allCases: true });
   assert.equal(card.header.template, 'green');

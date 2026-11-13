@@ -17,11 +17,11 @@ test('复核后卡片保留首次和复核各自Cookie，不借值、不改业�
   assert.equal(gaCookieRows(merged)[1].cookieValue,'未采集');assert.equal(merged.caseResults[0].status,'passed');
 });
 
-test('真实通知入口的成功/失败/TC-001/会员/复核卡片均包含两个字段（仅预览）',async()=>{
+test('真实通知入口的成功/失败/TC-001/全量/复核卡片均包含两个字段（仅预览）',async()=>{
   const dir=await mkdtemp(path.join(tmpdir(),'ga-card-contract-'));
   try {
-    for (const mode of ['daily','homepage-clickable','experiment']) for (const failed of [false,true]) for(const rechecked of [false,true]) {
-      const title=mode==='homepage-clickable'?'TC-001: 巡检':mode==='experiment'?'TC-06: 会员':'TC-03: 加购';
+    for (const mode of ['daily','homepage-clickable','all']) for (const failed of [false,true]) for(const rechecked of [false,true]) {
+      const title=mode==='homepage-clickable'?'TC-001: 巡检':'TC-03: 加购';
       const attachment={name:'ga-cookie-diagnostics',body:Buffer.from(JSON.stringify({cookieValue:'GA1.1.10.20',cookieClientId:'10.20'})).toString('base64')};
       const report={stats:{expected:failed?0:1,unexpected:failed?1:0,flaky:0,skipped:0,duration:1000},errors:[],suites:[{specs:[{title,tests:[{status:failed?'unexpected':'expected',results:[{status:failed?'failed':'passed',error:failed?{message:'fixture failure'}:undefined,attachments:[attachment]}]}]}]}],
         ...(rechecked?{recheck:{cases:[{title,finalStatus:failed?'failed-on-recheck':'passed-on-recheck',firstGaCookie:{cookieValue:'GA1.1.10.20',cookieClientId:'10.20'},secondGaCookie:{cookieValue:'GA1.1.30.40',cookieClientId:'30.40'}}]}}:{})};

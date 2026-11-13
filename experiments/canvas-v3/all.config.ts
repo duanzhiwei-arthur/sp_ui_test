@@ -7,6 +7,6 @@ export default defineConfig(stable, {
   projects: [...(stable.projects ?? []), {
     name: 'other-cases', workers: 1,
     testDir: path.resolve(__dirname, '../../tests'),
-    testMatch: ['home-clickable.spec.ts', 'zz-experiments/membership-banner.spec.ts'],
+    testMatch: ['home-clickable.spec.ts'],
   }],
 });

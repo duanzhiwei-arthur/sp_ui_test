@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope, isCanvasTreatment, ALL_CASE_IDS, hasCompleteAllScope } from './canvas-scope.mjs';
 
 const cases = CANVAS_CASE_IDS.map(title => ({ title: `${title}：case`, status: 'passed' }));
-test('manual full run requires all ten distinct retained IDs', () => {
+test('manual full run requires all eight distinct retained IDs', () => {
   const all = ALL_CASE_IDS.map(title => ({ title: `${title}: case`, status: 'passed' }));
-  assert.equal(all.length, 10);
+  assert.equal(all.length, 8);
   assert.equal(hasCompleteAllScope(all), true);
   assert.equal(hasCompleteAllScope(cases), false);
   assert.equal(hasCompleteAllScope([...all.slice(0, -1), all[0]]), false);

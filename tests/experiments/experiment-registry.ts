@@ -26,10 +26,10 @@ export const experimentRegistry = {
     key: 'membershipBanner',
     experimentName: 'show_vip_banner',
     parameterName: 'enable',
-    lifecycle: 'running',
+    lifecycle: 'stopped',
     owner: 'membership',
     environment: 'production',
-    linkedCases: ['TC-EXP-01', 'TC-06'],
+    linkedCases: [],
     variants: {
       control: {
         stableId: value('TEST_MEMBERSHIP_CONTROL_STABLE_ID'),

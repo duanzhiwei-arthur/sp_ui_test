@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'daily runs canvas control TC-00~05 and one treatment EXP-TC-01; experiment remains membership.'
+        description: 'daily runs 7 canvas cases; all also includes TC-001 (8 total).'
         required: true
         default: daily
         type: choice
@@ -26,7 +26,7 @@ on:
       experiment:
         description: 'Experiment key used when mode=experiment.'
         required: false
-        default: membership
+        default: ''
         type: string
       chat_id:
         description: 'Feishu chat ID for command-triggered result notification.'
@@ -82,8 +82,6 @@ jobs:
       TEST_IMAGE_DUO: assets/two-dogs.jpeg
       TEST_IMAGE_LARGE: assets/two-dogs.jpeg
       TEST_PROMPT: 生成2个小狗
-      TEST_MEMBERSHIP_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_STABLE_ID || 'jujubit-ui-e2e-membership-20260902' }}
-      TEST_MEMBERSHIP_CONTROL_STABLE_ID: ${{ vars.TEST_MEMBERSHIP_CONTROL_STABLE_ID }}
       TEST_STATSIG_CLIENT_KEY: ${{ vars.TEST_STATSIG_CLIENT_KEY || 'client-2tnhqG57crRsKHR9oTHbP4UsCNu7zQjghyI8otQUMU4' }}
       TRACKING_TEST_ENABLED: 'false'
       TRACKING_FAULT_INJECTION_ENABLED: 'false'
