@@ -63,7 +63,7 @@ CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 CANVAS_PA
 
 工作流由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
 
-手动选择`mode=all`会使用独立`all.config.ts`，执行上表8条：双组7条＋TC-001。报告增加第三个折叠区展示TC-001，漏项、重复、跳过均不能标为全量通过。工作流可填写`personal_open_id`将**该次手动执行**的结果私发；留空沿用`chat_id`或原群配置，定时任务不填此项。
+手动选择`mode=all`会使用独立`all.config.ts`，执行上表8条：双组7条＋TC-001。报告增加第三个折叠区展示TC-001，漏项、重复、跳过均不能标为全量通过。工作流可填写已验证的个人单聊`personal_chat_id`将**该次手动执行**的结果私发；先核实会话为p2p且机器人可发消息，避免误用群ID或其他应用的个人open_id。留空沿用`chat_id`或原群配置，定时任务不填此项。
 
 Preview入口`test:canvas`仅强制开启新画板开关，不修改增信实验、不证明真实分桶：
 

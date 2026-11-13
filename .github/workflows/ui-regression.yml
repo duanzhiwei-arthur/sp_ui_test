@@ -38,8 +38,8 @@ on:
         required: false
         default: ''
         type: string
-      personal_open_id:
-        description: 'Manual private report recipient. Overrides chat_id; empty keeps the usual group route.'
+      personal_chat_id:
+        description: 'Verified Feishu P2P conversation ID for a manual private report. Empty keeps the usual group route.'
         required: false
         default: ''
         type: string
@@ -90,8 +90,8 @@ jobs:
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
       FEISHU_NOTIFICATION_TOKEN: ${{ secrets.FEISHU_NOTIFICATION_TOKEN }}
-      FEISHU_RECEIVE_ID_TYPE: ${{ inputs.personal_open_id != '' && 'open_id' || 'chat_id' }}
-      FEISHU_RECEIVE_ID: ${{ inputs.personal_open_id || inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
+      FEISHU_RECEIVE_ID_TYPE: chat_id
+      FEISHU_RECEIVE_ID: ${{ inputs.personal_chat_id || inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
       FEISHU_MENTION_ALL_ON_FAILURE: 'true'
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
