@@ -4,6 +4,25 @@ import { gotoWithDiagnostics } from '../../tests/pages/navigation.js';
 import { monitorPage, bounded, redactDiagnostic } from '../../tests/fixtures/runtime-diagnostics.js';
 import { expectVisibleWithAccessCheck, watchSiteAccess } from '../../tests/pages/site-access.js';
 import { CreatePage } from '../../tests/pages/create.page.js';
+import { HomePage } from '../../tests/pages/home.page.js';
+
+const healthyHeader = `<header class="site-header jjb-header__shell"><a class="jjb-header__logo">JuJuBit</a><nav class="jjb-header__menu"><a href="/products/customize-your-own">Create</a><a href="/templates">Templates</a><a href="/categories">Categories</a><a href="/about">About</a><a href="/contact">Contact</a></nav></header>`;
+
+test('TC-00 header does not depend on optional or replaced promotional markup', async ({ page }) => {
+  for (const promotion of ['', '<section>BLACK FRIDAY</section>', '<div class="jjb-announcement-bar" hidden>Old campaign</div>']) {
+    await page.setContent(promotion + healthyHeader);
+    await new HomePage(page).expectHeaderHealthy();
+  }
+});
+
+test('TC-00 still rejects missing logo, missing navigation and an incorrect Create entry', async ({ page }) => {
+  for (const html of [healthyHeader.replace('class="jjb-header__logo"', 'hidden'),
+    healthyHeader.replace('class="jjb-header__menu"', 'hidden'),
+    healthyHeader.replace('/products/customize-your-own', '/wrong-product')]) {
+    await page.setContent(html);
+    await expect(new HomePage(page).expectHeaderHealthy()).rejects.toThrow();
+  }
+});
 
 let server: Server;
 let origin: string;

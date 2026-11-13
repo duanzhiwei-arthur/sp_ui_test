@@ -2,7 +2,6 @@ import { expect, Locator, Page } from '@playwright/test';
 import { gotoWithDiagnostics } from './navigation.js';
 
 export class HomePage {
-  readonly announcementBar: Locator;
   readonly header: Locator;
   readonly logo: Locator;
   readonly desktopNavigation: Locator;
@@ -19,7 +18,6 @@ export class HomePage {
   readonly footer: Locator;
 
   constructor(readonly page: Page) {
-    this.announcementBar = page.locator('.jjb-announcement-bar');
     this.header = page.locator('header.site-header.jjb-header__shell');
     this.logo = this.header.locator('.jjb-header__logo');
     this.desktopNavigation = this.header.locator('.jjb-header__menu');
@@ -75,7 +73,8 @@ export class HomePage {
   }
 
   async expectHeaderHealthy(): Promise<void> {
-    await expect(this.announcementBar).toBeVisible();
+    // Promotional sections are optional and their markup changes with campaigns.
+    // Header health depends on the logo, navigation and Create entry below.
     await expect(this.header).toBeVisible();
     await expect(this.logo).toBeVisible();
     await expect(this.desktopNavigation).toBeVisible();
