@@ -70,8 +70,8 @@ jobs:
       BASE_URL: https://jujubit.ai
       CANVAS_AB_ENABLED: 'true'
       CANVAS_PARITY_BASE_URL: https://jujubit.ai
-      CANVAS_CONTROL_STABLE_ID: ${{ vars.CANVAS_CONTROL_STABLE_ID || vars.TEST_CANVAS_CONTROL_STABLE_ID || '1' }}
-      CANVAS_TREATMENT_STABLE_ID: ${{ vars.CANVAS_TREATMENT_STABLE_ID || vars.TEST_CANVAS_TREATMENT_STABLE_ID || '2' }}
+      CANVAS_CONTROL_STABLE_ID: ${{ vars.CANVAS_CONTROL_STABLE_ID || '1' }}
+      CANVAS_TREATMENT_STABLE_ID: ${{ vars.CANVAS_TREATMENT_STABLE_ID || '2' }}
       PRODUCT_URL: ${{ vars.PRODUCT_URL }}
       TEST_IMAGE_SOLO: assets/two-dogs.jpeg
       TEST_IMAGE_DUO: assets/two-dogs.jpeg

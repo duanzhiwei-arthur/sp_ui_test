@@ -53,7 +53,7 @@ CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_CONTROL_STABLE_ID=CONTROL_ID CA
 
 对照组生成需`ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES`；实验组需`CANVAS_PARITY_ALLOW_GENERATION=true`。本地双组共用`CANVAS_PARITY_LEDGER=/absolute/path/ledger.json`当天QA账本，每次生成前预留，不提交私有账本。只换ID适用于实验名、参数及页面链路不变的同一实验；其他实验不能直接复用。
 
-远端`ui-regression.yml`设置`CANVAS_AB_ENABLED=true`；仓库变量`CANVAS_CONTROL_STABLE_ID`和`CANVAS_TREATMENT_STABLE_ID`可换ID，也兼容已有`TEST_CANVAS_CONTROL_STABLE_ID`／`TEST_CANVAS_TREATMENT_STABLE_ID`变量；默认`1/2`已于2026-11-13实测命中false/true。每轮正常生成6次，加上每条最多一次复核，最多12次；不会无限重试。将`CANVAS_AB_ENABLED`改为false可回到原daily六条入口。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
+远端`ui-regression.yml`设置`CANVAS_AB_ENABLED=true`；仓库变量`CANVAS_CONTROL_STABLE_ID`和`CANVAS_TREATMENT_STABLE_ID`可换ID；不复用已退役多模板实验的TEST_CANVAS变量。默认`1/2`已于2026-11-13实测命中false/true。每轮正常生成6次，加上每条最多一次复核，最多12次；不会无限重试。将`CANVAS_AB_ENABLED`改为false可回到原daily六条入口。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
 
 Preview入口仍用`_statsig_override`同时开启上述两个开关，仅用于测试覆盖，不证明真实分桶：
 

@@ -99,13 +99,14 @@ export const test = base.extend<{ runtimeDiagnostics: void; canvasAssignment: vo
     if (assignment) {
       await installCanvasAssignment(context, baseURL!, assignment);
       testInfo.annotations.push({ type: 'stable_id', description: assignment.stableId }, { type: 'canvas_variant', description: assignment.variant });
+      // Check before generation; a Checkout or blank homepage at teardown is
+      // not a valid place to read the storefront's canvas assignment.
+      if (assignment.variant === 'control' && !testInfo.title.startsWith('TC-00:')) {
+        await page.goto('/products/customize-your-own', { waitUntil: 'commit' });
+        await assertCanvasAssignment(page, testInfo, assignment);
+      }
     }
     await use();
-    // Existing control cases own their navigation. Verify the actual assignment
-    // after their normal page is ready, avoiding a second navigation that can
-    // trigger rate limits and change the tested timing. Treatment board cases
-    // assert before their first business action in board.ready().
-    if (assignment?.variant === 'control' && !page.isClosed()) await assertCanvasAssignment(page, testInfo, assignment);
   }, { auto: true, timeout: 120_000 }],
   runtimeDiagnostics: [async ({ page }, use, testInfo) => {
     const monitor = monitorPage(page);
