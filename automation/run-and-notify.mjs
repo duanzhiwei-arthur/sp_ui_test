@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
+import { shouldSendScheduledNotification } from './scheduled-notification-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
@@ -1353,6 +1354,7 @@ function formatRecordTime(date) {
 
 async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOnFailure = false) {
   const appConfig = readAppConfig();
+  if (!await shouldSendScheduledNotification(process.env)) return;
   if (appConfig) {
     await sendAppNotification(appConfig, text, failureArtifacts, card, mentionAllOnFailure);
     return;

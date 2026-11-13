@@ -96,3 +96,9 @@ node automation/check-project-sync.mjs /path/to/sp_ui_test /path/to/shop-test-ag
 ```
 
 只读比较已提交版本，不自动覆盖工作区。已删除埋点专项、旧多模板画板case、历史元素快照、首页源码抓取和重复说明；旧版可从Git历史恢复，未删除个人报告/素材或原工作区未提交内容。
+
+## 群内定时通知开关
+
+群内任何人真正 `@机器人 停止通知` / `开启通知` / `通知状态` 即可控制本群通知，不限制管理员名单。只暂停定时结果卡片、失败提醒和视频，不停止测试；手动执行/查询不受影响。设置按群持久化，恢复不补发历史通知。
+
+部署需同时配置机器人运行环境和 Actions 的 `FEISHU_NOTIFICATION_TOKEN`（Variables 权限），以及机器人 `FEISHU_BOT_OPEN_ID`。读开关异常时保护性跳过定时群通知，不改变测试结果。步骤与验证见 [通知开关说明](automation/NOTIFICATION-CONTROL.md)。

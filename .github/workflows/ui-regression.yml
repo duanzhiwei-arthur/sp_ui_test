@@ -84,6 +84,8 @@ jobs:
       # The application bot posts its result card to the configured Feishu group.
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+      # Shared with the bot; repository Variables read permission.
+      FEISHU_NOTIFICATION_TOKEN: ${{ secrets.FEISHU_NOTIFICATION_TOKEN }}
       FEISHU_RECEIVE_ID_TYPE: chat_id
       FEISHU_RECEIVE_ID: ${{ inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
       FEISHU_MENTION_ALL_ON_FAILURE: 'true'
