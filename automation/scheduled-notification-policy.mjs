@@ -30,7 +30,7 @@ export async function shouldSendScheduledNotification(env, {
     return false;
   }
   if (!enabled) {
-    const message = '[feishu] 本群定时通知已暂停；跳过结果卡片、@所有人和失败视频，测试结果不变。';
+    const message = '[feishu] 本群定时通知已暂停；跳过结果卡片、定向提醒和失败视频，测试结果不变。';
     warn(message);
     try { summary(message); } catch { /* Reporting must not affect test outcome. */ }
   }

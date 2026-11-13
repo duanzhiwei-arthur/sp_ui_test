@@ -10,6 +10,7 @@ import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { shouldSendScheduledNotification } from './scheduled-notification-policy.mjs';
+import { failureMentionText } from './failure-mentions.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
@@ -1397,7 +1398,7 @@ async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOn
     return;
   }
 
-  await sendWebhookMessage(text, mentionAllOnFailure);
+  await sendWebhookMessage(text);
 }
 
 function readAppConfig() {
@@ -1432,11 +1433,11 @@ async function sendAppNotification(config, text, failureArtifacts, card, mention
     preparedArtifacts.push({ ...artifact, imageKey });
   }
 
-  if (shouldMentionAll(config, mentionAllOnFailure)) {
-    await sendArtifactSafely('失败 @所有人提醒', () => sendAppMessage(config, token, 'text', {
-      text: '<at user_id="all"></at> JuJuBit UI 自动化发现失败，请及时查看下方结果卡片。'
-    }));
-  }
+  await sendArtifactSafely('失败定向提醒', async () => {
+    const mentionText = await failureMentionText(config, mentionAllOnFailure, process.env,
+      url => fetchFeishu(url, { headers: { authorization: `Bearer ${token}` } }));
+    if (mentionText) await sendAppMessage(config, token, 'text', { text: mentionText });
+  });
 
   await sendAppMessage(config, token, 'interactive', card ?? buildLegacyCard(text));
 
@@ -1471,11 +1472,6 @@ async function sendArtifactSafely(label, action) {
     console.warn(`[feishu] ${label}发送失败：${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
-}
-
-function shouldMentionAll(config, failed) {
-  return failed && config.receiveIdType === 'chat_id' &&
-    process.env.FEISHU_MENTION_ALL_ON_FAILURE !== 'false';
 }
 
 function buildLegacyCard(text) {
@@ -1633,7 +1629,7 @@ function appHeaders(token) {
   };
 }
 
-async function sendWebhookMessage(text, mentionAllOnFailure = false) {
+async function sendWebhookMessage(text) {
   const webhook = process.env.FEISHU_WEBHOOK_URL?.trim();
   if (!webhook) {
     console.warn('[feishu] 未配置企业应用机器人或 FEISHU_WEBHOOK_URL，本次仅完成测试，不发送消息。');
@@ -1648,9 +1644,9 @@ async function sendWebhookMessage(text, mentionAllOnFailure = false) {
   const payload = {
     msg_type: 'text',
     content: {
-      text: mentionAllOnFailure && process.env.FEISHU_MENTION_ALL_ON_FAILURE !== 'false'
-        ? `<at user_id="all"></at>\n${text}`
-        : text
+      // Webhooks cannot verify group members with an app token. Never fall
+      // back to @all or IDs resolved under an unrelated application.
+      text
     }
   };
   const secret = process.env.FEISHU_WEBHOOK_SECRET?.trim();
