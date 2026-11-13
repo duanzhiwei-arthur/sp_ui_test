@@ -1,4 +1,4 @@
-import { type Page, type TestInfo } from '@playwright/test';
+import { errors, type Page, type TestInfo } from '@playwright/test';
 import { test as base, expect } from '../../tests/fixtures/runtime-diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -132,7 +132,18 @@ export class ExperimentBoard {
     const switch2d = this.root.getByRole('button', { name: /^(Switch to )?2D$/ }).filter({ visible: true });
     await waitForGenerationState(this.page, async () => {
       if (await image.isVisible()) return true;
-      if (await switch2d.count() && await switch2d.isEnabled()) await switch2d.click({ timeout: 3_000 });
+      if (await switch2d.count() && await switch2d.isEnabled()) {
+        try {
+          // An animated/loading view switch can stay unstable for several
+          // seconds. Retry only this idempotent view selection within the
+          // existing phase deadline, checking service/access errors each loop.
+          await switch2d.click({ trial: true, timeout: 1_000 });
+          await switch2d.click({ timeout: 1_000 });
+        } catch (error) {
+          if (!(error instanceof errors.TimeoutError)) throw error;
+          return image.isVisible();
+        }
+      }
       return image.isVisible();
     }, 300_000, '等待新画板真实2D切换完成');
     await expect(image).toBeVisible(); await image.scrollIntoViewIfNeeded();

@@ -15,6 +15,12 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
   const passed = cases.filter(row => row.status === 'passed').length;
   const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
+  const scope = allCases ? '全部用例 · 对照组＋实验组＋首页巡检' : '画板双组 · 对照组＋实验组';
+  const status = failed ? '发现业务失败' : recovered ? '复核通过' : '执行通过';
+  const skipped = cases.filter(row => row.status === 'skipped').length;
+  const failedCount = cases.filter(row => !['passed', 'skipped'].includes(row.status)).length;
+  const metric = (title, number, description) => ({ tag: 'column', width: 'weighted', weight: 1,
+    elements: [{ tag: 'markdown', content: `<font color='grey'>${title}</font>\n**${number}**\n${description}` }] });
   const panels = [['画板对照组', isCanvasControl], ['画板实验组', isCanvasTreatment],
     ...(allCases ? [['首页按钮巡检', title => !isCanvasControl(title) && !isCanvasTreatment(title)]] : [])].map(([name, matches]) => {
     const rows = cases.filter(row => matches(row.title)).sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
@@ -39,11 +45,32 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
       elements: lines.length ? lines : [{ tag: 'markdown', content: '未取得本组结果，不能确认通过。' }] };
   });
   const failedTitles = cases.filter(c => c.status !== 'passed').map(c => c.title);
-  return { schema: '2.0', config: { update_multi: true, width_mode: 'compact', summary: { content: `画板双组回归 · ${passed}/${cases.length}通过` } },
-    header: { title: { tag: 'plain_text', content: `JuJuBit · ${failed ? '回归未通过' : recovered ? '复核通过' : '双组回归通过'}` }, template: color },
-    body: { direction: 'vertical', padding: '12px', vertical_spacing: '8px', elements: [
+  return { schema: '2.0', config: { update_multi: true, width_mode: failed ? 'default' : 'compact', summary: { content: `${scope} · ${passed}/${cases.length}通过` } },
+    header: { title: { tag: 'plain_text', content: failed ? `JuJuBit 自动化测试 · ${status}` : `JuJuBit · ${recovered ? '复核通过' : '回归通过'}` },
+      subtitle: { tag: 'plain_text', content: scope }, template: color,
+      icon: { tag: 'standard_icon', token: failed ? 'warning_colorful' : 'notice_colorful' },
+      ...(failed ? { text_tag_list: [{ tag: 'text_tag', text: { tag: 'plain_text', content: status }, color: 'red' }] } : {}) },
+    body: { direction: 'vertical', padding: failed ? '12px 12px 20px 12px' : '12px', vertical_spacing: failed ? '12px' : '8px', elements: [
       { tag: 'markdown', content: `**${passed}/${cases.length} 用例通过** · ${Math.floor(duration / 60)}分${duration % 60}秒\n${escape(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai', dateStyle: 'short', timeStyle: 'medium' }).format(finishedAt))}（北京时间）${recovered ? `\n⚠️ ${recovered}条首次失败、复核恢复；首次原因保留在组内。` : ''}` },
       ...(failed ? [{ tag: 'markdown', content: `❌ ${escape(failedTitles.join('、') || summary.readError || '执行或报告不完整')}\n展开对应组查看原因、Task/Asset/Trace/Request ID及证据。` }] : []),
+      ...(failed ? [
+        { tag: 'column_set', element_id: 'metrics', flex_mode: 'trisect', horizontal_spacing: '12px', columns: [
+          metric('执行通过率', `${cases.length ? (passed / cases.length * 100).toFixed(1) : '0.0'}%`, `${passed}/${cases.length}`),
+          metric('业务失败', String(failedCount), '首次及二次结果保留'),
+          metric('跳过 / 耗时', String(skipped), `${Math.floor(duration / 60)}分${duration % 60}秒`),
+        ] },
+        { tag: 'div', element_id: 'runInfo', fields: [
+          { is_short: true, text: { tag: 'lark_md', content: `**运行标识**\n${escape(runId ?? 'local')}` } },
+          { is_short: true, text: { tag: 'lark_md', content: `**提交**\n${escape((headSha ?? '未提交').slice(0, 12))}` } },
+        ] },
+        { tag: 'interactive_container', element_id: 'failureDetail', has_border: true,
+          border_color: 'red-100', background_style: 'red-50', corner_radius: '8px', padding: '12px', vertical_spacing: '4px',
+          elements: [{ tag: 'markdown', content: "**<font color='red'>失败原因</font>**" },
+            ...(summary.failureDetails?.length ? summary.failureDetails.map(detail => ({ tag: 'markdown',
+              content: `**${escape(detail.title)}**\n${escape(detail.analysis ?? detail.reason)}${detail.generationEvidence ? '\n' + escape(formatGenerationEvidence(detail.generationEvidence)) : ''}` }))
+              : [{ tag: 'markdown', content: escape(summary.readError || '执行或报告不完整；展开用例明细核对，不能确认通过。') }])],
+        },
+      ] : []),
       ...panels,
       ...(readRetries ? [{ tag: 'markdown', content: `⚠️ 本轮有 ${readRetries} 处只读操作重试，成功不代表首次无异常。` }] : []),
       { tag: 'markdown', text_size: 'notation', content: `Run：${escape(runId ?? 'local')} · 提交：${escape((headSha ?? '未提交').slice(0, 12))}` },

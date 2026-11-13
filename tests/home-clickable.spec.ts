@@ -37,7 +37,12 @@ test.describe('首页安全点击巡检 @homepage-clickable', () => {
     interactionsStarted = true;
 
     await test.step('促销条、Hero、模板和 How It Works 控件逐个点击', async () => {
-      await clickAll(home, page.locator('.jjb-announcement-bar__arrow:visible'), '促销条箭头', audit);
+      const announcementArrows = page.locator('.jjb-announcement-bar__arrow:visible');
+      if (await announcementArrows.count()) {
+        await clickAll(home, announcementArrows, '促销条箭头', audit);
+      } else {
+        audit.skipped.push('促销条箭头：当前配置无可见箭头，不强制要求轮播样式');
+      }
       await clickAll(home, page.locator('.jjb-banner__dot:visible'), 'Hero 分页', audit);
       await clickAll(home, page.locator('.jjb-template-entry__dot:visible'), '模板分页', audit);
       await clickAll(home, page.locator('.jjb-how-it-works__step:visible'), 'How It Works 步骤', audit);

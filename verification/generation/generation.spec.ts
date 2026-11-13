@@ -14,6 +14,28 @@ test('new canvas Retry aborts 2D wait without repeating Generate', async ({ page
   await expect(board.wait2D()).rejects.toThrow('GENERATION_FAILED');
 });
 
+test('new canvas tolerates a 2D switch that stays animated for more than three seconds', async ({ page }, info) => {
+  await page.setContent(`<style>@keyframes moving { from { transform: translateX(0); } to { transform: translateX(50px); } } button { animation: moving .4s infinite alternate; }</style><div id="jjb-create-canvas"><div class="jjb-v3-viewer"><button aria-label="Switch to 2D">2D</button><img hidden alt="Generated Toy Result" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22/%3E"></div></div>`);
+  await page.evaluate(() => {
+    const button = document.querySelector('button')!;
+    button.onclick = () => { document.querySelector('img')!.hidden = false; };
+    setTimeout(() => { button.style.animation = 'none'; }, 3_600);
+  });
+  const board = new ExperimentBoard(page, info);
+  Reflect.set(board, 'generated', true);
+  await board.wait2D();
+  await expect(page.getByAltText('Generated Toy Result')).toBeVisible();
+});
+
+test('new canvas still detects a real generation error while the 2D switch is unstable', async ({ page }, info) => {
+  await page.setContent(`<style>@keyframes moving { from { transform: translateX(0); } to { transform: translateX(50px); } } button { animation: moving .4s infinite alternate; }</style><div id="jjb-create-canvas"><div class="jjb-v3-viewer"><button aria-label="Switch to 2D">2D</button><img hidden alt="Generated Toy Result"></div></div>`);
+  await page.evaluate(() => { setTimeout(() => {
+    const retry = document.createElement('button'); retry.textContent = 'Retry';
+    document.querySelector('.jjb-v3-viewer')!.append(retry);
+  }, 300); });
+  await expect(new ExperimentBoard(page, info).wait2D()).rejects.toThrow('GENERATION_FAILED');
+});
+
 for (const supportsZoom of [true, false]) {
   test(`canvas zoom ${supportsZoom ? 'asserts both radius changes' : 'rejects wheel gestures with no model change'}`, async ({ page }, info) => {
     await page.setContent('<div id="jjb-create-canvas"><model-viewer style="display:block;width:400px;height:400px"></model-viewer></div>');

@@ -40,6 +40,18 @@ test('missing group or skipped cases cannot produce a green card',()=>{
   }
 });
 
+test('failed dual-group reports retain the approved detailed card layout and collapsed groups', () => {
+  const row = { ...treatment[0], status: 'failed' };
+  const card = buildCanvasResultCard({ ...input, testExitCode: 1, summary: { ...input.summary,
+    caseResults: [...control, row], failureDetails: [{ title: row.title, analysis: '2D view switch timeout' }] } });
+  assert.equal(card.config.width_mode, 'default');
+  assert.match(card.header.title.content, /JuJuBit 自动化测试/);
+  for (const id of ['metrics', 'runInfo', 'failureDetail']) assert.ok(card.body.elements.some(e => e.element_id === id), id);
+  assert.equal(card.body.elements.find(e => e.element_id === 'metrics').columns.length, 3);
+  assert.match(JSON.stringify(card.body.elements.find(e => e.element_id === 'failureDetail')), /2D view switch timeout/);
+  assert.ok(card.body.elements.filter(e => e.tag === 'collapsible_panel').every(e => e.expanded === false));
+});
+
 test('read-only recovery remains visible and orange even without whole-case recheck', () => {
   const card = buildCanvasResultCard({ ...input, summary: { ...input.summary, caseResults: [...control, { ...treatment[0], readRetries: 1 }] } });
   assert.equal(card.header.template, 'orange'); assert.match(JSON.stringify(card), /只读操作重试/);
