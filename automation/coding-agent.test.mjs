@@ -108,3 +108,15 @@ test('workflow never gives generated code a token, network or writable host moun
   assert.ok(!/FEISHU|LLM|GITHUB_TOKEN|docker\.sock/.test(block));
   assert.ok(!/npm (?:test|run)|playwright test/.test(block));
 });
+
+test('GitHub creation endpoints may return empty 201 bodies', async () => {
+  let calls = 0;
+  const gh = new GitHub('fake', async (url, init) => {
+    calls++;
+    if (init.method === 'POST') return new Response(null, { status: 201 });
+    if (url.endsWith('?per_page=1')) return Response.json({ total_count: 0 });
+    return new Response(null, { status: 404 });
+  });
+  assert.equal(await gh.setVariable('FEISHU_CODE_TASK_' + 'A'.repeat(24), { state: 'ready' }), null);
+  assert.equal(calls, 3);
+});

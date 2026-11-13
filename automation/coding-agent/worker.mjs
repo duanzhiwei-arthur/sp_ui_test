@@ -183,5 +183,14 @@ export async function main(mode = process.argv[2]) {
   throw new Error('未知编程执行阶段');
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch(() => { console.error('编程任务失败；详细敏感输入不写入日志。请查询任务与 Actions 阶段状态。'); process.exitCode = 1; });
+  main().catch(async () => {
+    console.error('编程任务失败；详细敏感输入不写入日志。请查询任务与 Actions 阶段状态。');
+    if (['prepare', 'publish'].includes(process.argv[2])) {
+      try {
+        const { owner, taskId } = await authorized();
+        await notify(owner, `编程任务 ${taskId} 未完成。主分支变化、模型/网络或权限异常都会阻止继续。请查询任务与 Actions 阶段；不要将提交回执当作发布成功。\nhttps://github.com/${REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`);
+      } catch { /* Failure reporting cannot grant access or change task outcome. */ }
+    }
+    process.exitCode = 1;
+  });
 }

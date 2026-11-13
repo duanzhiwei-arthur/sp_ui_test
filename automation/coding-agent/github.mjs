@@ -23,7 +23,8 @@ export class GitHub {
       return null;
     }
     if (!response.ok) throw new Error(`编程服务 GitHub 请求失败：HTTP ${response.status}`);
-    return response.status === 204 ? null : response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
   async variable(name) {
     if (!/^FEISHU_CODE_(?:OWNER_V1|TASK_[A-F0-9]{24})$/.test(name)) throw new Error('无效的配置名称');
