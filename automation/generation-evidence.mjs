@@ -200,7 +200,9 @@ export function firstGenerationFailureMessages(summary) {
     const details = formatGenerationEvidence({ ...evidence, streams: [] });
     const outcome = review.finalStatus === 'passed-on-recheck' ? '二次复核通过' :
       review.finalStatus === 'failed-on-recheck' ? '二次复核仍失败' : '复核未完成/证据不足';
-    return [[`首次生成失败（${outcome}）：${safeError(review.title)}`, details,
+    const label = /\[UI_VIEW_TIMEOUT\]/u.test(first.reason ?? '') ? '首次视图切换失败（不等于生成服务失败）'
+      : /\[GENERATION_TIMEOUT\]/u.test(first.reason ?? '') ? '首次生成等待超时（原因待查）' : '首次生成失败';
+    return [[`${label}（${outcome}）：${safeError(review.title)}`, details,
       ...(errors.length ? errors.flatMap(error => [
         `错误码：${safeId(error.errorCode) ?? '未采集到'}`,
         `原始原因：${safeError(error.message) || '未采集到'}`

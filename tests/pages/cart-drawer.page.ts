@@ -2,8 +2,6 @@ import { expect, Locator, Page } from '@playwright/test';
 import type { RunAssets } from '../fixtures/run-assets.js';
 import { readCartJson } from '../fixtures/read-only-retry.js';
 
-const actionPause = 2_000;
-
 export class CartDrawer {
   readonly cartPageRoot: Locator;
   readonly cartButton: Locator;
@@ -23,12 +21,12 @@ export class CartDrawer {
   }
 
   async checkout(): Promise<void> {
-    await this.page.waitForTimeout(actionPause);
+    await expect(this.checkoutButton).toBeVisible();
+    await expect(this.checkoutButton).toBeEnabled();
     await Promise.all([
       this.page.waitForURL(/\/checkouts\//, { timeout: 300_000, waitUntil: 'domcontentloaded' }),
       this.checkoutButton.click({ noWaitAfter: true })
     ]);
-    await this.page.waitForTimeout(actionPause);
   }
 
   async expectHasItems(): Promise<void> {
@@ -64,8 +62,8 @@ export class CartDrawer {
   }
 
   private async click(target: Locator): Promise<void> {
-    await this.page.waitForTimeout(actionPause);
+    await expect(target).toBeVisible();
+    await expect(target).toBeEnabled();
     await target.click();
-    await this.page.waitForTimeout(actionPause);
   }
 }

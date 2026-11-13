@@ -129,6 +129,13 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       failureCategory: result ? failureCategory(result.error?.message) : undefined,
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),
+      durationMs: Number.isFinite(evidenceResult?.duration) ? evidenceResult.duration : null,
+      // JSON reporter omits category for business steps; raw API steps, when
+      // supplied by another reporter, are explicitly excluded.
+      steps: (evidenceResult?.steps ?? []).filter(step => !step.category || step.category === 'test.step').slice(0,50).map(step => ({
+        title: redact(step.title).slice(0,200), durationMs: Number.isFinite(step.duration) ? step.duration : null,
+        result: step.error ? 'failed' : 'completed',
+      })),
       generationEvidence: await collectGenerationEvidence(result, root),
       runtimeDiagnostics,
       context, contextAvailable: Boolean(context) });

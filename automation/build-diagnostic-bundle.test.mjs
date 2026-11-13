@@ -5,6 +5,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets, sanitizeGaCookie } from './build-diagnostic-bundle.mjs';
 
+test('case and business-step timing survive in lightweight evidence without raw action noise', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'qa-step-times-'));
+  try {
+    await mkdir(path.join(root, 'test-results'));
+    await writeFile(path.join(root, 'test-results/results.json'), JSON.stringify({ suites: [{ specs: [{ title: 'TC-03', tests: [{ status: 'expected', results: [{ status: 'passed', duration: 12345, steps: [{ title: '生成并验证', duration: 12000 }, { category: 'pw:api', title: 'locator.click', duration: 100 }] }] }] }] }] }));
+    const bundle = await buildBundle(root, {});
+    assert.equal(bundle.cases[0].durationMs, 12345);
+    assert.deepEqual(bundle.cases[0].steps, [{ title: '生成并验证', durationMs: 12000, result: 'completed' }]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('phase timings preserve exact durations and exclude unknown secret fields', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'qa-phase-times-'));
   try {

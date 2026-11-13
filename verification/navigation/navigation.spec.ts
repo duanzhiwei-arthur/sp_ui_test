@@ -8,6 +8,67 @@ import { HomePage } from '../../tests/pages/home.page.js';
 
 const healthyHeader = `<header class="site-header jjb-header__shell"><a class="jjb-header__logo">JuJuBit</a><nav class="jjb-header__menu"><a href="/products/customize-your-own">Create</a><a href="/templates">Templates</a><a href="/categories">Categories</a><a href="/about">About</a><a href="/contact">Contact</a></nav></header>`;
 
+test('optional popups do not wait eight seconds when absent and late popups close before a single business click', async ({ page }) => {
+  await page.setContent('<button id="business" onclick="this.dataset.clicks=String(Number(this.dataset.clicks||0)+1)">Continue</button>');
+  const create = new CreatePage(page);
+  const start = Date.now();
+  await create.dismissMarketingPopup();
+  await create.acceptCookieConsent();
+  expect(Date.now() - start).toBeLessThan(2000);
+  await page.evaluate(() => {
+    const popup = document.createElement('div'); popup.id = 'test__newsletter-popup';
+    popup.style.cssText = 'position:fixed;inset:0;background:white;z-index:9999';
+    popup.innerHTML = '<button onclick="this.parentElement.remove()">Close</button>';
+    document.body.append(popup);
+  });
+  await create.click(page.locator('#business'));
+  await expect(page.locator('#business')).toHaveAttribute('data-clicks', '1');
+  await expect(page.locator('#test__newsletter-popup')).toHaveCount(0);
+});
+
+test('present consent and marketing dialogs close via UI without deleting arbitrary page elements', async ({ page }) => {
+  await page.setContent('<div id="shopify-pc__banner"><button onclick="this.parentElement.hidden=true">Accept</button></div><div id="test__newsletter-popup"><button onclick="this.parentElement.hidden=true">Close</button></div>');
+  const create = new CreatePage(page);
+  await create.acceptCookieConsent();
+  await create.dismissMarketingPopup();
+  await expect(page.locator('#shopify-pc__banner')).toBeHidden();
+  await expect(page.locator('#test__newsletter-popup')).toBeHidden();
+  await expect(page.locator('#shopify-pc__banner')).toHaveCount(1);
+});
+
+test('state-driven click waits for a disabled control and never duplicates the click', async ({ page }) => {
+  await page.setContent('<button disabled onclick="this.dataset.count=String(Number(this.dataset.count||0)+1)">Generate</button>');
+  await page.evaluate(() => { setTimeout(() => { document.querySelector('button')!.disabled = false; }, 250); });
+  await new CreatePage(page).click(page.getByRole('button'));
+  await expect(page.getByRole('button')).toHaveAttribute('data-count', '1');
+});
+
+test('upload readiness follows the visible preview even when the theme resets input.files', async ({ page }) => {
+  await page.setContent('<div id="jjb-create-canvas"><input type="file"><button hidden>Delete image</button><button disabled>Generate</button></div>');
+  await page.evaluate(() => {
+    document.querySelector('input')!.onchange = event => {
+      (event.target as HTMLInputElement).value = '';
+      document.querySelectorAll('button')[0].hidden = false;
+      document.querySelectorAll('button')[1].disabled = false;
+    };
+  });
+  await new CreatePage(page).uploadImage('assets/two-dogs.jpeg');
+  expect(await page.locator('input').evaluate((input: HTMLInputElement) => input.files?.length)).toBe(0);
+  await expect(page.getByRole('button', { name: 'Delete image' })).toBeVisible();
+});
+
+test('prompt remount may reset the first fill but never causes a generation submission', async ({ page }) => {
+  await page.setContent('<button>Add Your Prompt</button><textarea placeholder="Add Your Prompt"></textarea><button aria-label="Confirm prompt editing">Done</button><button id="generate">Generate</button>');
+  await page.evaluate(() => {
+    let reset = false;
+    document.querySelector('textarea')!.oninput = () => { if (!reset) { reset = true; setTimeout(() => { document.querySelector('textarea')!.value = ''; }, 50); } };
+    document.querySelector('#generate')!.addEventListener('click', () => { document.body.dataset.generated = 'yes'; });
+  });
+  await new CreatePage(page).enterPrompt('test prompt');
+  await expect(page.getByPlaceholder('Add Your Prompt')).toHaveValue('test prompt');
+  expect(await page.locator('body').getAttribute('data-generated')).toBeNull();
+});
+
 test('TC-00 header does not depend on optional or replaced promotional markup', async ({ page }) => {
   for (const promotion of ['', '<section>BLACK FRIDAY</section>', '<div class="jjb-announcement-bar" hidden>Old campaign</div>']) {
     await page.setContent(promotion + healthyHeader);

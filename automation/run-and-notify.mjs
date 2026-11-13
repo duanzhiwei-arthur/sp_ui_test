@@ -374,6 +374,8 @@ function normalizeFailureReason(message) {
 }
 
 function analyzeFailureReason(title, reason) {
+  if (/\[UI_INPUT_RESET\]/u.test(reason)) return `输入框填入后反复被页面重置，本次尚未提交生成；检查页面重渲染与输入持久化。${reason}`;
+  if (/\[UI_VIEW_TIMEOUT\]/u.test(reason)) return `视图切换未完成，不能据此判定后台生成失败；检查按钮可用性、遮罩、视图自动切换及本次资产状态。${reason}`;
   if (/\[EXPERIMENT_ASSIGNMENT\]/u.test(reason)) return `实验分组前置未满足，业务尚未验证；请核对stable_id、实际SDK分桶与画板部署版本。${reason}`;
   if (/\[READ_TRANSPORT\]/u.test(reason)) return `只读查询两次尝试后仍未完成；不能据此判定生成失败或重复加购。${reason}`;
   if (/\[READ_HTTP\]/u.test(reason)) return `只读查询HTTP异常；403/429不在步骤内重试，保留原状态。${reason}`;

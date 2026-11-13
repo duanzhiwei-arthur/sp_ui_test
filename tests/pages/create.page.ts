@@ -9,8 +9,7 @@ import { assertCanvasAssignment, type CanvasAssignment } from '../fixtures/canva
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
-const actionPause = 2_000;
-const postThreeDRotationPause = 5_000;
+const popupHandlersInstalled = new WeakSet<Page>();
 
 export class CreatePage {
   readonly homeCreateLink: Locator;
@@ -152,6 +151,7 @@ export class CreatePage {
   }
 
   async navigate(path: string): Promise<void> {
+    await this.installOptionalPopupHandlers();
     const response = await gotoWithDiagnostics(this.page, path);
     await this.assertSiteAvailable(response?.status());
     await this.acceptCookieConsent();
@@ -183,51 +183,65 @@ export class CreatePage {
     await this.dismissMarketingPopup();
   }
 
-  async dismissMarketingPopup(timeout = 8_000): Promise<void> {
-    const appeared = await this.marketingPopupCloseButton
-      .waitFor({ state: 'visible', timeout })
-      .then(() => true)
-      .catch(() => false);
+  private async installOptionalPopupHandlers(): Promise<void> {
+    if (popupHandlersInstalled.has(this.page)) return;
+    await this.page.addLocatorHandler(this.marketingPopupCloseButton, async close => {
+      await close.click({ timeout: 5_000 });
+    });
+    await this.page.addLocatorHandler(this.cookieAcceptButton, async accept => {
+      await accept.click({ timeout: 5_000 });
+    });
+    popupHandlersInstalled.add(this.page);
+  }
+
+  async dismissMarketingPopup(timeout = 0): Promise<void> {
+    await this.installOptionalPopupHandlers();
+    const appeared = timeout > 0 ? await this.marketingPopupCloseButton
+      .waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false)
+      : await this.marketingPopupCloseButton.isVisible();
     if (!appeared) {
       return;
     }
 
-    await this.click(this.marketingPopupCloseButton);
+    // Avoid the locator handler closing the very control we're clicking.
+    await this.page.removeLocatorHandler(this.marketingPopupCloseButton);
+    try { await this.marketingPopupCloseButton.click(); }
+    finally { await this.page.addLocatorHandler(this.marketingPopupCloseButton, async close => { await close.click({ timeout: 5_000 }); }); }
     await expect(this.marketingPopup).toBeHidden({ timeout: 10_000 });
   }
 
-  async acceptCookieConsent(timeout = 8_000): Promise<void> {
-    const appeared = await this.cookieAcceptButton
-      .waitFor({ state: 'visible', timeout })
-      .then(() => true)
-      .catch(() => false);
+  async acceptCookieConsent(timeout = 0): Promise<void> {
+    await this.installOptionalPopupHandlers();
+    const appeared = timeout > 0 ? await this.cookieAcceptButton
+      .waitFor({ state: 'visible', timeout }).then(() => true).catch(() => false)
+      : await this.cookieAcceptButton.isVisible();
     if (!appeared) {
       return;
     }
 
-    // Shopify Preview's toolbar can overlap the storefront consent controls.
-    await this.page.locator('#PBarNextFrameWrapper').evaluate((element) => element.remove()).catch(() => undefined);
-    await this.cookieAcceptButton.click({ force: true });
-    await this.page.waitForTimeout(250);
-    await this.cookieBanner.evaluate((element) => element.remove()).catch(() => undefined);
+    await this.page.removeLocatorHandler(this.cookieAcceptButton);
+    try { await this.cookieAcceptButton.click(); }
+    finally { await this.page.addLocatorHandler(this.cookieAcceptButton, async accept => { await accept.click({ timeout: 5_000 }); }); }
+    await expect(this.cookieBanner).toBeHidden({ timeout: 10_000 });
   }
 
   async click(target: Locator): Promise<void> {
-    // Keep interactions observable and let late UI transitions settle.
-    await this.page.waitForTimeout(actionPause);
+    await expect(target).toBeVisible();
+    await expect(target).toBeEnabled();
     await target.click();
-    await this.page.waitForTimeout(actionPause);
   }
 
   async check(target: Locator): Promise<void> {
-    await this.page.waitForTimeout(actionPause);
     await target.check();
-    await this.page.waitForTimeout(actionPause);
+    await expect(target).toBeChecked();
   }
 
   async uploadImage(file: string): Promise<void> {
     await expect(this.upload).toHaveCount(1);
     await this.upload.setInputFiles(file);
+    // The theme intentionally clears input.files after consuming the upload.
+    // Assert the user-visible uploaded-image state, not the transient input.
+    await expect(this.deleteImageButton, '本次上传预览应出现删除图片入口').toBeVisible();
     await expect(this.generateButton).toBeEnabled();
   }
 
@@ -235,7 +249,24 @@ export class CreatePage {
     await this.click(this.promptButton);
     await expect(this.promptInput).toBeVisible();
     await expect(this.promptInput).toBeEditable();
-    await this.promptInput.fill(text);
+    await expect(this.confirmPromptEditingButton).toBeVisible();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await this.promptInput.fill(text);
+      // Controlled textareas may be remounted by the opening transition.
+      // Confirm persistence on the current node before the caller submits.
+      await this.promptInput.blur();
+      try {
+        await expect(this.promptInput).toHaveValue(text, { timeout: 1000 });
+        await this.page.waitForTimeout(300); // bounded persistence observation
+        if (await this.promptInput.inputValue() === text) {
+          if (attempt) test.info().annotations.push({ type: 'read-only-retry', description: 'Prompt初次输入被页面重置，重新填写一次后值保持；尚未生成' });
+          return;
+        }
+      } catch (error) {
+        if (attempt) throw error;
+      }
+    }
+    throw Error('[UI_INPUT_RESET] Prompt填入后反复被页面清空，停止生成；未提交任务');
   }
 
   async startGeneration(): Promise<void> {
@@ -425,8 +456,8 @@ export class CreatePage {
     await this.page.waitForTimeout(500);
     const afterRotation = await this.threeDView.screenshot();
     expect(afterRotation.equals(beforeRotation), '横向拖动后 3D 视图应发生视觉变化').toBe(false);
-    // Keep the completed model visible before the following Add to Cart action.
-    await this.page.waitForTimeout(postThreeDRotationPause);
+    await expect(this.threeDView).toBeVisible();
+    await expect(this.threeDProcessingOverlay).toBeHidden();
   }
 
   async openGallery(): Promise<void> {

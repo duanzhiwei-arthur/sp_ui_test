@@ -6,6 +6,14 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { firstGenerationFailureMessages, generationResponseIds, collectGenerationEvidence, formatGenerationEvidence, isGenerationFailure, parseGenerationEvents, summarizeGenerationStream } from './generation-evidence.mjs';
 
+test('UI switching and generation waiting are not labelled as proven service failure', () => {
+  for (const [reason, label] of [['[UI_VIEW_TIMEOUT] [GENERATION_TIMEOUT]', '首次视图切换失败'], ['[GENERATION_TIMEOUT]', '首次生成等待超时']]) {
+    const text = firstGenerationFailureMessages({ recheck: { cases: [{ title: 'EXP-TC-01', finalStatus: 'passed-on-recheck', firstFailure: { reason } }] } }).join('\n');
+    assert.ok(text.includes(label));
+    assert.doesNotMatch(text, /首次生成失败/);
+  }
+});
+
 test('large or missing trace keeps correlated identifiers from this attempt audit only', async () => {
   const audit = { generationRequests: [{ at: '2026-11-12T15:17:35.826Z', traceId: 'trace-first', requestId: 'request-first' }],
     assets: [{ assetId: '4458620', taskId: '4442626', traceId: 'trace-first', imageUrl: 'https://private.example/token' }] };
