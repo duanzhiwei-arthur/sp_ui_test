@@ -92,7 +92,7 @@ jobs:
       FEISHU_NOTIFICATION_TOKEN: ${{ secrets.FEISHU_NOTIFICATION_TOKEN }}
       FEISHU_RECEIVE_ID_TYPE: chat_id
       FEISHU_RECEIVE_ID: ${{ inputs.personal_chat_id || inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
-      FEISHU_MENTION_ALL_ON_FAILURE: 'true'
+      FEISHU_MENTION_ALL_ON_FAILURE: ${{ inputs.personal_chat_id != '' && 'false' || 'true' }}
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''
 
