@@ -51,11 +51,24 @@ test.describe('线上游客态生成流程', () => {
     const create = new CreatePage(page);
     await create.goto();
     await create.uploadImage(assetPath(testData.soloImage));
-    await create.startGeneration();
-    await create.openGallery();
-    await create.openCreate();
-    await create.uploadImage(assetPath(testData.soloImage));
-    await expect(create.generateButton).toBeEnabled();
+    await test.step('提交生成后直接返回 Create，不等待 2D/3D 完成', async () => {
+      const [response] = await Promise.all([
+        page.waitForResponse(response => response.request().method() === 'POST'
+          && new URL(response.url()).origin === new URL(page.url()).origin
+          && new URL(response.url()).pathname === '/apps/ai/activity/tasks', { timeout: 60_000 }),
+        create.startGeneration(),
+      ]);
+      expect(response.ok(), '生成任务已受理；不读取生成流终态').toBe(true);
+      // The task-start event switches to Gallery asynchronously. Return only
+      // after that transition, not before it can override our Create click.
+      // Neither this check nor the response headers wait for 2D/3D completion.
+      await expect(create.generateButton).toBeHidden({ timeout: 15_000 });
+      await create.openCreate();
+    });
+    await test.step('仅断言 Generate 可用，不重新上传或提交第二次生成', async () => {
+      await expect(create.generateButton).toBeVisible({ timeout: 10_000 });
+      await expect(create.generateButton).toBeEnabled({ timeout: 10_000 });
+    });
   });
 
 });

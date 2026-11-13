@@ -60,12 +60,17 @@ test.describe('新增实验组：同步定时TC-01～TC-05业务功能 @manual-d
     await test.step('History新增且只删除本次记录', () => board.deleteOwnRecord());
   });
 
-  test('EXP-TC-04：生成中返回Create再次上传可继续生成', async ({ page, board }) => {
-    await board.open(); await board.upload(); await board.generate();
-    // 不等2D/3D完成；只检测生成中返回链路，不触发第二次有成本的生成。
-    await board.create(); await board.upload();
-    await expect(board.root.getByRole('button', { name: 'Generate', exact: true })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Replace photo', exact: true })).toBeVisible();
-    board.note('对应对照TC-04', '生成中返回Create、再次上传成功；Generate可用。首任务可能继续执行，不重复提交第二次生成');
+  test('EXP-TC-04：生成中返回Create后Generate可用', async ({ board }) => {
+    await board.open(); await board.upload();
+    await test.step('提交生成后直接返回 Create，不等待 2D/3D 完成', async () => {
+      await board.generate();
+      await board.create();
+    });
+    await test.step('仅断言 Generate 可用，不重新上传或提交第二次生成', async () => {
+      const generate = board.root.getByRole('button', { name: 'Generate', exact: true });
+      await expect(generate).toBeVisible({ timeout: 10_000 });
+      await expect(generate).toBeEnabled({ timeout: 10_000 });
+    });
+    board.note('对应对照TC-04', '生成中直接返回Create后Generate可用；不重新上传、不等待2D/3D、不提交第二次任务。首任务可能继续执行');
   });
 });

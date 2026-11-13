@@ -11,14 +11,14 @@ Playwright + TypeScript 游客态回归。此工程保留当前远端用例、�
 | TC-01 | 点击主导航唯一Create → 创作页 → 自定义器及Gallery可见 | 每小时daily；无生成 |
 | TC-02 | Free Style→TRPG→Free Style、Solo→Duo→Solo、Prompt编辑、Pro/Basic工具 | 每小时daily；无生成 |
 | TC-03 | 上传图片 → 真实生成2D/3D → 两秒旋转 → 本轮资产加购 → 购物车 → Checkout商品及支付入口 | 每小时daily；生成、加购；不支付 |
-| TC-04 | 提交生成 → 返回Create → 再次上传 → Generate可用；不点第二次Generate | 每小时daily；后台任务可能继续 |
+| TC-04 | 上传→提交生成→直接返回Create→Generate可用；不等2D/3D、不重新上传、不点第二次Generate | 每小时daily；后台任务可能继续 |
 | TC-05 | 图片＋Prompt生成 → 2D/3D及旋转 → History新增 → UI确认删除本轮资产 | 每小时daily；生成、精确删除 |
 | TC-06 | 会员Treatment：上传→Generate触发实验→分桶核验→会员入口、弹窗及Join去向 | 会员实验点名；生成，不支付 |
 | TC-EXP-01 | 会员Control：同上传→Generate路径→分桶核验→会员入口不展示 | 会员实验点名；生成 |
 | EXP-TC-01 | 首页Create进入新画板；3D Preview步骤、V3与增信同时生效 | 每小时daily实验组；无生成 |
 | EXP-TC-02 | 模板菜单切换、Settings Solo/Duo、内联Prompt、三个增信弹窗开关 | 每小时daily实验组；无生成 |
 | EXP-TC-03 | 同源图片→真实2D/3D完成→旋转→本轮资产加购→购物车→Checkout商品及支付入口 | 每小时daily实验组；生成、加购，不支付 |
-| EXP-TC-04 | 真实任务提交后返回Create→替换图片→Generate可用，不提交第二次任务 | 每小时daily实验组；后台任务可能继续 |
+| EXP-TC-04 | 上传→提交生成→直接返回Create→Generate可用；不等2D/3D、不重新上传、不提交第二次任务 | 每小时daily实验组；后台任务可能继续 |
 | EXP-TC-05 | 图片＋Prompt真实生成→2D/3D及旋转→History新增→只删除本次响应对应记录 | 每小时daily实验组；生成、精确删除 |
 
 本版本每小时daily分两组：**画板对照组TC-00～05六条＋画板实验组EXP-TC-01～05五条，共11条**。TC-001仍每日18:00独立运行，会员TC-06／TC-EXP-01仍点名执行，不能与EXP-TC-01混淆。每组先执行完整生成／删除，再跑生成中返回场景（05先于04），不改变case名称与结果归属。
