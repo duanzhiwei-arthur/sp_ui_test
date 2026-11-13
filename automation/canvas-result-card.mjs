@@ -1,21 +1,22 @@
 import { gaCookieRows } from './ga-cookie.mjs';
 import { formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
-import { isCanvasTreatment, isCanvasControl, hasCompleteCanvasScope } from './canvas-scope.mjs';
+import { isCanvasTreatment, isCanvasControl, hasCompleteCanvasScope, hasCompleteAllScope } from './canvas-scope.mjs';
 export { isCanvasTreatment, isCanvasControl } from './canvas-scope.mjs';
 
 const escape = value => String(value ?? '').replace(/[&<>*`_\[\]]/g, c => `&#${c.charCodeAt(0)};`);
 
-export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId, headSha, runUrl }) {
+export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId, headSha, runUrl, allCases = false }) {
   const cases = summary.caseResults ?? [];
   const reviews = summary.recheck?.cases ?? [];
-  const complete = hasCompleteCanvasScope(cases);
+  const complete = (allCases ? hasCompleteAllScope : hasCompleteCanvasScope)(cases);
   const failed = testExitCode !== 0 || summary.readError || summary.reportErrors?.length || !complete || cases.some(row => row.status !== 'passed');
   const recovered = reviews.filter(row => row.finalStatus === 'passed-on-recheck').length;
   const readRetries = cases.reduce((count, row) => count + (row.readRetries ?? 0), 0);
   const passed = cases.filter(row => row.status === 'passed').length;
   const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
-  const panels = [['画板对照组', isCanvasControl], ['画板实验组', isCanvasTreatment]].map(([name, matches]) => {
+  const panels = [['画板对照组', isCanvasControl], ['画板实验组', isCanvasTreatment],
+    ...(allCases ? [['首页按钮与会员用例', title => !isCanvasControl(title) && !isCanvasTreatment(title)]] : [])].map(([name, matches]) => {
     const rows = cases.filter(row => matches(row.title)).sort((a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
     const ok = rows.filter(row => row.status === 'passed').length;
     const countRecovered = rows.filter(row => reviews.some(r => r.title === row.title && r.finalStatus === 'passed-on-recheck')).length;

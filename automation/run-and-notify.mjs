@@ -9,10 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
+import { shouldSendScheduledNotification } from './scheduled-notification-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
-import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope } from './canvas-scope.mjs';
+import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope, ALL_CASE_IDS, ALL_MAX_GENERATIONS_PER_RUN, hasCompleteAllScope, isCanvasControl } from './canvas-scope.mjs';
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
 import { gaCookieRows } from './ga-cookie.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
@@ -32,6 +33,9 @@ const mode = requestedMode === 'homepage-clickable'
     : requestedMode;
 const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
 const canvasDaily = mode === 'daily' && process.env.CANVAS_AB_ENABLED === 'true';
+const canvasAll = mode === 'all' && process.env.CANVAS_AB_ENABLED === 'true';
+const canvasSuite = canvasDaily || canvasAll;
+const canvasConfig = canvasAll ? 'experiments/canvas-v3/all.config.ts' : 'experiments/canvas-v3/stable.config.ts';
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
 const maxFileBytes = 30 * 1024 * 1024;
@@ -112,8 +116,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   await rm(resultsFile, { force: true });
 
   const playwrightBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
-  const playwrightArgs = canvasDaily ? ['test', '--config=experiments/canvas-v3/stable.config.ts', '--retries=0'] : ['test', '--project=chromium', '--retries=0'];
-  if (canvasDaily) {
+  const playwrightArgs = canvasSuite ? ['test', `--config=${canvasConfig}`, '--retries=0'] : ['test', '--project=chromium', '--retries=0'];
+  if (canvasSuite) {
     if (!process.env.CANVAS_CONTROL_STABLE_ID?.trim() || !process.env.CANVAS_TREATMENT_STABLE_ID?.trim()) throw new Error('画板双组定时任务必须同时配置对照与实验stable_id');
     if (!process.env.CANVAS_PARITY_LEDGER) {
       // Both groups: four initial generations plus at most four isolated
@@ -121,7 +125,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('本地双组运行需指定CANVAS_PARITY_LEDGER共享账本');
       process.env.CANVAS_PARITY_LEDGER = path.join(projectRoot, 'test-results', `canvas-budget-${Date.now()}.json`);
       await (await import('node:fs/promises')).mkdir(testResultsDir, { recursive: true });
-      await writeFile(process.env.CANVAS_PARITY_LEDGER, JSON.stringify({ scope: 'run', runId: process.env.GITHUB_RUN_ID, date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), limit: CANVAS_MAX_GENERATIONS_PER_RUN, attempts: 0, basis: '本次双组定时任务及每条最多一次复核', entries: [] }), { flag: 'wx' });
+      await writeFile(process.env.CANVAS_PARITY_LEDGER, JSON.stringify({ scope: 'run', runId: process.env.GITHUB_RUN_ID, date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), limit: canvasAll ? ALL_MAX_GENERATIONS_PER_RUN : CANVAS_MAX_GENERATIONS_PER_RUN, attempts: 0, basis: '本次任务及每条最多一次复核', entries: [] }), { flag: 'wx' });
     }
   } else if (mode === 'safe') {
     playwrightArgs.push('tests/00-safe-cases.spec.ts');
@@ -142,7 +146,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
     PLAYWRIGHT_RESULTS_FILE: resultsFile,
-    ...(canvasDaily ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
+    ...(canvasSuite ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
     ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
     CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
     TRACKING_TEST_ENABLED: 'false',
@@ -150,9 +154,9 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   });
 
   let summary = await loadSummary();
-  if (canvasDaily) {
-    if (!hasCompleteCanvasScope(summary.caseResults) || summary.caseResults.some(row => row.status === 'skipped')) {
-      summary.reportErrors = [...(summary.reportErrors ?? []), { message: `画板双组应完整执行${CANVAS_CASE_IDS.length}条，不允许缺组、重复或跳过冒充通过` }];
+  if (canvasSuite) {
+    if (!(canvasAll ? hasCompleteAllScope : hasCompleteCanvasScope)(summary.caseResults) || summary.caseResults.some(row => row.status === 'skipped')) {
+      summary.reportErrors = [...(summary.reportErrors ?? []), { message: `应完整执行${(canvasAll ? ALL_CASE_IDS : CANVAS_CASE_IDS).length}条，不允许缺组、重复或跳过冒充通过` }];
       try {
         const raw = JSON.parse(await readFile(resultsFile, 'utf8'));
         await writeFile(resultsFile, JSON.stringify({ ...raw, errors: summary.reportErrors }, null, 2));
@@ -163,14 +167,14 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   for (const [index, failedCase] of (process.env.DISABLE_FAILURE_RECHECK === 'true' ? [] : recheckCases).entries()) {
     const recheckResultsFile = path.join(testResultsDir, `failure-recheck-${index + 1}-results.json`);
     await rm(recheckResultsFile, { force: true });
-    const recheckArgsValue = recheckArgs(mode, canvasDaily ? [{ ...failedCase, file: undefined }] : [failedCase]);
+    const recheckArgsValue = recheckArgs(mode, canvasSuite ? [{ ...failedCase, file: undefined }] : [failedCase]);
     console.log(`[recheck] 30秒冷却后单独复核（最多一次）：${failedCase.title}`);
     await delay(30_000);
-    const projectArgs = canvasDaily ? ['--config=experiments/canvas-v3/stable.config.ts', `--project=${isCanvasTreatment(failedCase.title) ? 'canvas-treatment' : 'canvas-control'}`] : ['--project=chromium'];
+    const projectArgs = canvasSuite ? [`--config=${canvasConfig}`, `--project=${isCanvasTreatment(failedCase.title) ? 'canvas-treatment' : isCanvasControl(failedCase.title) ? 'canvas-control' : 'other-cases'}`] : ['--project=chromium'];
     const recheckExit = await run(playwrightBin, ['test', ...projectArgs, '--retries=0',
       '--output', path.join(testResultsDir, `failure-recheck-artifacts-${index + 1}`), ...recheckArgsValue], {
       ...process.env, PLAYWRIGHT_RESULTS_FILE: recheckResultsFile,
-      ...(canvasDaily ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
+      ...(canvasSuite ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
       PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(projectRoot, 'playwright-report', `failure-recheck-${index + 1}`),
       ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
       CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
@@ -538,7 +542,7 @@ function loadExperimentCommandRegistry() {
 }
 
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
-  if (canvasDaily || summary.caseResults?.some(item => isCanvasTreatment(item.title))) return buildCanvasResultCard({ summary, testExitCode, finishedAt, runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl() });
+  if (canvasSuite || summary.caseResults?.some(item => isCanvasTreatment(item.title))) return buildCanvasResultCard({ summary, testExitCode, finishedAt, runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl(), allCases: canvasAll });
   const compactCard = buildCompactSuccessCard({
     testExitCode, summary, finishedAt,
     scope: mode === 'daily' ? '日常回归 · TC-00～TC-05' : executionScopeLabel(),
@@ -1387,6 +1391,7 @@ function formatRecordTime(date) {
 
 async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOnFailure = false) {
   const appConfig = readAppConfig();
+  if (!await shouldSendScheduledNotification(process.env)) return;
   if (appConfig) {
     await sendAppNotification(appConfig, text, failureArtifacts, card, mentionAllOnFailure);
     return;

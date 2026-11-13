@@ -38,6 +38,11 @@ on:
         required: false
         default: ''
         type: string
+      personal_open_id:
+        description: 'Manual private report recipient. Overrides chat_id; empty keeps the usual group route.'
+        required: false
+        default: ''
+        type: string
       dedupe_key:
         description: 'Hourly dedupe key (hourly-<yyyy-mm-dd>-<hh>). Set by the cloud timer; empty for manual runs.'
         required: false
@@ -86,8 +91,9 @@ jobs:
       # The application bot posts its result card to the configured Feishu group.
       FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
       FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
-      FEISHU_RECEIVE_ID_TYPE: chat_id
-      FEISHU_RECEIVE_ID: ${{ inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
+      FEISHU_NOTIFICATION_TOKEN: ${{ secrets.FEISHU_NOTIFICATION_TOKEN }}
+      FEISHU_RECEIVE_ID_TYPE: ${{ inputs.personal_open_id != '' && 'open_id' || 'chat_id' }}
+      FEISHU_RECEIVE_ID: ${{ inputs.personal_open_id || inputs.chat_id || secrets.FEISHU_GROUP_CHAT_ID }}
       FEISHU_MENTION_ALL_ON_FAILURE: 'true'
       FEISHU_WEBHOOK_URL: ''
       FEISHU_WEBHOOK_SECRET: ''

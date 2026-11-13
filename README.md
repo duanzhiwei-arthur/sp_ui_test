@@ -2,7 +2,7 @@
 
 Playwright + TypeScript 游客态回归。此工程保留当前远端用例、新画板同业务链路，以及运行它们所需的诊断和验证代码。**不填写支付资料、不点击最终支付、不提交订单。**
 
-本文描述当前本地待发布版本。新画板单用例及双组卡片尚未推送远端；修改本地代码不会自动改变线上定时任务。
+本文描述本次发布版本：每小时运行画板双组7条，TC-001保留独立每日任务。手动全部执行入口覆盖表内10条用例；以GitHub运行记录的提交号核实实际版本。
 
 ## 全部用例（一张表）
 
@@ -64,7 +64,9 @@ CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 CANVAS_PA
 
 `cart.js`通过当前页面的同源浏览器GET读取，沿用页面会话与网络路径，避免Node接口客户端和浏览器代理路径不同；30秒超时覆盖响应头和响应体，5xx/连接失败最多再查一次，Cookie不复制到日志。`read-only-diagnostics`记录每次状态、耗时及是否重试，不记录请求头；只读恢复在卡片标橙色，提示不等同首次无异常。分类区分访问阻断、实验前置、只读HTTP/传输异常、生成失败/超时及资产/加购核验问题；未知根因不猜成网络。Trace、截图、Task/Asset/Trace/Request ID和首次/复核证据继续保留。
 
-本地工作流草案由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。该草案本次未部署。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
+工作流由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。
+
+手动选择`mode=all`会使用独立`all.config.ts`，执行上表10条：双组7条＋TC-001＋会员TC-06／TC-EXP-01。报告增加第三个折叠区展示其余3条，漏项、重复、跳过均不能标为全量通过。工作流可填写`personal_open_id`将**该次手动执行**的结果私发；留空沿用`chat_id`或原群配置，定时任务不填此项。
 
 Preview入口`test:canvas`仅强制开启新画板开关，不修改增信实验、不证明真实分桶：
 
@@ -79,7 +81,7 @@ Preview只允许HTTPS预览或授权开发店；真实分组需显式指定线�
 
 ## 远端触发与飞书
 
-- `ui-regression.yml`本地草案：每小时画板双组7条，串行执行、一次汇总；小时槽、`:30`兜底与去重不变。草案未部署，不据README宣称线上已更新。网络/DNS仍可能失败。
+- `ui-regression.yml`：每小时画板双组7条，串行执行、一次汇总；小时槽、`:30`兜底与去重不变。网络/DNS仍可能失败。
 - `homepage-clickable.yml`：TC-001每天18:00主触发、18:30兜底，按日期去重。**保留此工作流及依赖。**
 - `feishu-failure-video.yml`：按请求提供失败视频。机器人对话、执行命令、报告、视频和原群路由不因清理改变。
 - `automation/experiment-command-registry.json`：当前点名会员实验；旧`canvas_template_display`已退役，不再保留死case或失效命令。新画板暂不冒用旧canvas命令。
@@ -120,3 +122,13 @@ node automation/check-project-sync.mjs /path/to/sp_ui_test /path/to/shop-test-ag
 ```
 
 只读比较已提交版本，不自动覆盖工作区。已删除埋点专项、旧多模板画板case、历史元素快照、首页源码抓取和重复说明；旧版可从Git历史恢复，未删除个人报告/素材或原工作区未提交内容。
+
+## 群内定时通知开关
+
+群内任何人真正 `@机器人 停止通知` / `开启通知` / `通知状态` 即可控制本群通知，不限制管理员名单。只暂停定时结果卡片、失败提醒和视频，不停止测试；手动执行/查询不受影响。设置按群持久化，恢复不补发历史通知。
+
+部署需同时配置机器人运行环境和 Actions 的 `FEISHU_NOTIFICATION_TOKEN`（Variables 权限），以及机器人 `FEISHU_BOT_OPEN_ID`。读开关异常时保护性跳过定时群通知，不改变测试结果。步骤与验证见 [通知开关说明](automation/NOTIFICATION-CONTROL.md)。
+
+## 本人专用飞书编程
+
+机器人新增独立私聊编程入口：一次性绑定本人后，`改代码：需求`生成并静态检查草稿；`发布代码 任务编号 完整提交SHA`才将对应改动发布到本仓库并同步项目副本。仅固定sp_ui_test仓库，不开放给其他群成员。公开仓库的草稿分支也公开可见。支持范围、身份绑定和配置见[编程助手](automation/CODING-ASSISTANT.md)。

@@ -1,8 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope, isCanvasTreatment } from './canvas-scope.mjs';
+import { CANVAS_CASE_IDS, CANVAS_MAX_GENERATIONS_PER_RUN, hasCompleteCanvasScope, isCanvasTreatment, ALL_CASE_IDS, hasCompleteAllScope } from './canvas-scope.mjs';
 
 const cases = CANVAS_CASE_IDS.map(title => ({ title: `${title}：case`, status: 'passed' }));
+test('manual full run requires all ten distinct retained IDs', () => {
+  const all = ALL_CASE_IDS.map(title => ({ title: `${title}: case`, status: 'passed' }));
+  assert.equal(all.length, 10);
+  assert.equal(hasCompleteAllScope(all), true);
+  assert.equal(hasCompleteAllScope(cases), false);
+  assert.equal(hasCompleteAllScope([...all.slice(0, -1), all[0]]), false);
+});
 test('canvas scope is exactly six unchanged controls and EXP-TC-01', () => {
   assert.deepEqual(CANVAS_CASE_IDS, ['TC-00','TC-01','TC-02','TC-03','TC-04','TC-05','EXP-TC-01']);
   assert.equal(CANVAS_MAX_GENERATIONS_PER_RUN, 8);
