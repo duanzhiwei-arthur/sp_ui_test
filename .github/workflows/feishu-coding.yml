@@ -1,0 +1,104 @@
+name: Private Feishu coding
+run-name: 'Feishu coding ${{ inputs.action }} ${{ inputs.task_id }}'
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        required: true
+        options: [draft, publish, verify]
+      task_id:
+        type: string
+        required: true
+      owner:
+        type: string
+        required: true
+      request:
+        type: string
+        required: false
+      expected_sha:
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: feishu-private-coding
+  cancel-in-progress: false
+jobs:
+  coding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CODE_ACTION: ${{ inputs.action }}
+      CODE_TASK: ${{ inputs.task_id }}
+      CODE_OWNER: ${{ inputs.owner }}
+      CODE_EXPECTED_SHA: ${{ inputs.expected_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare harmless validation fixture (no owner or credentials)
+        id: verify_plan
+        if: inputs.action == 'verify'
+        run: node automation/coding-agent/worker.mjs verify-prepare
+      - name: Generate bounded draft (no model shell)
+        id: plan
+        if: inputs.action == 'draft'
+        env:
+          CODE_REQUEST: ${{ inputs.request }}
+          FEISHU_CODING_GITHUB_TOKEN: ${{ secrets.FEISHU_CODING_GITHUB_TOKEN }}
+          CODING_LLM_BASE_URL: ${{ secrets.CODING_LLM_BASE_URL }}
+          CODING_LLM_API_KEY: ${{ secrets.CODING_LLM_API_KEY }}
+          CODING_LLM_MODEL: ${{ secrets.CODING_LLM_MODEL }}
+        run: node automation/coding-agent/worker.mjs prepare
+      - name: Materialize without executing generated code
+        id: materialize
+        if: steps.plan.outcome == 'success' || steps.verify_plan.outcome == 'success'
+        env:
+          CODE_BASE_SHA: ${{ steps.plan.outputs.base || steps.verify_plan.outputs.base }}
+        run: node automation/coding-agent/worker.mjs materialize
+      - name: Isolated syntax and type checks (no network or secrets)
+        id: validation
+        if: steps.materialize.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Install only locked dependencies from trusted main, no lifecycle hooks.
+          npm ci --ignore-scripts
+          docker pull node:22-bookworm-slim
+          # Only the candidate and trusted dependencies are mounted. No .git,
+          # Docker socket, home directory, tokens, or caller environment is passed.
+          # No browser/business tests, real generation, purchases or notifications.
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --pids-limit 128 --memory 2g --cpus 2 \
+            --user 65534:65534 --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -e HOME=/tmp -e CI=true \
+            -v "$PWD/.coding-candidate:/work:ro" \
+            -v "$PWD/node_modules:/work/node_modules:ro" -w /work \
+            node:22-bookworm-slim sh -ec '
+              node node_modules/typescript/bin/tsc --noEmit
+              node node_modules/typescript/bin/tsc --noEmit -p experiments/canvas-v3/tsconfig.json
+              find automation -type f -name "*.mjs" -print0 | xargs -0 -r -n 1 node --check
+            '
+      - name: Persist draft and reply privately
+        if: always() && inputs.action == 'draft'
+        env:
+          CODE_PLAN_RESULT: ${{ steps.plan.outcome }}
+          CODE_VALIDATION_RESULT: ${{ steps.validation.outcome }}
+          CODE_BASE_SHA: ${{ steps.plan.outputs.base }}
+          FEISHU_CODING_GITHUB_TOKEN: ${{ secrets.FEISHU_CODING_GITHUB_TOKEN }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+        run: node automation/coding-agent/worker.mjs finish
+      - name: Publish exact owner-approved commit and sync project replica
+        if: inputs.action == 'publish'
+        env:
+          FEISHU_CODING_GITHUB_TOKEN: ${{ secrets.FEISHU_CODING_GITHUB_TOKEN }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+        run: node automation/coding-agent/worker.mjs publish

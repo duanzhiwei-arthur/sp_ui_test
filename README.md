@@ -102,3 +102,7 @@ node automation/check-project-sync.mjs /path/to/sp_ui_test /path/to/shop-test-ag
 群内任何人真正 `@机器人 停止通知` / `开启通知` / `通知状态` 即可控制本群通知，不限制管理员名单。只暂停定时结果卡片、失败提醒和视频，不停止测试；手动执行/查询不受影响。设置按群持久化，恢复不补发历史通知。
 
 部署需同时配置机器人运行环境和 Actions 的 `FEISHU_NOTIFICATION_TOKEN`（Variables 权限），以及机器人 `FEISHU_BOT_OPEN_ID`。读开关异常时保护性跳过定时群通知，不改变测试结果。步骤与验证见 [通知开关说明](automation/NOTIFICATION-CONTROL.md)。
+
+## 本人专用飞书编程
+
+机器人新增独立私聊编程入口：一次性绑定本人后，`改代码：需求`生成并静态检查草稿；`发布代码 任务编号 完整提交SHA`才将对应改动发布到本仓库并同步项目副本。仅固定sp_ui_test仓库，不开放给其他群成员。公开仓库的草稿分支也公开可见。支持范围、身份绑定和配置见[编程助手](automation/CODING-ASSISTANT.md)。
