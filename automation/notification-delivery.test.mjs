@@ -31,6 +31,7 @@ for (const [name, trigger, state, expected] of [
         if (url === 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal') {
           log('tenant-token'); return Response.json({ code: 0, tenant_access_token: 'fake-only' });
         }
+        if (url.endsWith('/chats/oc_mock')) return Response.json({ code: 0, data: { chat_mode: 'group' } });
         if (url.startsWith('https://open.feishu.cn/open-apis/im/v1/messages?')) {
           log('send-' + JSON.parse(init.body).msg_type);
           return Response.json({ code: 0, data: { message_id: 'om_mock' } });
@@ -85,5 +86,30 @@ for (const broken of [false, true]) {
     assert.equal(lines.filter(row => row.msg_type === 'text').length, broken ? 0 : 1);
     assert.doesNotMatch(JSON.stringify(lines), /user_id=\\"all/);
     if (!broken) assert.equal((JSON.parse(lines[0].content).text.match(/<at /g) ?? []).length, 7);
+  });
+}
+
+for (const [mode, reason, shouldSend] of [['group', 'Error: expect(locator).toBeVisible() failed', false],
+  ['p2p', 'Error: expect(locator).toBeVisible() failed', true], ['group', '[SITE_VERIFICATION] blocked', true],
+  ['group', '[READ_TRANSPORT] timeout', true]]) {
+  test(`group policy real entry ${mode}: ${reason}`, async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'group-policy-'));
+    const log = path.join(directory, 'messages'), preload = path.join(directory, 'mock.mjs'), results = path.join(directory, 'results.json');
+    await writeFile(log, '');
+    await writeFile(results, JSON.stringify({ stats: { expected: 0, unexpected: 1, duration: 1 }, suites: [{ specs: [{ title: 'TC-00: test', tests: [{ status: 'unexpected', results: [{ status: 'failed', error: { message: reason }, attachments: [] }] }] }] }] }));
+    await writeFile(preload, `import {appendFileSync} from 'node:fs';globalThis.fetch=async(url,init)=>{
+      if(url.includes('/auth/v3/'))return Response.json({code:0,tenant_access_token:'fake'});
+      if(url.endsWith('/chats/oc_mock'))return Response.json({code:0,data:{chat_mode:${JSON.stringify(mode)}}});
+      if(url.includes('/im/v1/messages?')){appendFileSync(${JSON.stringify(log)},init.body+'\\n');return Response.json({code:0,data:{message_id:'om_fake'}});}
+      throw Error('Unexpected API');};`);
+    const child = spawnSync(process.execPath, ['--import', preload, fileURLToPath(new URL('./run-and-notify.mjs', import.meta.url)), '--notification-test'], {
+      cwd: directory, encoding: 'utf8', timeout: 10000, env: { PATH: process.env.PATH, DOTENV_CONFIG_PATH: path.join(directory, 'no-env'),
+        SCHEDULED_TEST_MODE: 'safe', PLAYWRIGHT_RESULTS_FILE: results, FEISHU_APP_ID: 'cli_fake', FEISHU_APP_SECRET: 'fake',
+        FEISHU_RECEIVE_ID_TYPE: 'chat_id', FEISHU_RECEIVE_ID: 'oc_mock', FEISHU_FAILURE_MENTIONS_ENABLED: 'false' } });
+    assert.equal(child.status, 0, child.stderr);
+    const sent = await readFile(log, 'utf8');
+    assert.equal(Boolean(sent), shouldSend);
+    if (reason.includes('SITE_VERIFICATION')) assert.match(sent, /人机验证阻断/);
+    if (reason.includes('READ_TRANSPORT')) assert.match(sent, /网络问题/);
   });
 }

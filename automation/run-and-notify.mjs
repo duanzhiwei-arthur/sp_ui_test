@@ -11,6 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { shouldSendScheduledNotification } from './scheduled-notification-policy.mjs';
 import { failureMentionText } from './failure-mentions.mjs';
+import { groupFailurePolicy, buildGroupFailureCard } from './group-failure-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
 import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
@@ -94,7 +95,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
     // Local-only render: no message sending and no test execution.
     console.log(JSON.stringify(card, null, 2));
   } else if (process.argv.includes('--notification-test')) {
-    await sendFeishuNotification(message, summary.failureArtifacts, card, testExitCode !== 0);
+    await sendFeishuNotification(message, summary.failureArtifacts, card, testExitCode !== 0, summary);
   } else {
     console.log(message);
   }
@@ -210,7 +211,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   const card = buildResultCard({ testExitCode: messageExitCode, mode, startedAt, finishedAt, summary });
 
   try {
-    await sendFeishuNotification(message, summary.failureArtifacts, card, messageExitCode !== 0);
+    await sendFeishuNotification(message, summary.failureArtifacts, card, messageExitCode !== 0, summary);
   } catch (error) {
     console.error(`[feishu] 结果通知失败：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -1392,14 +1393,19 @@ function formatRecordTime(date) {
   }).format(date).replaceAll('/', '-').replaceAll(':', '-').replace(/\s+/g, ' ');
 }
 
-async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOnFailure = false) {
+async function sendFeishuNotification(text, failureArtifacts, card, mentionAllOnFailure = false, summary = {}) {
   const appConfig = readAppConfig();
   if (!await shouldSendScheduledNotification(process.env)) return;
   if (appConfig) {
-    await sendAppNotification(appConfig, text, failureArtifacts, card, mentionAllOnFailure);
+    await sendAppNotification(appConfig, text, failureArtifacts, card, mentionAllOnFailure, summary);
     return;
   }
 
+  if (mentionAllOnFailure) {
+    const policy = groupFailurePolicy(summary);
+    if (policy.suppress) { console.log('[feishu] 仅断言/交互检查异常，抑制群告警；原失败状态与证据保留。'); return; }
+    text = policy.reportable.map(row => `${row.kinds.join('、')}｜${row.title}\n${row.reason}`).join('\n\n') || '执行或报告不完整，原因待查。';
+  }
   await sendWebhookMessage(text);
 }
 
@@ -1423,8 +1429,19 @@ function readAppConfig() {
   return values;
 }
 
-async function sendAppNotification(config, text, failureArtifacts, card, mentionAllOnFailure) {
+async function sendAppNotification(config, text, failureArtifacts, card, mentionAllOnFailure, summary) {
   const token = await getTenantAccessToken(config);
+  if (mentionAllOnFailure && config.receiveIdType === 'chat_id' && process.env.FEISHU_PRIVATE_REPORT !== 'true') {
+    // A chat_id may be P2P. Private reports must retain every failure.
+    const chat = await fetchFeishu(`/open-apis/im/v1/chats/${encodeURIComponent(config.receiveId)}`, { headers: { authorization: `Bearer ${token}` } });
+    if (['group', 'topic'].includes(chat.data?.chat_mode)) {
+      const policy = groupFailurePolicy(summary);
+      if (policy.suppress) { console.log('[feishu] 仅断言/交互检查异常，抑制群卡片、@提醒和录像；原失败状态与证据保留。'); return; }
+      card = buildGroupFailureCard(summary, policy, buildGitHubRunUrl());
+      const allowed = new Set(policy.reportable.map(row => row.title));
+      failureArtifacts = failureArtifacts.filter(row => allowed.has(row.title));
+    }
+  }
   const preparedArtifacts = [];
 
   for (const artifact of failureArtifacts) {
