@@ -101,26 +101,8 @@ export async function collectGenerationEvidence(result, root = process.cwd()) {
   const evidence = { source: '该失败尝试的 Playwright Trace / 生成 SSE', records: [], streams: [],
     startedAt, endedAt: Number.isFinite(endMs) ? new Date(endMs).toISOString() : null,
     timeBasis: '用例开始至失败（未取得生成请求时间）', gap: '' };
-  // The passive per-attempt collector survives large/unreadable traces. Only
-  // correlate an asset with one in-window request; never borrow another run.
-  try {
-    const audit = result.attachments?.find(item => item.name === 'run-assets' && typeof item.body === 'string' && item.body.length < 350_000);
-    if (audit) {
-      const data = JSON.parse(Buffer.from(audit.body, 'base64').toString('utf8'));
-      const requests = (data.generationRequests ?? []).filter(r => iso(r.at) && startedAt && Date.parse(r.at) >= Date.parse(startedAt) && Date.parse(r.at) <= endMs);
-      for (const asset of (data.assets ?? []).slice(0, 20)) {
-        const matches = requests.filter(r => safeId(r.traceId) && r.traceId === asset.traceId);
-        const request = matches.length === 1 ? matches[0] : requests.length === 1 ? requests[0] : null;
-        if (!request || !safeId(asset.assetId)) continue;
-        evidence.records.push({ taskId: safeId(asset.taskId), assetId: safeId(asset.assetId),
-          traceIds: [...new Set([safeId(asset.traceId), safeId(request.traceId)].filter(Boolean))],
-          requestIds: [safeId(request.requestId)].filter(Boolean), startedAt: iso(request.at) });
-      }
-      if (evidence.records.length) { evidence.source += ' / 本次资产审计'; evidence.timeBasis = '本次生成请求至用例失败'; }
-    }
-  } catch { /* optional evidence must not change the test outcome */ }
   const attachment = result.attachments?.find(item => item.name === 'trace' && item.path);
-  if (!attachment) { evidence.gap = '未采集到 Trace；仅展示本次资产审计中已确认的标识'; return evidence; }
+  if (!attachment) { evidence.gap = '未采集到 Trace，无法获取生成任务标识'; return evidence; }
   try {
     const resultsRoot = await realpath(path.join(root, 'test-results'));
     const zip = await realpath(path.resolve(root, attachment.path));
@@ -163,9 +145,8 @@ export async function collectGenerationEvidence(result, root = process.cwd()) {
     if (!evidence.records.some(record => record.taskId || record.assetId)) evidence.gap = 'Trace 中未采集到可解析的生成任务事件（请求可能未结束或事件缺失）；已尽可能保留响应头标识';
   } catch {
     // Evidence failures must never change a test result or block notifications.
-    evidence.gap = 'Trace 不可读、超过读取限额或本机 unzip 不可用；已尽可能保留本次资产审计标识，流事件可能不完整';
+    evidence.gap = 'Trace 不可读、超过读取限额或本机 unzip 不可用；标识未完整采集';
   }
-  evidence.records = evidence.records.filter((r, index, all) => all.findIndex(other => other.taskId === r.taskId && other.assetId === r.assetId && other.startedAt === r.startedAt) === index);
   return evidence;
 }
 

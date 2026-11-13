@@ -30,8 +30,7 @@ export function normalizeTestFile(file, root = process.cwd()) {
   const relative = path.isAbsolute(file) ? path.relative(root, file) : file;
   const normalized = relative.replaceAll('\\', '/');
   if (!/^[\w./-]+\.ts$/u.test(normalized) || normalized.split('/').includes('..')) return undefined;
-  if (normalized === 'daily-parity.spec.ts') return 'experiments/canvas-v3/daily-parity.spec.ts';
-  return /^(tests|experiments)\//u.test(normalized) ? normalized : `tests/${normalized}`;
+  return normalized.startsWith('tests/') ? normalized : `tests/${normalized}`;
 }
 
 // 新附件采用字段允许列表：保留排查标识，不让通用手机号脱敏破坏时间/Request ID。
@@ -89,7 +88,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     let context = '';
     const runtimeDiagnostics = [];
     if (evidenceResult) {
-      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics', 'canvas-assignment'] : ['run-assets', 'ga-cookie-diagnostics', 'canvas-assignment']).includes(a.name)).slice(0, 8)) {
+      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics'] : ['run-assets', 'ga-cookie-diagnostics']).includes(a.name)).slice(0, 8)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.
@@ -120,7 +119,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
         } catch { /* Not every attachment has context. Explicit empty below. */ }
       }
     }
-    cases.push({ title: redact(item.title), file: normalizeTestFile(report.config?.rootDir && item.file ? path.resolve(report.config.rootDir, item.file) : item.file, root), line: item.line, status: item.status,
+    cases.push({ title: redact(item.title), file: normalizeTestFile(item.file, root), line: item.line, status: item.status,
       failureCategory: result ? failureCategory(result.error?.message) : undefined,
       error: redact(result?.error?.message ?? result?.errors?.map(e => e.message).join('\n')).slice(0, 8000),
       failedSteps: (result?.steps ?? []).filter(step => step.error).map(step => redact(step.title)),

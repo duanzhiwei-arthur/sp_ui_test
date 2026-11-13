@@ -9,7 +9,6 @@
     "test:experiments": "node automation/run-experiment-suite.mjs",
     "test:experiments:membership": "playwright test tests/zz-experiments/membership-banner.spec.ts",
     "test:canvas": "playwright test --config experiments/canvas-v3/playwright.config.ts",
-    "test:canvas:stable": "playwright test --config experiments/canvas-v3/stable.config.ts",
     "typecheck:canvas": "tsc --noEmit -p experiments/canvas-v3/tsconfig.json",
     "test:daily": "playwright test tests/00-safe-cases.spec.ts tests/full-flow-inventory.spec.ts tests/generation.spec.ts --grep 'TC-00|TC-01|TC-02|TC-03|TC-04|TC-05' --project=chromium",
     "test:daily:confirmed": "ALLOW_PRODUCTION_GENERATION=true CONFIRM_PRODUCTION_GENERATION=YES npm run test:daily",

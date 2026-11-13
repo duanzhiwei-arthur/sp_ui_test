@@ -11,7 +11,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
-import { buildCanvasResultCard, isCanvasTreatment } from './canvas-result-card.mjs';
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
 import { gaCookieRows } from './ga-cookie.mjs';
 import { deliverFailureVideo } from './failure-video-delivery.mjs';
@@ -30,7 +29,6 @@ const mode = requestedMode === 'homepage-clickable'
     ? 'daily'
     : requestedMode;
 const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
-const canvasDaily = mode === 'daily' && process.env.CANVAS_AB_ENABLED === 'true';
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
 const maxFileBytes = 30 * 1024 * 1024;
@@ -111,18 +109,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   await rm(resultsFile, { force: true });
 
   const playwrightBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
-  const playwrightArgs = canvasDaily ? ['test', '--config=experiments/canvas-v3/stable.config.ts', '--retries=0'] : ['test', '--project=chromium', '--retries=0'];
-  if (canvasDaily) {
-    if (!process.env.CANVAS_CONTROL_STABLE_ID?.trim() || !process.env.CANVAS_TREATMENT_STABLE_ID?.trim()) throw new Error('画板双组定时任务必须同时配置对照与实验stable_id');
-    if (!process.env.CANVAS_PARITY_LEDGER) {
-      // Both groups: six initial generations plus at most six isolated
-      // rechecks. Local QA uses its shared daily ledger instead.
-      if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('本地双组运行需指定CANVAS_PARITY_LEDGER共享账本');
-      process.env.CANVAS_PARITY_LEDGER = path.join(projectRoot, 'test-results', `canvas-budget-${Date.now()}.json`);
-      await (await import('node:fs/promises')).mkdir(testResultsDir, { recursive: true });
-      await writeFile(process.env.CANVAS_PARITY_LEDGER, JSON.stringify({ scope: 'run', runId: process.env.GITHUB_RUN_ID, date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date()), limit: 12, attempts: 0, basis: '本次双组定时任务及每条最多一次复核', entries: [] }), { flag: 'wx' });
-    }
-  } else if (mode === 'safe') {
+  const playwrightArgs = ['test', '--project=chromium', '--retries=0'];
+  if (mode === 'safe') {
     playwrightArgs.push('tests/00-safe-cases.spec.ts');
   } else if (mode === 'homepage-clickable') {
     playwrightArgs.push('tests/home-clickable.spec.ts', '--grep', 'TC-001');
@@ -140,8 +128,6 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
   const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
-    PLAYWRIGHT_RESULTS_FILE: resultsFile,
-    ...(canvasDaily ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
     ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
     CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
     TRACKING_TEST_ENABLED: 'false',
@@ -149,29 +135,16 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   });
 
   let summary = await loadSummary();
-  if (canvasDaily) {
-    const expected = [...Array.from({ length: 6 }, (_, i) => `TC-0${i}`), ...Array.from({ length: 5 }, (_, i) => `EXP-TC-0${i + 1}`)];
-    const actual = summary.caseResults.map(row => row.title.split(/[：:]/u)[0]);
-    if (expected.some(id => actual.filter(value => value === id).length !== 1) || actual.length !== 11 || summary.caseResults.some(row => row.status === 'skipped')) {
-      summary.reportErrors = [...(summary.reportErrors ?? []), { message: '画板双组应完整执行11条，不允许缺组、重复或跳过冒充通过' }];
-      try {
-        const raw = JSON.parse(await readFile(resultsFile, 'utf8'));
-        await writeFile(resultsFile, JSON.stringify({ ...raw, errors: summary.reportErrors }, null, 2));
-      } catch { console.error('[canvas] 完整性检查失败且报告无法写回，保留内存失败状态'); }
-    }
-  }
   const recheckCases = recheckableCases(mode, summary.caseResults);
   for (const [index, failedCase] of (process.env.DISABLE_FAILURE_RECHECK === 'true' ? [] : recheckCases).entries()) {
     const recheckResultsFile = path.join(testResultsDir, `failure-recheck-${index + 1}-results.json`);
     await rm(recheckResultsFile, { force: true });
-    const recheckArgsValue = recheckArgs(mode, canvasDaily ? [{ ...failedCase, file: undefined }] : [failedCase]);
+    const recheckArgsValue = recheckArgs(mode, [failedCase]);
     console.log(`[recheck] 30秒冷却后单独复核（最多一次）：${failedCase.title}`);
     await delay(30_000);
-    const projectArgs = canvasDaily ? ['--config=experiments/canvas-v3/stable.config.ts', `--project=${isCanvasTreatment(failedCase.title) ? 'canvas-treatment' : 'canvas-control'}`] : ['--project=chromium'];
-    const recheckExit = await run(playwrightBin, ['test', ...projectArgs, '--retries=0',
+    const recheckExit = await run(playwrightBin, ['test', '--project=chromium', '--retries=0',
       '--output', path.join(testResultsDir, `failure-recheck-artifacts-${index + 1}`), ...recheckArgsValue], {
       ...process.env, PLAYWRIGHT_RESULTS_FILE: recheckResultsFile,
-      ...(canvasDaily ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
       PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(projectRoot, 'playwright-report', `failure-recheck-${index + 1}`),
       ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
       CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
@@ -293,8 +266,7 @@ async function collectFailures(suite, failures, failureArtifacts, failureDetails
   for (const spec of suite.specs ?? []) {
     const caseStatus = resolveCaseStatus(spec);
     const rawFile = spec.file ?? suite.file;
-    const file = isCanvasTreatment(spec.title) ? 'experiments/canvas-v3/daily-parity.spec.ts'
-      : rawFile && (path.isAbsolute(rawFile) ? rawFile : rawFile.startsWith('tests/') ? rawFile : `tests/${path.basename(rawFile)}`);
+    const file = rawFile && (path.isAbsolute(rawFile) ? rawFile : rawFile.startsWith('tests/') ? rawFile : `tests/${rawFile}`);
     const gaCookie = await collectGaCookie(spec.tests ?? []);
     caseResults.push({ title: spec.title, status: caseStatus, file, gaCookie });
     if (['failed', 'flaky'].includes(caseStatus)) {
@@ -491,7 +463,6 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 }
 
 function executionScopeLabel() {
-  if (canvasDaily) return '画板对照组 TC-00～TC-05 + 画板实验组 EXP-TC-01～05';
   if (mode === 'all') return '全部用例（真实生成）';
   if (mode === 'daily') return '日常回归 TC-00～TC-05（真实生成用例含 TC-03～TC-05）';
   if (mode === 'homepage-clickable') return '首页按钮巡检 TC-001（无生成）';
@@ -534,7 +505,6 @@ function loadExperimentCommandRegistry() {
 }
 
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
-  if (canvasDaily || summary.caseResults?.some(item => isCanvasTreatment(item.title))) return buildCanvasResultCard({ summary, testExitCode, finishedAt, runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl() });
   const compactCard = buildCompactSuccessCard({
     testExitCode, summary, finishedAt,
     scope: mode === 'daily' ? '日常回归 · TC-00～TC-05' : executionScopeLabel(),

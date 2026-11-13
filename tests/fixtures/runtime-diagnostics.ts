@@ -2,7 +2,6 @@ import { type Page, type Request, type ConsoleMessage } from '@playwright/test';
 import { test as base, expect } from './ga-cookie.js';
 import { watchSiteAccess } from '../pages/site-access.js';
 import { RunAssets, registerRunAssets } from './run-assets.js';
-import { installCanvasAssignment, assertCanvasAssignment, type CanvasAssignment } from './canvas-assignment.js';
 
 export function redactDiagnostic(value: string): string {
   return value.replace(/\b(?:sk-|gh[pousr]_|github_pat_)[\w-]+/gu, '[SECRET]')
@@ -93,20 +92,7 @@ export function monitorPage(page: Page) {
 
 export { readGaCookie } from './ga-cookie.js';
 
-export const test = base.extend<{ runtimeDiagnostics: void; canvasAssignment: void }>({
-  canvasAssignment: [async ({ context, page, baseURL }, use, testInfo) => {
-    const assignment = testInfo.project.metadata.canvasAssignment as CanvasAssignment | undefined;
-    if (assignment) {
-      await installCanvasAssignment(context, baseURL!, assignment);
-      testInfo.annotations.push({ type: 'stable_id', description: assignment.stableId }, { type: 'canvas_variant', description: assignment.variant });
-    }
-    await use();
-    // Existing control cases own their navigation. Verify the actual assignment
-    // after their normal page is ready, avoiding a second navigation that can
-    // trigger rate limits and change the tested timing. Treatment board cases
-    // assert before their first business action in board.ready().
-    if (assignment?.variant === 'control' && !page.isClosed()) await assertCanvasAssignment(page, testInfo, assignment);
-  }, { auto: true, timeout: 120_000 }],
+export const test = base.extend<{ runtimeDiagnostics: void }>({
   runtimeDiagnostics: [async ({ page }, use, testInfo) => {
     const monitor = monitorPage(page);
     const access = watchSiteAccess(page);

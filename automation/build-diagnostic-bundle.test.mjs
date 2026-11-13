@@ -47,8 +47,6 @@ test('Playwright relative and absolute file names resolve to repository test sou
   assert.equal(normalizeTestFile('tests/full-flow-inventory.spec.ts'), 'tests/full-flow-inventory.spec.ts');
   assert.equal(normalizeTestFile('/repo/tests/a.spec.ts', '/repo'), 'tests/a.spec.ts');
   assert.equal(normalizeTestFile('../private.ts'), undefined);
-  assert.equal(normalizeTestFile('daily-parity.spec.ts'), 'experiments/canvas-v3/daily-parity.spec.ts');
-  assert.equal(normalizeTestFile('experiments/canvas-v3/daily-parity.spec.ts'), 'experiments/canvas-v3/daily-parity.spec.ts');
 });
 
 test('nested suites retain all case statuses', () => {

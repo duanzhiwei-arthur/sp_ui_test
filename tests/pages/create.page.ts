@@ -3,7 +3,6 @@ import { gotoWithDiagnostics } from './navigation.js';
 import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js';
 import { waitForGenerationState } from './generation-wait.js';
 import { runAssets, optionalRunAssets } from '../fixtures/run-assets.js';
-import { reserveCanvasGeneration } from '../fixtures/generation-budget.js';
 
 const customizerTimeout = 120_000;
 const generationTimeout = 300_000;
@@ -235,7 +234,6 @@ export class CreatePage {
 
   async startGeneration(): Promise<void> {
     await expect(this.generateButton).toBeEnabled();
-    reserveCanvasGeneration('画板对照组生成；失败/超时保守计入，不自动回退');
     const assets = optionalRunAssets(this.page);
     assets?.beginGeneration();
     try { await this.click(this.generateButton); }
@@ -336,7 +334,7 @@ export class CreatePage {
           .slice(0, 5))
         .catch(() => []);
       throw new Error(
-        `[GENERATION_TIMEOUT] 生成图片未完成加载；图片状态=${JSON.stringify(imageState)}；页面错误=${JSON.stringify(visibleErrors)}；等待原因=${error instanceof Error ? error.message : String(error)}`,
+        `生成图片未完成加载；图片状态=${JSON.stringify(imageState)}；页面错误=${JSON.stringify(visibleErrors)}`,
         { cause: error }
       );
     }
@@ -348,18 +346,9 @@ export class CreatePage {
   }
 
   async waitForTwoDGeneration(): Promise<void> {
-    // The app can switch to 3D automatically. A hidden/lazy 2D image may
-    // never finish loading until its view is selected. Do not accept width
-    // alone (a partially downloaded image can already have dimensions).
-    await waitForGenerationState(this.page, () => this.twoDResultImage.count().then(count => count === 1), generationTimeout, '等待生成图片节点及2D入口');
-    await waitForGenerationState(this.page, async () => {
-      if (await this.twoDResultImage.isVisible()) return true;
-      // asset_2d_done can auto-switch the view after an earlier click. Only
-      // reselect the read-only 2D tab; never regenerate or click Retry.
-      if (await this.twoDButton.isVisible() && await this.twoDButton.isEnabled()) await this.twoDButton.click({ timeout: 3_000 });
-      return this.twoDResultImage.isVisible();
-    }, generationTimeout, '展示生成2D结果');
-    await this.twoDResultImage.scrollIntoViewIfNeeded({ timeout: customizerTimeout });
+    // The app may hide the completed 2D result after automatically opening the 3D view.
+    await this.expectImageResourceLoaded(this.twoDResultImage, generationTimeout);
+    await this.click(this.twoDButton);
     await this.expectImageLoaded(this.twoDResultImage, generationTimeout);
   }
 
