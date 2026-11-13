@@ -21,7 +21,11 @@ export default defineConfig({
     launchOptions: { slowMo: options.slowMo },
     viewport: { width: 1440, height: 1000 }, storageState: { cookies: [], origins: [] },
     navigationTimeout: 120_000, actionTimeout: 60_000,
-    screenshot: 'only-on-failure', trace: 'retain-on-failure', video: 'retain-on-failure' },
+    // Polling DOM snapshots and response bodies dominate multi-GB traces.
+    // Keep actions/logs, failure screenshots and video; full trace is opt-in.
+    screenshot: 'only-on-failure', trace: process.env.QA_FULL_TRACE === 'true' ? 'retain-on-failure'
+      : { mode: 'retain-on-failure', snapshots: false, screenshots: false, sources: false, attachments: false },
+    video: 'retain-on-failure' },
   projects: [
     ...(control ? [{ name: 'canvas-control', workers: 1, testDir: path.resolve(__dirname, '../../tests'),
       testMatch: ['00-safe-cases.spec.ts', 'full-flow-inventory.spec.ts', 'generation.spec.ts'],

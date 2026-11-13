@@ -73,7 +73,12 @@ export function sanitizeGaCookie(value) {
 const attachmentText = (name, text) => name === 'ga-cookie-diagnostics'
   ? JSON.stringify(sanitizeGaCookie(JSON.parse(text))) : name === 'site-access-diagnostics'
   ? JSON.stringify(sanitizeSiteAccess(JSON.parse(text))) : name === 'run-assets'
-    ? JSON.stringify(sanitizeRunAssets(JSON.parse(text))) : redact(text).slice(0, 20000);
+    ? JSON.stringify(sanitizeRunAssets(JSON.parse(text))) : name === 'phase-timings'
+      ? JSON.stringify(JSON.parse(text).slice(0,100).map(row => ({ label: redact(row.label).slice(0,150),
+        budgetMs: Number.isFinite(row.budgetMs) ? row.budgetMs : null,
+        elapsedMs: Number.isFinite(row.elapsedMs) ? row.elapsedMs : null,
+        polls: Number.isSafeInteger(row.polls) ? row.polls : null,
+        ...(typeof row.passed === 'boolean' ? { passed: row.passed } : {}) }))) : redact(text).slice(0, 20000);
 
 export async function buildBundle(root = process.cwd(), env = process.env) {
   const resultsRoot = path.join(root, 'test-results');
@@ -89,7 +94,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     let context = '';
     const runtimeDiagnostics = [];
     if (evidenceResult) {
-      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics'] : ['run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics']).includes(a.name)).slice(-16)) {
+      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings'] : ['run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings']).includes(a.name)).slice(-16)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.

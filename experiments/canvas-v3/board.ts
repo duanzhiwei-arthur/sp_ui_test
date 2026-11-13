@@ -1,4 +1,4 @@
-import { errors, type Page, type TestInfo } from '@playwright/test';
+import { type Page, type TestInfo } from '@playwright/test';
 import { test as base, expect } from '../../tests/fixtures/runtime-diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +11,7 @@ import { readCartJson } from '../../tests/fixtures/read-only-retry.js';
 import { gotoWithDiagnostics } from '../../tests/pages/navigation.js';
 import { assertSiteAccess, expectVisibleWithAccessCheck } from '../../tests/pages/site-access.js';
 import { waitForGenerationState } from '../../tests/pages/generation-wait.js';
+import { selectCanvasView } from '../../tests/pages/canvas-view.js';
 
 type RecordRow = { at: string; method: string; path: string; status?: number; trace?: string; taskId?: string };
 export class ExperimentBoard {
@@ -130,34 +131,25 @@ export class ExperimentBoard {
     // 新版隐藏的2D图使用lazy loading：先切到2D并滚入视口，不能对隐藏图先等naturalWidth。
     await waitForGenerationState(this.page, async () => await image.count() === 1, 300_000, '等待新画板2D图片节点');
     const switch2d = this.root.getByRole('button', { name: /^(Switch to )?2D$/ }).filter({ visible: true });
-    await waitForGenerationState(this.page, async () => {
-      if (await image.isVisible()) return true;
-      if (await switch2d.count() && await switch2d.isEnabled()) {
-        try {
-          // An animated/loading view switch can stay unstable for several
-          // seconds. Retry only this idempotent view selection within the
-          // existing phase deadline, checking service/access errors each loop.
-          await switch2d.click({ trial: true, timeout: 1_000 });
-          await switch2d.click({ timeout: 1_000 });
-        } catch (error) {
-          if (!(error instanceof errors.TimeoutError)) throw error;
-          return image.isVisible();
-        }
-      }
-      return image.isVisible();
-    }, 300_000, '等待新画板真实2D切换完成');
+    // A hidden image node can exist while the model is still generating and
+    // the view switch is not rendered. Do not charge that time to UI switching.
+    await waitForGenerationState(this.page, async () => await image.isVisible()
+      || await switch2d.count() === 1 && await switch2d.isEnabled(), 300_000, '等待新画板2D结果可展示或切换入口');
+    const switched = await selectCanvasView(this.page, switch2d, () => image.isVisible());
+    this.note('2D视图切换诊断', switched);
+    if (switched.pointerTimeouts) this.info.annotations?.push({ type: 'read-only-retry', description: `2D切换恢复：鼠标超时${switched.pointerTimeouts}次，键盘恢复=${switched.keyboardUsed}，未重新生成` });
     await expect(image).toBeVisible(); await image.scrollIntoViewIfNeeded();
     await waitForGenerationState(this.page, () => image.evaluateAll(es => es.some(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), 300_000, '等待新画板真实2D图片加载成功');
     this.note('真实2D', '生成图片实际加载并可见');
     await this.captureNewRecords();
   }
   async wait3DAndRotate() {
-    const switch3d = this.root.getByRole('button', { name: /^(Switch to )?3D$/ }).filter({ visible: true });
-    if (await switch3d.count()) {
-      await waitForGenerationState(this.page, () => switch3d.isEnabled(), 300_000, '等待新画板3D切换可用');
-      await switch3d.click();
-    }
     const model = this.root.locator('model-viewer').filter({ visible: true }).first();
+    const switch3d = this.root.getByRole('button', { name: /^(Switch to )?3D$/ }).filter({ visible: true });
+    await waitForGenerationState(this.page, async () => await model.isVisible() || await switch3d.count() === 1 && await switch3d.isEnabled(), 300_000, '等待新画板3D生成或切换入口');
+    const switched = await selectCanvasView(this.page, switch3d, () => model.isVisible());
+    this.note('3D视图切换诊断', switched);
+    if (switched.pointerTimeouts) this.info.annotations?.push({ type: 'read-only-retry', description: `3D切换恢复：鼠标超时${switched.pointerTimeouts}次，键盘恢复=${switched.keyboardUsed}，未重新生成` });
     await waitForGenerationState(this.page, () => model.isVisible(), 300_000, '等待新画板3D视图');
     await model.scrollIntoViewIfNeeded();
     await waitForGenerationState(this.page, () => model.evaluate(e => Boolean((e as unknown as { loaded: boolean }).loaded)), 300_000, '等待新画板真实3D模型loaded=true');
@@ -190,16 +182,22 @@ export class ExperimentBoard {
       // centre outside its visible area. Recompute a hit-tested visible point
       // before each safe wheel gesture; don't mistake page scrolling for zoom.
       await model.scrollIntoViewIfNeeded();
-      const point = await model.evaluate(e => {
+      const probePoint = () => model.evaluate(e => {
         const r = e.getBoundingClientRect();
         const top = Math.max(r.top, Math.min(140, innerHeight / 4));
         const bottom = Math.min(r.bottom, innerHeight - 40);
         const left = Math.max(0, r.left), right = Math.min(innerWidth, r.right);
-        const x = (left + right) / 2, y = (top + bottom) / 2;
-        const hit = document.elementFromPoint(x, y);
-        return { x, y, visible: bottom > top && right > left, hit: hit === e || Boolean(hit && e.contains(hit)) };
+        for (const yy of [.5, .3, .7]) for (const xx of [.5, .3, .7]) {
+          const x = left + (right - left) * xx, y = top + (bottom - top) * yy;
+          const hit = document.elementFromPoint(x, y);
+          if (hit === e || Boolean(hit && e.contains(hit))) return { x, y, hit: true };
+        }
+        return { x: 0, y: 0, hit: false };
       });
-      expect(point.visible && point.hit, '滚轮落点必须属于实际可见的模型，不被页头/遮罩截走').toBe(true);
+      await expect.poll(async () => (await probePoint()).hit,
+        { timeout, message: '等待模型加载遮罩退出并取得实际无遮挡滚轮落点' }).toBe(true);
+      const point = await probePoint();
+      expect(point.hit, '滚轮落点必须属于模型，不绕过遮罩').toBe(true);
       await this.page.mouse.move(point.x, point.y);
       await this.page.mouse.wheel(0, delta);
       await this.page.waitForTimeout(300); // allow camera inertia, not task completion

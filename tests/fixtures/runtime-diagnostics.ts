@@ -112,6 +112,8 @@ export const test = base.extend<{ runtimeDiagnostics: void; canvasAssignment: vo
     await assets.install();
     try { await use(); } finally {
       try {
+        const phases = (page as Page & { __qaPhaseTimings?: unknown[] }).__qaPhaseTimings ?? [];
+        await testInfo.attach('phase-timings', { body: JSON.stringify(phases), contentType: 'application/json' });
         const snapshot = await monitor.snapshot();
         await testInfo.attach('runtime-diagnostics', { body: JSON.stringify(snapshot, null, 2), contentType: 'application/json' });
         if (testInfo.status !== testInfo.expectedStatus && !page.isClosed()) {

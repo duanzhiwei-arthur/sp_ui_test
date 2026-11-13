@@ -3,6 +3,51 @@ import { CreatePage } from '../../tests/pages/create.page.js';
 import { generationFailure, waitForGenerationState } from '../../tests/pages/generation-wait.js';
 import { ExperimentBoard } from '../../experiments/canvas-v3/board.js';
 import type { TestInfo } from '@playwright/test';
+import { selectCanvasView } from '../../tests/pages/canvas-view.js';
+
+test('permanently animated view button uses native keyboard recovery without generating', async ({ page }) => {
+  await page.setContent(`<style>@keyframes moving{from{transform:translateX(0)}to{transform:translateX(40px)}}button{animation:moving .3s infinite alternate}</style><button aria-label="Switch to 2D">2D</button><img hidden width="100" height="100" alt="result">`);
+  await page.evaluate(() => { document.querySelector('button')!.onclick = () => { document.querySelector('img')!.hidden = false; }; });
+  const result = await selectCanvasView(page, page.getByRole('button', { name: 'Switch to 2D' }), () => page.getByAltText('result').isVisible(), 10000);
+  expect(result.keyboardUsed).toBe(true);
+});
+
+test('view activation does not bypass an overlay', async ({ page }) => {
+  await page.setContent('<button>2D</button><div style="position:fixed;inset:0;background:white"></div>');
+  await page.evaluate(() => { document.querySelector('button')!.onclick = () => { document.body.dataset.clicked = 'yes'; }; });
+  await expect(selectCanvasView(page, page.getByRole('button'), async () => false, 400)).rejects.toThrow('UI_VIEW_TIMEOUT');
+  expect(await page.locator('body').getAttribute('data-clicked')).toBeNull();
+});
+
+test('canvas zoom waits for a temporary model loading overlay instead of bypassing it', async ({ page }, info) => {
+  await page.setContent('<div id="jjb-create-canvas"><model-viewer style="display:block;width:400px;height:400px;position:relative"><div id="cover" style="position:absolute;inset:0;background:white"></div></model-viewer></div>');
+  await page.evaluate(() => {
+    customElements.define('model-viewer', class extends HTMLElement {
+      loaded = true; radius = 10;
+      getCameraOrbit() { return { radius: this.radius }; }
+      connectedCallback() { this.addEventListener('wheel', e => { e.preventDefault(); this.radius *= (e as WheelEvent).deltaY < 0 ? .8 : 1.25; }, { passive: false }); }
+    });
+    // Use a sibling overlay: elements inside the model can be native controls.
+    const cover = document.querySelector('#cover')!;
+    document.body.append(cover);
+    cover.setAttribute('style', 'position:fixed;inset:0;background:white;z-index:999');
+    setTimeout(() => cover.remove(), 500);
+  });
+  await new ExperimentBoard(page, info).zoomThreeD(2000);
+});
+
+test('hidden image placeholder does not start UI switch budget before generation exposes the button', async ({ page }, info) => {
+  await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><img hidden alt="Generated Toy Result" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22/%3E"></div></div>');
+  await page.evaluate(() => { setTimeout(() => {
+    const button = document.createElement('button'); button.textContent = 'Switch to 2D';
+    button.onclick = () => { document.querySelector('img')!.hidden = false; };
+    document.querySelector('.jjb-v3-viewer')!.append(button);
+  }, 1800); });
+  const board = new ExperimentBoard(page, info);
+  Reflect.set(board, 'generated', true);
+  await board.wait2D();
+  expect(board.checkpoints.some(row => row.name === '真实2D')).toBe(true);
+});
 
 const error = 'runtime run failed: internal LLM service image response must be one trusted stable URL';
 const panel = `<div><p>${error}</p><button>Retry</button></div>`;
@@ -172,4 +217,5 @@ test('raw error is redacted before reporting', async ({ page }) => {
 test('unresponsive readiness callback is bounded', async ({ page }) => {
   await page.setContent(preview(''));
   await expect(waitForGenerationState(page, () => new Promise(() => {}), 150, 'probe')).rejects.toThrow('probe 超过');
+  await expect(waitForGenerationState(page, () => new Promise(() => {}), 150, 'probe')).rejects.toThrow('阶段预算 150ms');
 });

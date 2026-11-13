@@ -1,5 +1,6 @@
 // 分类只解释证据，不参与退出码、复核次数或通过判定。
 export function failureCategory(reason = '') {
+  if (/\[UI_VIEW_TIMEOUT\]/u.test(reason)) return 'ui-view-timeout';
   if (/\[SITE_(VERIFICATION|RATE_LIMITED|ACCESS_DENIED)\]/u.test(reason)) return 'access-blocked';
   if (/\[EXPERIMENT_ASSIGNMENT\]/u.test(reason)) return 'experiment-precondition';
   if (/\[READ_HTTP\]/u.test(reason)) return 'read-http';
@@ -15,7 +16,7 @@ export function failureCategory(reason = '') {
 export function failureCategoryLabel(category) {
   return ({ 'access-blocked':'验证/访问阻断', 'ownership-unconfirmed':'资产归属未确认', 'cart-asset-mismatch':'本轮加购核验失败',
     'experiment-precondition':'实验分组前置未满足', 'read-http':'只读接口HTTP异常', 'read-transport':'只读接口连接或超时', 'read-contract':'只读接口响应或会话异常',
-    'generation-failed':'生成明确失败', 'generation-timeout':'生成超时待查', 'navigation-or-network':'导航/网络待查',
+    'ui-view-timeout':'视图切换超时', 'generation-failed':'生成明确失败', 'generation-timeout':'生成超时待查', 'navigation-or-network':'导航/网络待查',
     'assertion-or-unknown':'断言失败/原因待查' })[category] ?? '原因待查';
 }
 export function firstFailureCategoryMessages(summary) {

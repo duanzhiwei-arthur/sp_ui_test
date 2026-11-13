@@ -6,6 +6,7 @@ test('原因分类不把未知故障猜成网络，不改变复核判定',()=>{
   assert.equal(failureCategory('[ASSET_OWNERSHIP]'),'ownership-unconfirmed');
   assert.equal(failureCategory('[CART_ASSET]'),'cart-asset-mismatch');
   assert.equal(failureCategory('[GENERATION_FAILED]'),'generation-failed');
+  assert.equal(failureCategory('[UI_VIEW_TIMEOUT] [GENERATION_TIMEOUT]'),'ui-view-timeout');
   assert.equal(failureCategory('[EXPERIMENT_ASSIGNMENT]'),'experiment-precondition');
   assert.equal(failureCategory('[READ_HTTP] HTTP429'),'read-http');
   assert.equal(failureCategory('[READ_TRANSPORT]'),'read-transport');

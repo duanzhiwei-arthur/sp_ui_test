@@ -5,6 +5,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets, sanitizeGaCookie } from './build-diagnostic-bundle.mjs';
 
+test('phase timings preserve exact durations and exclude unknown secret fields', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'qa-phase-times-'));
+  try {
+    await mkdir(path.join(root, 'test-results'));
+    await writeFile(path.join(root, 'test-results/results.json'), JSON.stringify({ suites: [{ specs: [{ title: 'TC-03', tests: [{ status: 'expected', results: [{ status: 'passed', attachments: [{ name: 'phase-timings', body: Buffer.from(JSON.stringify([{ label: '3D', budgetMs: 300000, elapsedMs: 120000, polls: 12, token: 'private' }])).toString('base64') }] }] }] }] }] }));
+    const bundle = await buildBundle(root, {});
+    assert.deepEqual(JSON.parse(bundle.cases[0].runtimeDiagnostics[0].text), [{ label: '3D', budgetMs: 300000, elapsedMs: 120000, polls: 12 }]);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('GA Cookie诊断只保留两个指定值，不丢失合法Cookie字符串',()=>{
   const input={case:'TC-00: 首页',retry:0,cookieValue:'GA1.1.123456789.1790000000',cookieClientId:'123456789.1790000000',token:'hidden'};
   const output=sanitizeGaCookie(input);
