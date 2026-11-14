@@ -32,7 +32,7 @@ export function buildCompactSuccessCard({ testExitCode, summary, finishedAt, sco
     header: {
       title: { tag: 'plain_text', content: recovered.length ? 'JuJuBit · 复核通过' : 'JuJuBit · 回归通过' },
       subtitle: { tag: 'plain_text', content: scope },
-      template: recovered.length || readRetries ? 'orange' : 'green', icon: { tag: 'standard_icon', token: 'notice_colorful' }
+      template: recovered.length ? 'orange' : 'green', icon: { tag: 'standard_icon', token: 'notice_colorful' }
     },
     body: { direction: 'vertical', padding: '12px', vertical_spacing: '8px', elements: [
       { tag: 'markdown', content: `**${cases.length}/${cases.length} 用例最终通过** · 耗时 ${Math.floor(seconds / 60)}分${seconds % 60}秒\n${recovered.length ? `⚠️ ${recovered.length} 条首次失败、二次复核通过（偶发恢复，保留首次证据）；未发送失败告警。\n` : ''}<font color='grey'>完成于 ${completed}（北京时间）</font>` },

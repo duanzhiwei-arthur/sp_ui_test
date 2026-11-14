@@ -13,7 +13,7 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
   const recovered = reviews.filter(row => row.finalStatus === 'passed-on-recheck').length;
   const readRetries = cases.reduce((count, row) => count + (row.readRetries ?? 0), 0);
   const passed = cases.filter(row => row.status === 'passed').length;
-  const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
+  const color = failed ? 'red' : recovered ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
   const scope = allCases ? '全部用例 · 对照组＋实验组＋首页巡检' : '画板双组 · 对照组＋实验组';
   const status = failed ? '发现业务失败' : recovered ? '复核通过' : '执行通过';
