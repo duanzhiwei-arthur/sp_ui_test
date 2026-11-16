@@ -141,6 +141,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       context, contextAvailable: Boolean(context) });
   }
   const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,
+    ...(env.SCHEDULED_TEST_MODE === 'selected' ? { selectedCaseIds: (env.SELECTED_CASE_IDS ?? '').split(',').filter(Boolean) } : {}),
     runAttempt: env.GITHUB_RUN_ATTEMPT, stats: report.stats,
     // Raw cases above remain first-attempt evidence; never claim recovery was
     // a clean first pass. Preserve both attempts for the read-only bot.

@@ -22,9 +22,20 @@ on:
           - daily
           - safe
           - all
+          - selected
           - experiment
       experiment:
         description: 'Experiment key used when mode=experiment.'
+        required: false
+        default: ''
+        type: string
+      case_ids:
+        description: 'selected only: comma-separated retained case IDs; validated allowlist, never arbitrary grep.'
+        required: false
+        default: ''
+        type: string
+      source_run_id:
+        description: 'Originating completed run for failed-case rerun audit.'
         required: false
         default: ''
         type: string
@@ -70,6 +81,8 @@ jobs:
       # assigned canvas treatment, never the unrelated membership experiment.
       SCHEDULED_TEST_MODE: ${{ (github.event_name == 'schedule' || inputs.dedupe_key != '') && 'daily' || inputs.mode || 'daily' }}
       EXPERIMENT_KEY: ${{ inputs.experiment || '' }}
+      SELECTED_CASE_IDS: ${{ inputs.case_ids || '' }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id || '' }}
       DISPATCH_DEDUPE_KEY: ${{ inputs.dedupe_key || '' }}
       SCHEDULE_CRON: ${{ github.event.schedule || '' }}
       BASE_URL: https://jujubit.ai

@@ -1,7 +1,7 @@
 import { failureCategory, failureCategoryLabel } from './failure-category.mjs';
 
 export function recheckableCases(mode, caseResults = []) {
-  if (!['safe', 'daily', 'homepage-clickable', 'experiment', 'all'].includes(mode)) return [];
+  if (!['safe', 'daily', 'homepage-clickable', 'experiment', 'all', 'selected'].includes(mode)) return [];
   return caseResults.filter(item => ['failed', 'flaky', 'unknown'].includes(item.status));
 }
 

@@ -11,6 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { scheduledSlot } from './schedule-policy.mjs';
 import { shouldSendScheduledNotification } from './scheduled-notification-policy.mjs';
 import { failureMentionText } from './failure-mentions.mjs';
+import { selectedCaseIds, selectedGrep, completeSelectedScope } from './selected-case-scope.mjs';
 import { groupFailurePolicy, buildGroupFailureCard } from './group-failure-policy.mjs';
 import { collectGenerationEvidence, formatGenerationEvidence, firstGenerationFailureMessages } from './generation-evidence.mjs';
 import { buildCompactSuccessCard } from './compact-success-card.mjs';
@@ -36,8 +37,9 @@ const mode = requestedMode === 'homepage-clickable'
 const experimentKey = (process.env.EXPERIMENT_KEY ?? '').trim().toLowerCase();
 const canvasDaily = mode === 'daily' && process.env.CANVAS_AB_ENABLED === 'true';
 const canvasAll = mode === 'all' && process.env.CANVAS_AB_ENABLED === 'true';
-const canvasSuite = canvasDaily || canvasAll;
-const canvasConfig = canvasAll ? 'experiments/canvas-v3/all.config.ts' : 'experiments/canvas-v3/stable.config.ts';
+const selectedIds = mode === 'selected' ? selectedCaseIds(process.env.SELECTED_CASE_IDS) : null;
+const canvasSuite = canvasDaily || canvasAll || !!selectedIds;
+const canvasConfig = canvasAll || selectedIds ? 'experiments/canvas-v3/all.config.ts' : 'experiments/canvas-v3/stable.config.ts';
 const feishuApiBase = 'https://open.feishu.cn';
 const maxImageBytes = 10 * 1024 * 1024;
 const maxFileBytes = 30 * 1024 * 1024;
@@ -49,8 +51,8 @@ const selectedExperiment = experimentCommandRegistry.experiments.find(
   (experiment) => experiment.enabled && experiment.key === experimentKey
 );
 
-if (!['safe', 'daily', 'all', 'experiment', 'homepage-clickable'].includes(mode)) {
-  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all、experiment 或 homepage-clickable');
+if (!['safe', 'daily', 'all', 'selected', 'experiment', 'homepage-clickable'].includes(mode)) {
+  throw new Error('SCHEDULED_TEST_MODE 仅支持 safe、daily、all、selected、experiment 或 homepage-clickable');
 }
 
 if (mode === 'experiment' && !selectedExperiment) {
@@ -145,20 +147,21 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   if (process.argv.includes('--headed')) {
     playwrightArgs.push('--headed');
   }
+  if (selectedIds) playwrightArgs.push('--grep', selectedGrep(selectedIds));
   const playwrightExitCode = await run(playwrightBin, playwrightArgs, {
     ...process.env,
     PLAYWRIGHT_RESULTS_FILE: resultsFile,
     ...(canvasSuite ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
-    ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
-    CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
+    ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'selected', 'experiment'].includes(mode) ? 'true' : 'false',
+    CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'selected', 'experiment'].includes(mode) ? 'YES' : 'NO',
     TRACKING_TEST_ENABLED: 'false',
     TRACKING_FAULT_INJECTION_ENABLED: 'false'
   });
 
   let summary = await loadSummary();
   if (canvasSuite) {
-    if (!(canvasAll ? hasCompleteAllScope : hasCompleteCanvasScope)(summary.caseResults) || summary.caseResults.some(row => row.status === 'skipped')) {
-      summary.reportErrors = [...(summary.reportErrors ?? []), { message: `应完整执行${(canvasAll ? ALL_CASE_IDS : CANVAS_CASE_IDS).length}条，不允许缺组、重复或跳过冒充通过` }];
+    if (!(selectedIds ? completeSelectedScope(summary.caseResults, selectedIds) : (canvasAll ? hasCompleteAllScope : hasCompleteCanvasScope)(summary.caseResults)) || summary.caseResults.some(row => row.status === 'skipped')) {
+      summary.reportErrors = [...(summary.reportErrors ?? []), { message: `应完整执行${(selectedIds ?? (canvasAll ? ALL_CASE_IDS : CANVAS_CASE_IDS)).length}条，不允许缺组、重复或跳过冒充通过` }];
       try {
         const raw = JSON.parse(await readFile(resultsFile, 'utf8'));
         await writeFile(resultsFile, JSON.stringify({ ...raw, errors: summary.reportErrors }, null, 2));
@@ -178,8 +181,8 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
       ...process.env, PLAYWRIGHT_RESULTS_FILE: recheckResultsFile,
       ...(canvasSuite ? { CANVAS_PARITY_ALLOW_GENERATION: 'true' } : {}),
       PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(projectRoot, 'playwright-report', `failure-recheck-${index + 1}`),
-      ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'true' : 'false',
-      CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'experiment'].includes(mode) ? 'YES' : 'NO',
+      ALLOW_PRODUCTION_GENERATION: ['daily', 'all', 'selected', 'experiment'].includes(mode) ? 'true' : 'false',
+      CONFIRM_PRODUCTION_GENERATION: ['daily', 'all', 'selected', 'experiment'].includes(mode) ? 'YES' : 'NO',
       TRACKING_TEST_ENABLED: 'false', TRACKING_FAULT_INJECTION_ENABLED: 'false'
     });
     const recheckSummary = await loadSummary(recheckResultsFile);
@@ -503,6 +506,7 @@ function buildMessage({ testExitCode, mode, startedAt, finishedAt, summary }) {
 }
 
 function executionScopeLabel() {
+  if (selectedIds) return `指定失败用例重跑：${selectedIds.join('、')}${/^\d+$/.test(process.env.SOURCE_RUN_ID ?? '') ? `（来源Run ${process.env.SOURCE_RUN_ID}）` : ''}`;
   if (canvasDaily) return '画板对照组 TC-00～TC-05 + 画板实验组 EXP-TC-01';
   if (mode === 'all') return '全部用例（真实生成）';
   if (mode === 'daily') return '日常回归 TC-00～TC-05（真实生成用例含 TC-03～TC-05）';
@@ -546,7 +550,7 @@ function loadExperimentCommandRegistry() {
 }
 
 function buildResultCard({ testExitCode, mode, startedAt, finishedAt, summary }) {
-  if (canvasSuite || summary.caseResults?.some(item => isCanvasTreatment(item.title))) return buildCanvasResultCard({ summary, testExitCode, finishedAt, runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl(), allCases: canvasAll });
+  if (!selectedIds && (canvasSuite || summary.caseResults?.some(item => isCanvasTreatment(item.title)))) return buildCanvasResultCard({ summary, testExitCode, finishedAt, runId: process.env.GITHUB_RUN_ID, headSha: process.env.GITHUB_SHA, runUrl: buildGitHubRunUrl(), allCases: canvasAll });
   const compactCard = buildCompactSuccessCard({
     testExitCode, summary, finishedAt,
     scope: mode === 'daily' ? '日常回归 · TC-00～TC-05' : executionScopeLabel(),
