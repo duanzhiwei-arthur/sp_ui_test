@@ -52,7 +52,7 @@ test('failed dual-group reports retain the approved detailed card layout and col
   assert.ok(card.body.elements.filter(e => e.tag === 'collapsible_panel').every(e => e.expanded === false));
 });
 
-test('read-only recovery remains visible and orange even without whole-case recheck', () => {
+test('read-only recovery stays in collapsed details without changing passing card color', () => {
   const card = buildCanvasResultCard({ ...input, summary: { ...input.summary, caseResults: [...control, { ...treatment[0], readRetries: 1 }] } });
-  assert.equal(card.header.template, 'orange'); assert.match(JSON.stringify(card), /只读操作重试/);
+  assert.equal(card.header.template, 'green'); assert.match(JSON.stringify(card), /只读操作重试/);
 });

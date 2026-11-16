@@ -11,9 +11,8 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
   const complete = (allCases ? hasCompleteAllScope : hasCompleteCanvasScope)(cases);
   const failed = testExitCode !== 0 || summary.readError || summary.reportErrors?.length || !complete || cases.some(row => row.status !== 'passed');
   const recovered = reviews.filter(row => row.finalStatus === 'passed-on-recheck').length;
-  const readRetries = cases.reduce((count, row) => count + (row.readRetries ?? 0), 0);
   const passed = cases.filter(row => row.status === 'passed').length;
-  const color = failed ? 'red' : recovered || readRetries ? 'orange' : 'green';
+  const color = failed ? 'red' : recovered ? 'orange' : 'green';
   const duration = Math.round((summary.stats?.duration ?? 0) / 1000);
   const scope = allCases ? '全部用例 · 对照组＋实验组＋首页巡检' : '画板双组 · 对照组＋实验组';
   const status = failed ? '发现业务失败' : recovered ? '复核通过' : '执行通过';
@@ -72,7 +71,6 @@ export function buildCanvasResultCard({ summary, testExitCode, finishedAt, runId
         },
       ] : []),
       ...panels,
-      ...(readRetries ? [{ tag: 'markdown', content: `⚠️ 本轮有 ${readRetries} 处只读操作重试，成功不代表首次无异常。` }] : []),
       { tag: 'markdown', text_size: 'notation', content: `Run：${escape(runId ?? 'local')} · 提交：${escape((headSha ?? '未提交').slice(0, 12))}` },
       ...(runUrl?.startsWith('https://') ? [{ tag: 'button', text: { tag: 'plain_text', content: '完整运行与截图／录屏' }, type: 'primary_filled', behaviors: [{ type: 'open_url', default_url: runUrl }] }] : [])
     ] } };
