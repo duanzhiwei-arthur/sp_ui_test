@@ -59,6 +59,8 @@ CANVAS_PARITY_BASE_URL=https://jujubit.ai CANVAS_TREATMENT_STABLE_ID=2 CANVAS_PA
 
 分组校验复用case自己的页面：进入画板就检查，点击Generate前再核对实际ID/实验/画板及访问状态，不额外提前打开创作页。新画板2D/3D等待中持续检查访问阻断和明确错误／Retry，生成失败立即保留原因，不傻等满5分钟。图片完整加载、model-viewer.loaded、真实旋转缩放、本轮Asset ID加购核验均保留。
 
+新画板2D采用统一5分钟阶段预算：生成进度仍显示时继续等待，不把短暂出现的图片当成最终可操作状态。图片须连续观察为可见、加载成功且生成遮罩消失；滚动每次最多1.5秒，状态变化后回到同一预算内等待，最多4次只读切换2D。真实错误／Retry仍立即失败，超时仍失败，不刷新、不重复Generate，不改变定时频率或整条复核规则。
+
 `cart.js`通过当前页面的同源浏览器GET读取，沿用页面会话与网络路径，避免Node接口客户端和浏览器代理路径不同；30秒超时覆盖响应头和响应体，5xx/连接失败最多再查一次，Cookie不复制到日志。`read-only-diagnostics`记录每次状态、耗时及是否重试，不记录请求头；只读恢复在卡片标橙色，提示不等同首次无异常。分类区分访问阻断、实验前置、只读HTTP/传输异常、生成失败/超时及资产/加购核验问题；未知根因不猜成网络。Trace、截图、Task/Asset/Trace/Request ID和首次/复核证据继续保留。
 
 工作流由`CANVAS_AB_ENABLED=true`启用7条双组回归，仓库变量`CANVAS_CONTROL_STABLE_ID`／`CANVAS_TREATMENT_STABLE_ID`可换ID（默认1/2）。正常生成4次，最多单case复核一次，共最多8次；不无限重试。合并仓库的开发发布入口仍为原daily六条，不自动加实验组。

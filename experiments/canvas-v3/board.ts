@@ -1,4 +1,4 @@
-import { type Page, type TestInfo } from '@playwright/test';
+import { errors, type Page, type TestInfo } from '@playwright/test';
 import { test as base, expect } from '../../tests/fixtures/runtime-diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -126,20 +126,44 @@ export class ExperimentBoard {
     this.note('真实生成请求', { status: response.status(), trace: response.headers()['x-trace-id'] });
     await expect(this.root.locator('.jjb-v3-steps [aria-current="step"]')).toContainText('3D Preview');
   }
-  async wait2D() {
+  async wait2D(timeout = 300_000) {
     const image = this.root.locator('.jjb-v3-viewer img[alt="Generated Toy Result"]');
-    // 新版隐藏的2D图使用lazy loading：先切到2D并滚入视口，不能对隐藏图先等naturalWidth。
-    await waitForGenerationState(this.page, async () => await image.count() === 1, 300_000, '等待新画板2D图片节点');
     const switch2d = this.root.getByRole('button', { name: /^(Switch to )?2D$/ }).filter({ visible: true });
-    // A hidden image node can exist while the model is still generating and
-    // the view switch is not rendered. Do not charge that time to UI switching.
-    await waitForGenerationState(this.page, async () => await image.isVisible()
-      || await switch2d.count() === 1 && await switch2d.isEnabled(), 300_000, '等待新画板2D结果可展示或切换入口');
-    const switched = await selectCanvasView(this.page, switch2d, () => image.isVisible());
-    this.note('2D视图切换诊断', switched);
-    if (switched.pointerTimeouts) this.info.annotations?.push({ type: 'read-only-retry', description: `2D切换恢复：鼠标超时${switched.pointerTimeouts}次，键盘恢复=${switched.keyboardUsed}，未重新生成` });
-    await expect(image).toBeVisible(); await image.scrollIntoViewIfNeeded();
-    await waitForGenerationState(this.page, () => image.evaluateAll(es => es.some(e => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), 300_000, '等待新画板真实2D图片加载成功');
+    const generating = () => this.root.getByRole('progressbar', { name: 'Generating model', exact: true }).isVisible();
+    const started = Date.now();
+    let stableSince = 0, switches = 0;
+    // A streamed 2D image can flash before the 3D loading panel replaces it.
+    // Reconcile that transition within one generation deadline, not a new
+    // 45s UI deadline or a 60s scroll of a now-hidden image. Never re-generate.
+    await waitForGenerationState(this.page, async () => {
+      if (await generating()) { stableSince = 0; return false; }
+      if (!await image.isVisible()) {
+        stableSince = 0;
+        if (await switch2d.count() !== 1 || !await switch2d.isEnabled()) return false;
+        if (switches >= 4) throw new Error('[UI_VIEW_TIMEOUT] 新画板2D视图反复消失，已达4次只读切换上限；未重复生成');
+        switches++;
+        const switched = await selectCanvasView(this.page, switch2d,
+          async () => await generating() || await image.isVisible(), Math.min(45_000, Math.max(1, timeout - (Date.now() - started))));
+        this.note('2D视图切换诊断', { ...switched, attempt: switches });
+        if (switched.pointerTimeouts) this.info.annotations?.push({ type: 'read-only-retry', description: `2D切换恢复：鼠标超时${switched.pointerTimeouts}次，键盘恢复=${switched.keyboardUsed}，未重新生成` });
+        if (await generating() || !await image.isVisible()) return false;
+      }
+      try {
+        await image.scrollIntoViewIfNeeded({ timeout: Math.min(1500, Math.max(1, timeout - (Date.now() - started))) });
+      } catch (error) {
+        if (!(error instanceof errors.TimeoutError)) throw error;
+        stableSince = 0;
+        return false;
+      }
+      const loaded = await image.evaluateAll(es => es.length === 1 && es.every(e => {
+        const img = e as HTMLImageElement;
+        return img.checkVisibility({ visibilityProperty: true }) && img.complete && img.naturalWidth > 0;
+      }));
+      if (!loaded || await generating()) { stableSince = 0; return false; }
+      // Two observations prevent a transient frame from completing the phase.
+      if (!stableSince) { stableSince = Date.now(); return false; }
+      return Date.now() - stableSince >= 500;
+    }, timeout, '等待新画板真实2D稳定可见并加载完成');
     this.note('真实2D', '生成图片实际加载并可见');
     await this.captureNewRecords();
   }

@@ -69,6 +69,34 @@ test('hidden image placeholder does not start UI switch budget before generation
 });
 
 const error = 'runtime run failed: internal LLM service image response must be one trusted stable URL';
+for (const outcome of ['recover', 'timeout', 'error'] as const) {
+  test(`new canvas transient image returns to generating: ${outcome}`, async ({ page }, info) => {
+    await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><img alt="Generated Toy Result" width="20" height="20" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%222%22 height=%222%22/%3E"><div role="progressbar" aria-label="Generating model" hidden>69%</div><button hidden>Switch to 2D</button></div></div>');
+    await page.evaluate(result => {
+      const img = document.querySelector('img')!, progress = document.querySelector<HTMLElement>('[role="progressbar"]')!, button = document.querySelector('button')!;
+      button.onclick = () => { img.hidden = false; document.body.dataset.switches = String(Number(document.body.dataset.switches || 0) + 1); };
+      setTimeout(() => { img.hidden = true; progress.hidden = false; }, 150);
+      if (result === 'recover') setTimeout(() => { progress.hidden = true; button.hidden = false; }, 1900);
+      if (result === 'error') setTimeout(() => { const retry = document.createElement('button'); retry.textContent = 'Retry'; progress.after(retry); }, 1900);
+    }, outcome);
+    const board = new ExperimentBoard(page, info);
+    Reflect.set(board, 'generated', true);
+    if (outcome === 'recover') {
+      await board.wait2D(8000);
+      await expect(page.getByAltText('Generated Toy Result')).toBeVisible();
+      expect(await page.locator('body').getAttribute('data-switches')).toBe('1');
+    } else {
+      await expect(board.wait2D(3500)).rejects.toThrow(outcome === 'error' ? 'GENERATION_FAILED' : 'GENERATION_TIMEOUT');
+      expect(board.checkpoints.some(row => row.name === '真实2D')).toBe(false);
+    }
+  });
+}
+
+test('new canvas broken image never passes even when visible', async ({ page }, info) => {
+  await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><img width="20" height="20" alt="Generated Toy Result" src="data:image/png;base64,broken"></div></div>');
+  await expect(new ExperimentBoard(page, info).wait2D(2000)).rejects.toThrow('GENERATION_TIMEOUT');
+});
+
 const panel = `<div><p>${error}</p><button>Retry</button></div>`;
 const preview = (body: string) => `<div class="product-image-container"><div class="jjb-app">${body}</div></div>`;
 
