@@ -1,4 +1,5 @@
-import { errors, expect, Locator, Page } from '@playwright/test';
+import { errors, expect, Locator, Page, type Dialog } from '@playwright/test';
+import { actionResponse } from '../fixtures/action-response.js';
 import { gotoWithDiagnostics } from './navigation.js';
 import { assertSiteAccess, expectVisibleWithAccessCheck } from './site-access.js';
 import { waitForGenerationState } from './generation-wait.js';
@@ -496,21 +497,34 @@ export class CreatePage {
     const latestDeleteButton = record.getByRole('button', { name: 'delete record', exact: true });
     await expect(latestDeleteButton).toBeVisible();
     await assets.authorizeDelete(owned.assetId);
-    const confirmDeletion = this.page.waitForEvent('dialog').then(async (dialog) => {
-      try {
-        expect(dialog.type()).toBe('confirm');
-        expect(dialog.message()).toContain('Delete this history record?');
-        await dialog.accept();
-      } catch (error) {
-        await dialog.dismiss().catch(() => undefined);
-        throw error;
-      }
-    });
-    const deleted = this.page.waitForResponse(r => r.request().method() === 'DELETE'
-      && new URL(r.url()).origin === new URL(this.page.url()).origin
-      && new URL(r.url()).pathname === `/apps/ai/activity/assets/${owned.assetId}`, { timeout: 30_000 });
+    const origin = new URL(this.page.url()).origin;
+    let dialogSeen = false, dialogError: unknown;
+    const dialogs: Promise<void>[] = [];
+    const onDialog = (dialog: Dialog) => {
+      const handling = (async () => {
+        try {
+          expect(dialogSeen, '删除操作只能确认一次').toBe(false);
+          dialogSeen = true;
+          expect(dialog.type()).toBe('confirm');
+          expect(dialog.message()).toContain('Delete this history record?');
+          await dialog.accept();
+        } catch (error) {
+          dialogError = error;
+          await dialog.dismiss().catch(() => undefined);
+        }
+      })();
+      dialogs.push(handling);
+    };
+    this.page.on('dialog', onDialog);
     try {
-      const [response] = await Promise.all([deleted, confirmDeletion, this.click(latestDeleteButton)]);
+      const response = await actionResponse(this.page, async () => {
+        await this.click(latestDeleteButton);
+        await Promise.all(dialogs);
+        if (dialogError) throw dialogError;
+        expect(dialogSeen, '删除本次资产应出现确认弹窗').toBe(true);
+        expect(assets.wasDeleteBlocked(), '[ASSET_OWNERSHIP] 删除请求被安全保护拦截，见run-assets').toBe(false);
+      }, r => r.method() === 'DELETE' && new URL(r.url()).origin === origin
+        && new URL(r.url()).pathname === `/apps/ai/activity/assets/${owned.assetId}`, { label: '删除本轮History资产' });
       expect(assets.wasDeleteBlocked(), '[ASSET_OWNERSHIP] 不允许删除非本次资产').toBe(false);
       expect(response.ok(), '本次资产DELETE应成功').toBe(true);
       const body = await response.json();
@@ -518,7 +532,11 @@ export class CreatePage {
       expect(body?.success, '删除业务响应不得为失败').not.toBe(false);
       await expect(record, '本轮资产对应的History卡片应消失').toHaveCount(0);
       assets.markDeleted(owned.assetId);
-    } finally { assets.cancelDelete(); }
+    } finally {
+      this.page.off('dialog', onDialog);
+      await Promise.all(dialogs);
+      assets.cancelDelete();
+    }
     await expect.poll(
       () => this.historyRecordDeleteButtons.count(),
       { message: '删除后本次生成记录应从 History 消失', timeout: customizerTimeout }

@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { RunAssets, registerRunAssets } from '../../tests/fixtures/run-assets.js';
 import { CreatePage } from '../../tests/pages/create.page.js';
 import { CartDrawer } from '../../tests/pages/cart-drawer.page.js';
+import { actionResponse } from '../../tests/fixtures/action-response.js';
 
 let server: Server, origin: string, deletes: string[], adds: number;
 const stream = 'event: task_start\ndata: {"taskId":"task-new"}\n\nevent: asset_start\ndata: {"assetId":"asset-new"}\n\nevent: asset_done\ndata: {"assetId":"asset-new","extra":{"imageUrl":"https://fixture.invalid/new.png"}}\n\nevent: task_done\ndata: {"taskId":"task-new"}\n\n';
@@ -49,6 +50,83 @@ test('未点击生成及新会话不得继承旧资产',async({page})=>{
 });
 test('History顺序变化只删除本轮映射卡片，不删除第一条旧记录',async({page})=>{
   const tracker=await generate(page);try{await new CreatePage(page).deleteLatestHistoryRecord(1);expect(deletes).toEqual(['/apps/ai/activity/assets/asset-new']);expect(await page.locator('article').innerText()).toBe('old');expect(tracker.snapshot().assets[0].deleted).toBe(true);}finally{await tracker.dispose();}
+});
+test('删除按钮慢于旧30秒预算仍只删除本轮资产，不提前撤销授权',async({page})=>{
+ test.setTimeout(50_000);
+ const tracker=await generate(page);
+ try {
+  // Transparent overlay holds Playwright's real click actionability check;
+  // button remains enabled, as in the production trace's delayed click.
+  await page.evaluate(()=>{
+   const cover=document.createElement('div');cover.style.cssText='position:fixed;inset:0;z-index:9999';
+   document.body.append(cover);setTimeout(()=>cover.remove(),32_000);
+  });
+  await new CreatePage(page).deleteLatestHistoryRecord(1);
+  expect(deletes).toEqual(['/apps/ai/activity/assets/asset-new']);
+  expect(tracker.wasDeleteBlocked()).toBe(false);
+  expect(page.listenerCount('dialog')).toBe(0);
+ }finally{await tracker.dispose();}
+});
+test('加购点击准备慢于旧30秒预算不会误报，不重发POST',async({page})=>{
+ test.setTimeout(50_000);
+ const tracker=await generate(page);
+ try {
+  await page.locator('#add').evaluate((button: HTMLButtonElement)=>{
+   button.disabled=true;setTimeout(()=>{button.disabled=false;},32_000);
+  });
+  await new CartDrawer(page).addCurrentAsset(()=>page.locator('#add').click({timeout:40_000}),tracker);
+  expect(adds).toBe(1);
+ }finally{await tracker.dispose();}
+});
+test('响应真实超时也先等交互收尾；不留监听器、不重发请求',async({page})=>{
+ await page.goto(origin);let finished=false;
+ await page.route('**/cart/add.js',async route=>{
+  await new Promise(r=>setTimeout(r,600));await route.fulfill({json:{items:[]}});
+ });
+ const count=page.listenerCount('request');
+ await expect(actionResponse(page,async()=>{
+  await page.locator('#add').click();await new Promise(r=>setTimeout(r,300));finished=true;
+ },r=>r.method()==='POST'&&new URL(r.url()).pathname==='/cart/add.js',
+ {label:'延迟响应验证',responseTimeoutMs:50,requestTimeoutMs:100})).rejects.toThrow(/WRITE_RESPONSE_TIMEOUT/);
+ expect(finished).toBe(true);expect(page.listenerCount('request')).toBe(count);
+});
+test('无请求、操作抛错、传输失败分别报告且清理监听器',async({page})=>{
+ await page.goto(origin);
+ const match=(r: import('@playwright/test').Request)=>r.method()==='POST'&&new URL(r.url()).pathname==='/cart/add.js';
+ const count=page.listenerCount('request');
+ await expect(actionResponse(page,async()=>{},match,{label:'无请求',requestTimeoutMs:50})).rejects.toThrow(/WRITE_REQUEST_NOT_SENT/);
+ await expect(actionResponse(page,async()=>{throw Error('action failed');},match,{label:'操作失败'})).rejects.toThrow('action failed');
+ await page.route('**/cart/add.js',route=>route.abort('failed'));
+ await expect(actionResponse(page,()=>page.locator('#add').click(),match,{label:'断流'})).rejects.toThrow(/WRITE_REQUEST_FAILED/);
+ expect(page.listenerCount('request')).toBe(count);expect(adds).toBe(0);
+});
+test('错误删除弹窗失败后不会留下自动接受处理器',async({page})=>{
+ const tracker=await generate(page);
+ try {
+  await page.locator('#owned button').evaluate(e=>e.setAttribute('onclick',"confirm('unexpected confirmation')"));
+  await expect(new CreatePage(page).deleteLatestHistoryRecord(1)).rejects.toThrow(/Delete this history record/);
+  expect(page.listenerCount('dialog')).toBe(0);expect(deletes).toEqual([]);
+ }finally{await tracker.dispose();}
+});
+test('错误资产删除快速报告保护拦截，不等待无关响应超时',async({page})=>{
+ const tracker=await generate(page,'/wrong-delete');
+ try {
+  await expect(new CreatePage(page).deleteLatestHistoryRecord(1)).rejects.toThrow(/ASSET_OWNERSHIP/);
+  expect(deletes).toEqual([]);expect(page.listenerCount('dialog')).toBe(0);
+  expect(tracker.snapshot().gaps.join(' ')).toContain('asset-mismatch');
+ }finally{await tracker.dispose();}
+});
+test('正确资产重复DELETE仍只允许发送一次',async({page})=>{
+ const tracker=await generate(page);
+ try {
+  await tracker.authorizeDelete('asset-new');
+  const statuses=await page.evaluate(async()=>{
+   const request=()=>fetch('/apps/ai/activity/assets/asset-new',{method:'DELETE'}).then(r=>r.status,()=>0);
+   return [await request(),await request()];
+  });
+  expect(statuses).toEqual([200,0]);expect(deletes).toHaveLength(1);
+  expect(tracker.snapshot().gaps.join(' ')).toContain('authorization-not-active');
+ }finally{await tracker.dispose();}
 });
 test('出站DELETE与本轮授权不符时网络层阻止，旧资产未被删除',async({page})=>{
   const tracker=await generate(page,'/wrong-delete');try{await tracker.authorizeDelete('asset-new');const failed=await page.evaluate(()=>fetch('/apps/ai/activity/assets/old',{method:'DELETE'}).then(()=>false,()=>true));expect(failed).toBe(true);expect(tracker.wasDeleteBlocked()).toBe(true);expect(deletes).toEqual([]);}finally{await tracker.dispose();}

@@ -94,7 +94,7 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
     let context = '';
     const runtimeDiagnostics = [];
     if (evidenceResult) {
-      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings'] : ['run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings']).includes(a.name)).slice(-16)) {
+      for (const attachment of (evidenceResult.attachments ?? []).filter(a => (result ? ['runtime-diagnostics', 'navigation-diagnostics', 'site-access-diagnostics', 'run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings', 'mutation-timings'] : ['run-assets', 'ga-cookie-diagnostics', 'canvas-assignment', 'read-only-diagnostics', 'phase-timings', 'mutation-timings']).includes(a.name)).slice(-16)) {
         try {
           // testInfo.attach({ body }) is emitted inline/base64 by the JSON reporter.
           // Support both reporter forms rather than silently dropping that evidence.

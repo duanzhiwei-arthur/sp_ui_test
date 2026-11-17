@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import type { RunAssets } from '../fixtures/run-assets.js';
 import { readCartJson } from '../fixtures/read-only-retry.js';
+import { actionResponse } from '../fixtures/action-response.js';
 
 export class CartDrawer {
   readonly cartPageRoot: Locator;
@@ -43,10 +44,9 @@ export class CartDrawer {
   async addCurrentAsset(click: () => Promise<void>, assets: RunAssets): Promise<void> {
     const asset = await assets.requireSingleAsset();
     const origin = new URL(this.page.url()).origin;
-    const [response] = await Promise.all([
-      this.page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).origin === origin
-        && /\/cart\/add\.js$/.test(new URL(r.url()).pathname), { timeout: 30_000 }), click()
-    ]);
+    const response = await actionResponse(this.page, click,
+      r => r.method() === 'POST' && new URL(r.url()).origin === origin
+        && /\/cart\/add\.js$/.test(new URL(r.url()).pathname), { label: '本轮资产加购' });
     expect(response.ok(), '[CART_ASSET] 本次加购接口应成功').toBe(true);
     const body = await response.json();
     const rows = Array.isArray(body.items) ? body.items : [body];

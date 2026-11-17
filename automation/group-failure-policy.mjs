@@ -4,6 +4,10 @@ import { gaCookieRows } from './ga-cookie.mjs';
 export function groupFailureKind(reason = '') {
   const text = String(reason);
   if (/\[SITE_VERIFICATION\]/u.test(text)) return '人机验证阻断';
+  if (/\[WRITE_RESPONSE_TIMEOUT\]/u.test(text)) return '请求已发出但响应超时（原因待查）';
+  if (/\[WRITE_REQUEST_NOT_SENT\]/u.test(text)) return '交互后未观察到请求（原因待查）';
+  if (/\[WRITE_REQUEST_FAILED\][\s\S]*BLOCKED_BY_CLIENT/u.test(text)) return '请求被客户端拦截';
+  if (/\[WRITE_CONTEXT_CLOSED\]/u.test(text)) return '执行页面关闭，结果未确认';
   if (/\[SITE_RATE_LIMITED\]|\[READ_HTTP\][\s\S]*HTTP\s*429/u.test(text)) return '访问限流';
   if (/\[SITE_ACCESS_DENIED\]/u.test(text)) return '访问被拒绝';
   if (/\[READ_TRANSPORT\]|net::ERR_(?:CONNECTION_[A-Z_]+|NETWORK_CHANGED|TIMED_OUT|NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|EMPTY_RESPONSE|PROXY_[A-Z_]+|TUNNEL_CONNECTION_FAILED)|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN/u.test(text)) return '网络问题';

@@ -2,6 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupFailureKind, groupFailurePolicy, buildGroupFailureCard } from './group-failure-policy.mjs';
 const summary = reason => ({ caseResults: [{ title: 'TC-00: test', status: 'failed', gaCookie: { cookieValue: 'GA1.1.1.2', cookieClientId: '1.2' } }], failureDetails: [{ title: 'TC-00: test', reason }] });
+test('mutation lifecycle errors stay reportable and are not invented network causes',()=>{
+ assert.equal(groupFailureKind('[WRITE_RESPONSE_TIMEOUT] timeout'),'请求已发出但响应超时（原因待查）');
+ assert.equal(groupFailureKind('[WRITE_REQUEST_NOT_SENT] timeout'),'交互后未观察到请求（原因待查）');
+ assert.equal(groupFailureKind('[WRITE_REQUEST_FAILED] net::ERR_BLOCKED_BY_CLIENT'),'请求被客户端拦截');
+ assert.equal(groupFailureKind('[WRITE_REQUEST_FAILED] net::ERR_CONNECTION_RESET'),'网络问题');
+ for(const reason of ['[WRITE_REQUEST_NOT_SENT]','[WRITE_RESPONSE_TIMEOUT]','[WRITE_CONTEXT_CLOSED]'])assert.equal(groupFailurePolicy(summary(reason)).suppress,false);
+});
 test('explicit challenge and network evidence take precedence over assertions', () => {
   assert.equal(groupFailureKind('expect(locator).toBeVisible() [SITE_VERIFICATION]'), '人机验证阻断');
   assert.equal(groupFailureKind('expect(locator).toBeVisible() net::ERR_CONNECTION_RESET'), '网络问题');

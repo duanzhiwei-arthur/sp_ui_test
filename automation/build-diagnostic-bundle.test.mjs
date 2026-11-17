@@ -5,6 +5,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets, sanitizeGaCookie } from './build-diagnostic-bundle.mjs';
 
+test('mutation timing evidence survives for passed and failed cases',async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),'qa-mutation-times-'));
+ try {
+  await mkdir(path.join(root,'test-results'));
+  const timing={label:'本轮删除',phase:'response-received',requestAfterMs:35600,actionMs:36000,responseTimeoutMs:30000,replayed:false};
+  await writeFile(path.join(root,'test-results/results.json'),JSON.stringify({suites:[{specs:['passed','failed'].map((status,i)=>({title:`TC-0${i}`,tests:[{status:status==='passed'?'expected':'unexpected',results:[{status,attachments:[{name:'mutation-timings',body:Buffer.from(JSON.stringify(timing)).toString('base64')}]}]}]}))}]}));
+  const report=await buildBundle(root,{});
+  for(const row of report.cases)assert.deepEqual(JSON.parse(row.runtimeDiagnostics[0].text),timing);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
 test('case and business-step timing survive in lightweight evidence without raw action noise', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'qa-step-times-'));
   try {

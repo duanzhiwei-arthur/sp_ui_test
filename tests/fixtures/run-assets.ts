@@ -58,7 +58,11 @@ export class RunAssets {
     if (request.method() !== 'DELETE') { await route.fallback(); return; }
     const url = new URL(request.url()), assetId = url.pathname.match(/^\/apps\/ai\/activity\/assets\/([a-zA-Z0-9_-]+)$/)?.[1];
     if (url.origin !== this.origin || !assetId || this.armedDelete !== assetId || !this.assets.has(assetId)) {
-      this.deleteBlocked = true; this.gaps.add('已拦截非本次授权资产的删除请求'); await route.abort('blockedbyclient'); return;
+      const reason = url.origin !== this.origin ? 'origin-mismatch' : !assetId ? 'path-mismatch'
+        : !this.armedDelete ? 'authorization-not-active' : this.armedDelete !== assetId ? 'asset-mismatch' : 'asset-not-owned';
+      this.deleteBlocked = true;
+      this.gaps.add(`DELETE已拦截：reason=${reason}; expectedAsset=${this.armedDelete ?? 'none'}; actualAsset=${assetId ?? 'unknown'}; owned=${Boolean(assetId && this.assets.has(assetId))}`);
+      await route.abort('blockedbyclient'); return;
     }
     this.armedDelete = undefined; // 一次性授权，禁止应用重放或重复删除。
     try {
