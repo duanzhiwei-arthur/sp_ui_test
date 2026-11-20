@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { sanitizeBrowserEvidence, formatBrowserEvidence } from './generation-browser-evidence.mjs';
 
 const exec = promisify(execFile);
 const safeId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value)
@@ -107,6 +108,7 @@ export async function collectGenerationEvidence(result, root = process.cwd()) {
     const audit = result.attachments?.find(item => item.name === 'run-assets' && typeof item.body === 'string' && item.body.length < 350_000);
     if (audit) {
       const data = JSON.parse(Buffer.from(audit.body, 'base64').toString('utf8'));
+      evidence.browserEvidence = sanitizeBrowserEvidence(data.browserEvidence);
       const requests = (data.generationRequests ?? []).filter(r => iso(r.at) && startedAt && Date.parse(r.at) >= Date.parse(startedAt) && Date.parse(r.at) <= endMs);
       for (const asset of (data.assets ?? []).slice(0, 20)) {
         const matches = requests.filter(r => safeId(r.traceId) && r.traceId === asset.traceId);
@@ -186,6 +188,7 @@ export function formatGenerationEvidence(evidence) {
     `时间范围：${chinaTime(record.startedAt ?? evidence.startedAt)} ～ ${chinaTime(evidence.endedAt)}（北京时间；${evidence.timeBasis}）`,
   ]), ...(evidence.streams ?? []).flatMap(stream => (stream.businessErrors ?? []).map(error =>
     `生成业务错误：${error.errorCode ?? '无错误码'}；${error.message}`)),
+  ...formatBrowserEvidence(evidence.browserEvidence),
   ...(evidence.gap ? [`证据缺口：${evidence.gap}`] : [])].join('\n');
 }
 

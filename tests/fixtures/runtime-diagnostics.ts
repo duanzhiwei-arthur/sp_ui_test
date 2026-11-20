@@ -111,6 +111,11 @@ export const test = base.extend<{ runtimeDiagnostics: void; canvasAssignment: vo
     registerRunAssets(page, assets);
     await assets.install();
     try { await use(); } finally {
+      if (testInfo.status !== testInfo.expectedStatus &&
+          testInfo.errors.some(error => /\[GENERATION_(?:FAILED|TIMEOUT)\]/.test(error.message ?? ''))) {
+        try { await bounded(assets.captureFrontendState(), 1500, '生成失败只读页面诊断'); }
+        catch { testInfo.annotations.push({ type: 'diagnostic-gap', description: '生成页面快照不可用；不改变原始用例结果。' }); }
+      }
       try {
         const phases = (page as Page & { __qaPhaseTimings?: unknown[] }).__qaPhaseTimings ?? [];
         await testInfo.attach('phase-timings', { body: JSON.stringify(phases), contentType: 'application/json' });

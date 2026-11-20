@@ -4,6 +4,7 @@ import { generationFailure, waitForGenerationState } from '../../tests/pages/gen
 import { ExperimentBoard } from '../../experiments/canvas-v3/board.js';
 import type { TestInfo } from '@playwright/test';
 import { selectCanvasView } from '../../tests/pages/canvas-view.js';
+import { RunAssets } from '../../tests/fixtures/run-assets.js';
 
 test('permanently animated view button uses hit-tested mouse recovery without generating', async ({ page }) => {
   await page.setContent(`<style>@keyframes moving{from{transform:translateX(0)}to{transform:translateX(40px)}}button{animation:moving .3s infinite alternate}</style><button aria-label="Switch to 2D">2D</button><img hidden width="100" height="100" alt="result">`);
@@ -265,4 +266,39 @@ test('unresponsive readiness callback is bounded', async ({ page }) => {
   await page.setContent(preview(''));
   await expect(waitForGenerationState(page, () => new Promise(() => {}), 150, 'probe')).rejects.toThrow('probe 超过');
   await expect(waitForGenerationState(page, () => new Promise(() => {}), 150, 'probe')).rejects.toThrow('阶段预算 150ms');
+});
+test('failure diagnostics are passive, deduplicate events and omit private resource addresses', async ({ page }) => {
+  await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><div role="progressbar" aria-label="Generating model" aria-valuenow="95"></div><img src="data:image/png,broken"><model-viewer src="https://private.invalid/model?token=secret"></model-viewer></div></div>');
+  const assets = new RunAssets(page);
+  const stream = 'event: task_start\ndata: {"taskId":"123"}\n\nevent: asset_2d_done\ndata: {"taskId":"123","assetId":"456","extra":{"imageUrl":"https://private.invalid/image?token=secret"}}\n\n';
+  assets.consume(stream); assets.consume(stream);
+  await assets.captureFrontendState();
+  const snapshot=assets.snapshot();
+  expect(snapshot.browserEvidence.timeline).toHaveLength(2);
+  expect(JSON.stringify(snapshot.browserEvidence)).not.toContain('private.invalid');
+  expect(JSON.stringify(snapshot.browserEvidence)).toContain('model');
+  expect(snapshot.assets[0].terminal).toBe(false);
+  expect(snapshot.assets[0].imageObserved).toBe(true);
+});
+
+test('passive resource evidence correlates browser responses without requesting or exposing URLs', async ({ page }) => {
+  const assets = new RunAssets(page);
+  await assets.install();
+  try {
+    assets.consume('event: task_start\ndata: {"taskId":"123"}\n\n');
+    let count = 0;
+    await page.route('https://resource.test/**', async route => {
+      count++;
+      if (route.request().url().includes('failed')) await route.abort('failed');
+      else await route.fulfill({ status: 503, contentType:'image/png',body:'bad' });
+    });
+    await page.setContent('<div id="jjb-create-canvas"><div class="jjb-v3-viewer"><img src="https://resource.test/image?token=secret"><img src="https://resource.test/failed?token=secret"></div></div>');
+    await expect.poll(() => count).toBe(2);
+    await assets.captureFrontendState();
+    const snapshot = JSON.stringify(assets.snapshot().browserEvidence);
+    expect(snapshot).toContain('503');
+    expect(snapshot).toContain('"failed":true');
+    expect(snapshot).not.toContain('secret');
+    expect(count).toBe(2);
+  } finally { await assets.dispose(); }
 });

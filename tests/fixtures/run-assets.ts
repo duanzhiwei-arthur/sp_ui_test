@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { expect, type CDPSession, type Page, type Request, type Response, type Route } from '@playwright/test';
 
 export interface OwnedAsset { assetId: string; taskId?: string; traceId?: string; imageUrl?: string; terminal: boolean; deleted?: boolean }
@@ -27,6 +27,26 @@ export class RunAssets {
   private cdp?: CDPSession;
   private streamArmed = false;
   private streams = new Map<string, string>();
+  private observedEvents = new Set<string>();
+  private timeline: Array<{ at: string; event: string; taskId?: string; assetId?: string }> = [];
+  private resourceStates = new Map<string, { status?: number; failed?: boolean }>();
+  private frontendState?: unknown;
+  private observeResource = (response: Response) => {
+    try {
+      if (!this.taskIds.size || !['image', 'fetch', 'xhr'].includes(response.request().resourceType())) return;
+      this.rememberResource(response.url(), { status: response.status() });
+    } catch { this.gaps.add('资源状态旁路采集不可用'); }
+  };
+  private observeResourceFailure = (request: Request) => {
+    try { if (this.taskIds.size) this.rememberResource(request.url(), { failed: true }); }
+    catch { this.gaps.add('资源失败旁路采集不可用'); }
+  };
+  private rememberResource(url: string, state: { status?: number; failed?: boolean }) {
+    if (this.resourceStates.size >= 200 && !this.resourceStates.has(url)) {
+      this.resourceStates.delete(this.resourceStates.keys().next().value!);
+    }
+    this.resourceStates.set(url, state);
+  }
   constructor(readonly page: Page) {}
 
   private onRequest = (request: Request) => {
@@ -77,6 +97,7 @@ export class RunAssets {
   };
   async install() {
     this.page.on('request', this.onRequest); this.page.on('response', this.onResponse);
+    this.page.on('response', this.observeResource); this.page.on('requestfailed', this.observeResourceFailure);
     // Chromium被动读取已到达的网络数据，不替换fetch、不缓冲页面SSE、不重放请求。
     try {
       this.cdp = await this.page.context().newCDPSession(this.page);
@@ -123,6 +144,14 @@ export class RunAssets {
         const data = JSON.parse(block.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('\n'));
         taskId = safeId(data.taskId) ?? taskId;
         if (taskId) this.taskIds.add(taskId);
+        // CDP delivers cumulative buffers and response.text repeats them. Keep
+        // first-observed timestamps, never manufacture repeated SSE events.
+        const key = createHash('sha256').update(block).digest('hex');
+        if (!this.observedEvents.has(key) && this.observedEvents.size < 1000) {
+          this.observedEvents.add(key);
+          this.timeline.push({ at: new Date().toISOString(), event: event!, taskId, assetId: safeId(data.assetId) });
+          if (this.timeline.length > 40) this.timeline.shift();
+        }
         const assetId = safeId(data.assetId); if (!assetId) continue;
         const asset = this.assets.get(assetId) ?? { assetId, terminal: false };
         asset.taskId = taskId ?? asset.taskId;
@@ -154,16 +183,44 @@ export class RunAssets {
   wasDeleteBlocked() { return this.deleteBlocked; }
   markDeleted(assetId: string) { const asset = this.assets.get(assetId); if (asset) asset.deleted = true; }
   recordCart(assetId: string, key: string) { this.cartLines.push({ assetId, key }); }
+  async captureFrontendState() {
+    // Read only: no view switch, reload, fetch, generation or task-state guess.
+    const state = await this.page.evaluate(() => {
+      const root = document.querySelector('#jjb-create-canvas .jjb-v3-viewer') ??
+        document.querySelector('.product-image-container .jjb-app');
+      if (!root) return { available: false, images: [], models: [], progress: [] };
+      const visible = (el: Element) => el.checkVisibility({ visibilityProperty: true });
+      return {
+        available: true,
+        progress: [...root.querySelectorAll('[role="progressbar"]')].filter(visible).slice(0, 5)
+          .map(el => ({ kind: /image/i.test(el.getAttribute('aria-label') ?? '') ? 'image' :
+            /model/i.test(el.getAttribute('aria-label') ?? '') ? 'model' : 'unknown',
+            percent: /^\d{1,3}$/.test(el.getAttribute('aria-valuenow') ?? '') ? Number(el.getAttribute('aria-valuenow')) : null })),
+        images: [...root.querySelectorAll<HTMLImageElement>('img')].slice(0, 10)
+          .map(el => ({ visible: visible(el), complete: el.complete, naturalWidth: el.naturalWidth, url: el.currentSrc })),
+        models: [...root.querySelectorAll('model-viewer')].slice(0, 5)
+          .map(el => ({ visible: visible(el), loaded: (el as Element & { loaded?: boolean }).loaded === true,
+            url: el.getAttribute('src') ?? '' })),
+      };
+    });
+    const resource = (url: string) => this.resourceStates.get(url) ?? {};
+    this.frontendState = { ...state, capturedAt: new Date().toISOString(),
+      images: state.images.map(({ url, ...image }) => ({ ...image, ...resource(url) })),
+      models: state.models.map(({ url, ...model }) => ({ ...model, ...resource(url) })) };
+  }
   snapshot() {
     return { version: 1, attemptId: this.attemptId, taskIds: [...this.taskIds], generationRequests: [...this.requests.values()],
       assets: [...this.assets.values()].map(({ imageUrl, ...asset }) => ({ ...asset, imageObserved: Boolean(imageUrl) })),
       cartLines: this.cartLines, gaps: [...this.gaps],
+      browserEvidence: { timeline: this.timeline, frontend: this.frontendState,
+        taskQuery: 'not-performed', timingBasis: 'browser-first-observed-or-completed-response' },
       unfinishedRequests: [...this.requests.values()].filter(r => !r.complete).length,
       caveat: '浏览器关闭不等于任务取消；未完整收到响应的任务状态未知，不自动清理或借用上轮ID。' };
   }
   async dispose() {
     this.disposed = true; this.armed = false;
     this.page.off('request', this.onRequest); this.page.off('response', this.onResponse);
+    this.page.off('response', this.observeResource); this.page.off('requestfailed', this.observeResourceFailure);
     if (this.guarding) await this.page.unroute('**/apps/ai/activity/assets/**', this.deleteGuard);
     await this.cdp?.detach().catch(() => {});
   }

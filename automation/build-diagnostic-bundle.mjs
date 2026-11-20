@@ -2,6 +2,7 @@ import { readFile, mkdir, writeFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { collectGenerationEvidence } from './generation-evidence.mjs';
 import { failureCategory } from './failure-category.mjs';
+import { sanitizeBrowserEvidence } from './generation-browser-evidence.mjs';
 
 // Text-only evidence for the read-only bot. Videos stay in separate artifacts.
 export function redact(text) {
@@ -58,6 +59,7 @@ export function sanitizeRunAssets(value) {
   const at = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v) ? v : undefined;
   const array = v => Array.isArray(v) ? v.slice(0,100) : [];
   return {version:1,attemptId:id(value?.attemptId),taskIds:array(value?.taskIds).map(id).filter(Boolean),
+    browserEvidence:sanitizeBrowserEvidence(value?.browserEvidence),
     generationRequests:array(value?.generationRequests).map(r=>({at:at(r.at),status:Number.isInteger(r.status)?r.status:undefined,traceId:id(r.traceId),requestId:id(r.requestId),complete:r.complete===true})),
     assets:array(value?.assets).map(a=>({assetId:id(a.assetId),taskId:id(a.taskId),traceId:id(a.traceId),terminal:a.terminal===true,deleted:a.deleted===true,imageObserved:a.imageObserved===true})),
     unfinishedRequests:Number.isSafeInteger(value?.unfinishedRequests)?value.unfinishedRequests:undefined,
