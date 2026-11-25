@@ -98,12 +98,32 @@ test('首页三个Create入口仅选择Primary主导航，保持真实点击跳�
   await expect(page).toHaveURL(origin + '/products/customize-your-own?variant=123');
 });
 
+for (const label of ['Create', 'create', 'CREATE', 'cReAtE']) {
+  test(`主导航名称大小写兼容：${label}，仍真实点击到创作页`, async ({ page }) => {
+    await page.goto(origin + '/healthy');
+    await page.setContent(`<nav aria-label="Primary"><a style="text-transform:capitalize" href="/products/customize-your-own">${label}</a></nav>`);
+    const create = new CreatePage(page);
+    await create.expectHomeCreateEntry(500);
+    await create.homeCreateLink.click();
+    await expect(page).toHaveURL(origin + '/products/customize-your-own');
+  });
+}
+
+test('可见Create与小写aria-label并存时按完整可访问名称匹配', async ({ page }) => {
+  await page.goto(origin + '/healthy');
+  await page.setContent('<nav aria-label="Primary"><a aria-label="create" href="/products/customize-your-own">Create</a></nav>');
+  await new CreatePage(page).expectHomeCreateEntry(500);
+});
+
 test('主导航缺失或重复不回退到其他Create链接', async ({ page }) => {
   await page.goto(origin + '/healthy');
   const create = new CreatePage(page);
   for (const html of [
     '<footer><a href="/products/customize-your-own">Create</a></footer>',
-    '<nav aria-label="Primary"><a href="/products/customize-your-own">Create</a><a href="/products/customize-your-own">Create</a></nav>'
+    '<nav aria-label="Primary"><a href="/products/customize-your-own">Create</a><a href="/products/customize-your-own">Create</a></nav>',
+    '<nav aria-label="Primary"><a href="/products/customize-your-own">Create</a><a href="/products/customize-your-own">create</a></nav>',
+    '<nav aria-label="Primary"><a href="/products/customize-your-own">Create now</a></nav>',
+    '<nav aria-label="Primary"><a href="/products/customize-your-own">Recreate</a></nav>'
   ]) {
     await page.setContent(html);
     await expect(create.expectHomeCreateEntry(100)).rejects.toThrow(/主导航应有且仅有一个/);

@@ -10,7 +10,7 @@ Playwright + TypeScript 游客态回归。此工程保留当前远端用例、�
 | --- | --- | --- |
 | TC-00 | 首页店铺身份、Logo、导航、Create入口、主要模块和视觉资源健康检查；促销条容器、样式和活动文案不作必需断言 | 每小时daily；无生成 |
 | TC-001 | 首页安全按钮、Tab、FAQ、币种和购物车入口交互，检查新增JS/5xx异常；促销条箭头仅存在时检查，缺省记录不适用 | 每日18:00独立巡检；无生成 |
-| TC-01 | 点击主导航唯一Create → 创作页 → 自定义器及Gallery可见 | 每小时daily；无生成 |
+| TC-01 | 点击主导航唯一Create（完整名称忽略大小写，仍校验可见性及同站创作页地址）→ 创作页 → 自定义器及Gallery可见 | 每小时daily；无生成 |
 | TC-02 | Free Style→TRPG→Free Style、Solo→Duo→Solo、Prompt编辑、Pro/Basic工具 | 每小时daily；无生成 |
 | TC-03 | 上传图片 → 真实生成2D/3D → 两秒旋转 → 本轮资产加购 → 购物车 → Checkout商品及支付入口 | 每小时daily；生成、加购；不支付 |
 | TC-04 | 上传→提交生成→直接返回Create→Generate可用；不等2D/3D、不重新上传、不点第二次Generate | 每小时daily；后台任务可能继续 |

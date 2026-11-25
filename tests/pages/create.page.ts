@@ -64,7 +64,9 @@ export class CreatePage {
 
   constructor(readonly page: Page) {
     this.homeCreateLink = page.getByRole('navigation', { name: 'Primary', exact: true })
-      .getByRole('link', { name: 'Create', exact: true });
+      // Theme text/capitalization may differ from the accessible name. Match the
+      // whole label without case sensitivity; keep scope, count and href checks.
+      .getByRole('link', { name: /^create$/i });
     const createCanvas = page.locator('#jjb-create-canvas');
     this.createTab = createCanvas.getByRole('button', { name: 'Create', exact: true });
     this.galleryTab = createCanvas.getByRole('button', { name: 'Gallery', exact: true });
