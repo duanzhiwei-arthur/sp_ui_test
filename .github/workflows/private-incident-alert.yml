@@ -1,0 +1,38 @@
+name: Private automation incident alert
+
+on:
+  workflow_run:
+    workflows: ['Scheduled UI regression', 'Daily homepage clickable audit']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: private-alert-${{ github.event.workflow_run.id || github.run_id }}-${{ github.event.workflow_run.run_attempt || 1 }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: github.repository == 'duanzhiwei-arthur/sp_ui_test' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Trusted default branch only. Never checkout source_run code or run artifacts.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Send important incidents privately
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_PRIVATE_ALERT_OPEN_ID: ${{ vars.FEISHU_PRIVATE_ALERT_OPEN_ID }}
+          PRIVATE_ALERT_VALIDATION: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
+        run: node automation/private-incident-alert.mjs

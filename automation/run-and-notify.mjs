@@ -118,6 +118,7 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
   }
   const startedAt = new Date();
   await rm(resultsFile, { force: true });
+  await rm(path.join(testResultsDir, 'notification-error.json'), { force: true });
 
   const playwrightBin = path.join(projectRoot, 'node_modules', '.bin', 'playwright');
   const playwrightArgs = canvasSuite ? ['test', `--config=${canvasConfig}`, '--retries=0'] : ['test', '--project=chromium', '--retries=0'];
@@ -217,6 +218,9 @@ if (process.argv.includes('--execution-record-preview') || process.argv.includes
     await sendFeishuNotification(message, summary.failureArtifacts, card, messageExitCode !== 0, summary);
   } catch (error) {
     console.error(`[feishu] 结果通知失败：${error instanceof Error ? error.message : String(error)}`);
+    // Independent workflow_run notifier consumes this; never change case verdict.
+    try { await writeFile(path.join(testResultsDir, 'notification-error.json'), JSON.stringify({ message: '飞书结果通知发送失败，请检查本次运行通知步骤及机器人配置。' })); }
+    catch { console.error('[feishu] 通知故障标记保存失败'); }
   }
 
   try {

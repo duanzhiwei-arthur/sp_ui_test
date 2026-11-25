@@ -5,6 +5,19 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildBundle, collectCases, normalizeTestFile, redact, sanitizeSiteAccess, sanitizeRunAssets, sanitizeGaCookie } from './build-diagnostic-bundle.mjs';
 
+test('notification failure marker reaches the independent notifier without changing test status', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'qa-notification-marker-'));
+  try {
+    await mkdir(path.join(root, 'test-results'));
+    await writeFile(path.join(root, 'test-results/results.json'), JSON.stringify({suites:[],errors:[]}));
+    await writeFile(path.join(root, 'test-results/notification-error.json'), JSON.stringify({message:'send failed token=private'}));
+    const bundle = await buildBundle(root, {GITHUB_RUN_ID:'123',GITHUB_RUN_ATTEMPT:'1'});
+    assert.match(bundle.notificationError,/send failed/);
+    assert.doesNotMatch(bundle.notificationError,/private/);
+    assert.deepEqual(bundle.errors, []);
+  } finally { await rm(root, {recursive:true,force:true}); }
+});
+
 test('mutation timing evidence survives for passed and failed cases',async()=>{
  const root=await mkdtemp(path.join(tmpdir(),'qa-mutation-times-'));
  try {

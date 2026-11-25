@@ -142,7 +142,10 @@ export async function buildBundle(root = process.cwd(), env = process.env) {
       runtimeDiagnostics,
       context, contextAvailable: Boolean(context) });
   }
-  const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA,
+  let notificationError;
+  try { notificationError = redact(JSON.parse(await readFile(path.join(resultsRoot, 'notification-error.json'), 'utf8')).message).slice(0, 500); }
+  catch { /* No notification failure marker. */ }
+  const bundle = { version: 1, runId: env.GITHUB_RUN_ID, headSha: env.GITHUB_SHA, notificationError,
     ...(env.SCHEDULED_TEST_MODE === 'selected' ? { selectedCaseIds: (env.SELECTED_CASE_IDS ?? '').split(',').filter(Boolean) } : {}),
     runAttempt: env.GITHUB_RUN_ATTEMPT, stats: report.stats,
     // Raw cases above remain first-attempt evidence; never claim recovery was
