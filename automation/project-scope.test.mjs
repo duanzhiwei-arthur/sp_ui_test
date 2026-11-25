@@ -1,8 +1,8 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 test('远端case和三个workflow保留，埋点及退役旧画板入口移除',()=>{
  for(const file of ['tests/00-safe-cases.spec.ts','tests/home-clickable.spec.ts','tests/full-flow-inventory.spec.ts','tests/generation.spec.ts','.github/workflows/ui-regression.yml','.github/workflows/homepage-clickable.yml','.github/workflows/feishu-failure-video.yml']) {
-   // 合并仓库副本不复制.github；仍检查原有case。
-   if(file.startsWith('.github/')&&!fs.existsSync('.github'))continue;
+   // 合并仓库有专用发布配置；可归档告警workflow但不承载原仓库调度。
+   if(file.startsWith('.github/')&&fs.existsSync('playwright.release.config.ts'))continue;
    assert.ok(fs.existsSync(file),file);
  }
  const hasFiles=p=>fs.existsSync(p)&&(fs.statSync(p).isDirectory()?fs.readdirSync(p).some(n=>hasFiles(`${p}/${n}`)):true);
